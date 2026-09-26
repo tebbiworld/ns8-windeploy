@@ -1,0 +1,10 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "run-deployment-now input",
+    "$id": "http://schema.nethserver.org/windeploy/run-deployment-now-input.json",
+    "description": "Run the packages of a deployment once on every computer at its next policy refresh, besides the schedule",
+    "examples": [{"id": "0123456789ab"}],
+    "type": "object",
+    "required": ["id"],
+    "properties": {"id": {"type": "string", "pattern": "^[0-9a-f]{12}$"}}
+}

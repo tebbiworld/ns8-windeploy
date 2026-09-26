@@ -38,6 +38,7 @@ class ReferenceXml(unittest.TestCase):
                 "sysvol",
                 script_unc="\\\\ad.example.com\\SYSVOL\\ad.example.com\\scripts\\softwareupdate\\nextcloud-update.ps1"),
             "schedule": {"frequency": "weekly", "days": ["Monday"], "time": "12:30", "start_date": "2026-09-21"},
+            "time_limit": "PT0S",  # the reference has no limit; the module default is PT2H
         }
         gen = ET.fromstring(gpogen.build_scheduled_tasks_xml([task]).encode("utf-8"))
         self.assertEqual(canonical(gen), canonical(ref))
@@ -64,6 +65,24 @@ class ReferenceXml(unittest.TestCase):
                  "schedule": {"frequency": "weekly", "days": ["Funday"], "time": "12:00", "start_date": "2026-01-01"}}])
         with self.assertRaises(gpogen.GenError):
             gpogen.task_arguments("sysvol", script_unc='\\\\x\\a".ps1')
+
+
+class Immediate(unittest.TestCase):
+    def test_immediate_task(self):
+        t = {"name": "windeploy now x", "uid": gpogen.new_uid(), "run_once_id": gpogen.new_uid(),
+             "changed": datetime.datetime(2026, 9, 26), "author": "windeploy", "arguments": "-x"}
+        root = ET.fromstring(gpogen.build_scheduled_tasks_xml([], [t]).encode())
+        it = root.find("ImmediateTaskV2")
+        self.assertEqual(it.find("Properties").get("runAs"), "NT AUTHORITY\\System")
+        self.assertEqual(it.find("Filters/FilterRunOnce").get("id"), t["run_once_id"].upper())
+        self.assertEqual(it.find(".//ExecutionTimeLimit").text, "PT2H")
+        self.assertEqual(it.find(".//DeleteExpiredTaskAfter").text, "PT0S")
+
+    def test_default_time_limit(self):
+        t = {"name": "a", "uid": gpogen.new_uid(), "changed": datetime.datetime(2026, 1, 1), "arguments": "-x",
+             "schedule": {"frequency": "daily", "time": "08:00", "start_date": "2026-01-01"}}
+        root = ET.fromstring(gpogen.build_scheduled_tasks_xml([t]).encode())
+        self.assertEqual(root.find(".//ExecutionTimeLimit").text, "PT2H")
 
 
 class ExtensionNames(unittest.TestCase):

@@ -111,10 +111,15 @@ def validate_connection(s):
 # -------------------------------------------------------- samba runner ---
 
 def run_tool(request, settings=None, timeout=300):
-    """Run one gpowrite request in the windeploy-samba image."""
+    """Run one gpowrite request in the windeploy-samba image. The provision
+    request carries its own (admin) credentials in the request body."""
     s = settings or connection_settings()
+    if request.get("op") == "provision":
+        s = dict(s, user=s.get("user") or "none")
     validate_connection(s)
     password = modsecrets.get("GPO_PASSWORD")
+    if request.get("op") == "provision":
+        password = password or "unused"
     if not password:
         raise ValueError("the service account password is not set")
     image = os.environ.get(SAMBA_IMAGE_ENV)
@@ -225,6 +230,14 @@ def build_files(deployment, settings):
     if deployment.get("delivery") != "sysvol":
         for rel in keep:
             files[rel] = None
-    xml = gpogen.build_scheduled_tasks_xml(tasks)
+    immediate = []
+    if deployment.get("run_now_id"):
+        # "Run now": one run-once immediate task per package; a new
+        # run_now_id makes every computer run it once more.
+        for pkg, task in zip(deployment["packages"], tasks):
+            pkg.setdefault("now_uid", gpogen.new_uid())
+            immediate.append(dict(task, name=("windeploy now " + pkg["id"])[:100], uid=pkg["now_uid"],
+                                  run_once_id=deployment["run_now_id"]))
+    xml = gpogen.build_scheduled_tasks_xml(tasks, immediate)
     files["Machine/Preferences/ScheduledTasks/ScheduledTasks.xml"] = base64.b64encode(xml.encode("utf-8")).decode()
     return files

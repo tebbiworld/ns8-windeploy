@@ -24,6 +24,16 @@
         />
       </cv-column>
     </cv-row>
+    <cv-row v-if="runNow.message">
+      <cv-column>
+        <NsInlineNotification
+          :kind="runNow.failed ? 'error' : 'success'"
+          :title="$t('deployments.run_now')"
+          :description="runNow.message"
+          @close="runNow.message = ''"
+        />
+      </cv-column>
+    </cv-row>
     <cv-row>
       <cv-column class="toolbar">
         <NsButton kind="primary" :icon="Add20" @click="openEditor(null)">{{
@@ -90,6 +100,13 @@
                       }}
                     </div>
                     <div class="muted guid">{{ d.gpo_guid }}</div>
+                    <div v-if="d.run_now_at" class="muted small">
+                      {{
+                        $t("deployments.run_now_at", {
+                          date: formatDate(d.run_now_at),
+                        })
+                      }}
+                    </div>
                   </template>
                   <span v-else-if="d.gpo" class="bad">{{
                     $t("deployments.gpo_missing")
@@ -97,6 +114,15 @@
                   <span v-else class="muted">{{ d.gpo_guid || "-" }}</span>
                 </td>
                 <td class="actions">
+                  <NsButton
+                    kind="ghost"
+                    size="small"
+                    :icon="Play20"
+                    :loading="runNow.id === d.id"
+                    :disabled="!!runNow.id"
+                    @click="runDeploymentNow(d)"
+                    >{{ $t("deployments.run_now") }}</NsButton
+                  >
                   <NsButton
                     kind="ghost"
                     size="small"
@@ -387,6 +413,7 @@ import Add20 from "@carbon/icons-vue/es/add/20";
 import Edit20 from "@carbon/icons-vue/es/edit/20";
 import Renew20 from "@carbon/icons-vue/es/renew/20";
 import TrashCan20 from "@carbon/icons-vue/es/trash-can/20";
+import Play20 from "@carbon/icons-vue/es/play/20";
 import {
   QueryParamService,
   UtilService,
@@ -430,6 +457,8 @@ export default {
       Edit20,
       Renew20,
       TrashCan20,
+      Play20,
+      runNow: { id: "", message: "", failed: false },
       weekdays: WEEKDAYS,
       deployments: [],
       targets: [],
@@ -683,6 +712,31 @@ export default {
         }
       } finally {
         this.loading.save = false;
+      }
+    },
+    async runDeploymentNow(d) {
+      this.runNow = { id: d.id, message: "", failed: false };
+      try {
+        await this.runModuleTask(
+          "run-deployment-now",
+          { id: d.id },
+          {
+            title: this.$t("deployments.run_now_task", { name: d.name }),
+            hidden: false,
+          }
+        );
+        this.runNow = {
+          id: "",
+          message: this.$t("deployments.run_now_done", { name: d.name }),
+          failed: false,
+        };
+        this.listDeployments();
+      } catch (e) {
+        this.runNow = {
+          id: "",
+          message: this.$t("deployments.run_now_failed"),
+          failed: true,
+        };
       }
     },
     askRemove(d) {

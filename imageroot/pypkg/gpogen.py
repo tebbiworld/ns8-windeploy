@@ -33,6 +33,11 @@ WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", 
 MODES = ("upgrade", "install")
 DELIVERIES = ("sysvol", "embedded")
 
+# A hung installer (e.g. an EXE package that waits for a desktop) would
+# block every later package through the mutex: stop runs after two hours.
+DEFAULT_TIME_LIMIT = "PT2H"
+TIME_LIMIT_RE = re.compile(r"^PT(0S|[1-9][0-9]?H)$")
+
 TASK_NAME_RE = re.compile(r"^[\w][\w .()+\-]{0,99}$")
 TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -190,6 +195,13 @@ def task_arguments(delivery, script_unc=None, script_text=None):
     raise GenError(f"invalid delivery {delivery!r}")
 
 
+def _time_limit(task):
+    limit = task.get("time_limit", DEFAULT_TIME_LIMIT)
+    if not TIME_LIMIT_RE.match(limit):
+        raise GenError(f"invalid time limit {limit!r}")
+    return limit
+
+
 def build_task(task):
     """One <TaskV2> element. task keys: name, uid, changed (datetime),
     author, arguments, schedule."""
@@ -218,7 +230,7 @@ def build_task(task):
         '<RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>'
         '<AllowStartOnDemand>true</AllowStartOnDemand>'
         '<Enabled>true</Enabled><Hidden>false</Hidden><RunOnlyIfIdle>false</RunOnlyIfIdle>'
-        '<WakeToRun>false</WakeToRun><ExecutionTimeLimit>PT0S</ExecutionTimeLimit><Priority>7</Priority>'
+        f'<WakeToRun>false</WakeToRun><ExecutionTimeLimit>{_time_limit(task)}</ExecutionTimeLimit><Priority>7</Priority>'
         '</Settings>'
         f'<Triggers>{_trigger(task["schedule"])}</Triggers>'
         '<Actions Context="Author"><Exec><Command>powershell.exe</Command>'
@@ -227,12 +239,56 @@ def build_task(task):
     )
 
 
-def build_scheduled_tasks_xml(tasks):
-    """Complete ScheduledTasks.xml (UTF-8 text) for a list of tasks."""
-    names = [t["name"] for t in tasks]
+def build_immediate_task(task):
+    """One <ImmediateTaskV2>: runs once when the policy is applied and is
+    deleted afterwards. The run-once filter id makes every computer run it
+    a single time; a new id (a new "run now") runs it again."""
+    name = task["name"]
+    if not TASK_NAME_RE.match(name):
+        raise GenError(f"invalid task name {name!r}")
+    uid = task["uid"].upper()
+    run_id = task["run_once_id"].upper()
+    for g in (uid, run_id):
+        if not GUID_RE.fullmatch(g):
+            raise GenError(f"invalid GUID {g!r}")
+    changed = task["changed"].strftime("%Y-%m-%d %H:%M:%S")
+    return (
+        f'<ImmediateTaskV2 clsid="{{9756B581-76EC-4169-9AFC-0CA8D43ADB5F}}" name={quoteattr(name)} image="0" '
+        f'changed="{changed}" uid="{uid}" userContext="0" removePolicy="0">'
+        f'<Properties action="C" name={quoteattr(name)} runAs="NT AUTHORITY\\System" logonType="S4U">'
+        '<Task version="1.3">'
+        f'<RegistrationInfo><Author>{escape(task.get("author", ""))}</Author><Description>{escape(task.get("description", ""))}</Description></RegistrationInfo>'
+        '<Principals><Principal id="Author"><UserId>NT AUTHORITY\\System</UserId>'
+        '<LogonType>S4U</LogonType><RunLevel>HighestAvailable</RunLevel></Principal></Principals>'
+        '<Settings><IdleSettings><Duration>PT5M</Duration><WaitTimeout>PT1H</WaitTimeout>'
+        '<StopOnIdleEnd>false</StopOnIdleEnd><RestartOnIdle>false</RestartOnIdle></IdleSettings>'
+        '<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>'
+        '<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>'
+        '<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>'
+        '<AllowHardTerminate>false</AllowHardTerminate>'
+        '<StartWhenAvailable>true</StartWhenAvailable>'
+        '<AllowStartOnDemand>false</AllowStartOnDemand>'
+        '<Enabled>true</Enabled><Hidden>false</Hidden>'
+        '<DeleteExpiredTaskAfter>PT0S</DeleteExpiredTaskAfter>'
+        f'<ExecutionTimeLimit>{_time_limit(task)}</ExecutionTimeLimit><Priority>7</Priority>'
+        '</Settings>'
+        '<Triggers><TimeTrigger><StartBoundary>%LocalTimeXmlEx%</StartBoundary>'
+        '<EndBoundary>%LocalTimeXmlEx%</EndBoundary><Enabled>true</Enabled></TimeTrigger></Triggers>'
+        '<Actions Context="Author"><Exec><Command>powershell.exe</Command>'
+        f'<Arguments>{escape(task["arguments"])}</Arguments></Exec></Actions>'
+        '</Task></Properties>'
+        f'<Filters><FilterRunOnce hidden="1" not="0" bool="AND" id="{run_id}"/></Filters>'
+        '</ImmediateTaskV2>'
+    )
+
+
+def build_scheduled_tasks_xml(tasks, immediate=()):
+    """Complete ScheduledTasks.xml (UTF-8 text) for a list of scheduled
+    tasks and optional run-once immediate tasks."""
+    names = [t["name"] for t in list(tasks) + list(immediate)]
     if len(set(n.lower() for n in names)) != len(names):
         raise GenError("task names must be unique within a GPO")
-    body = "".join(build_task(t) for t in tasks)
+    body = "".join(build_task(t) for t in tasks) + "".join(build_immediate_task(t) for t in immediate)
     return ('<?xml version="1.0" encoding="utf-8"?>\r\n'
             '<ScheduledTasks clsid="{CC63F200-7309-4ba0-B154-A71CD118DBCC}">'
             + body + "</ScheduledTasks>")
