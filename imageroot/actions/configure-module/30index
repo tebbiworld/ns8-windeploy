@@ -1,0 +1,14 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Keep the winget package index fresh: daily timer, first download now.
+
+exec 1>&2
+systemctl --user enable --now windeploy-index.timer
+if [[ ! -f wingetindex/index.db ]]; then
+    systemctl --user start --no-block windeploy-index.service
+fi

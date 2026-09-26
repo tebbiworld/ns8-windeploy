@@ -1,8 +1,22 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "get-configuration output",
-    "$id": "http://schema.nethserver.org/kickstart/get-configuration-output.json",
-    "description": "Get kickstart configuration",
-    "examples": [],
-    "type": "object"
+    "$id": "http://schema.nethserver.org/windeploy/get-configuration-output.json",
+    "type": "object",
+    "required": ["domain", "username", "password_set", "domains", "index", "deployments"],
+    "properties": {
+        "domain": {"type": "string"},
+        "dc_host": {"type": "string"},
+        "dc_ip": {"type": "string"},
+        "realm": {"type": "string"},
+        "workgroup": {"type": "string"},
+        "username": {"type": "string"},
+        "password_set": {"type": "boolean", "description": "The password itself is never returned"},
+        "default_delivery": {"type": "string", "enum": ["sysvol", "embedded"]},
+        "domains": {"type": "array"},
+        "effective": {"type": "object"},
+        "rights": {"type": ["object", "null"]},
+        "index": {"type": "object"},
+        "deployments": {"type": "integer"}
+    }
 }

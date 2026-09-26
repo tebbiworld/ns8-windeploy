@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Store the connection settings (state/environment) and the service
+# account password (state/passwords.env, never in the environment: that is
+# mirrored to Redis in plain text).
+
+import json
+import sys
+
+import agent
+import modsecrets
+
+request = json.load(sys.stdin)
+
+agent.mset_env({
+    "GPO_DOMAIN": request.get("domain", ""),
+    "GPO_DC_HOST": request.get("dc_host", ""),
+    "GPO_DC_IP": request.get("dc_ip", ""),
+    "GPO_REALM": request.get("realm", "").upper(),
+    "GPO_WORKGROUP": request.get("workgroup", "").upper(),
+    "GPO_USER": request["username"],
+})
+if request.get("default_delivery"):
+    agent.set_env("DEFAULT_DELIVERY", request["default_delivery"])
+if request.get("password"):
+    modsecrets.write({"GPO_PASSWORD": request["password"]})

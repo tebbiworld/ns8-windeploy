@@ -1,0 +1,9 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Download the package index now (the UI button); forced, ignores the ETag.
+exec refresh-index --force

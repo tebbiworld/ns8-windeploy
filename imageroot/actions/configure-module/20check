@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Bind with the service account and check its rights. A failed bind is a
+# validation error on the password field; missing delegations are only
+# reported (get-configuration shows them), the admin may add them later.
+
+import json
+import sys
+
+import agent
+import modsecrets
+import wdcommon
+
+request = json.load(sys.stdin)
+env = agent.read_envfile("environment")
+settings = wdcommon.connection_settings(env)
+
+try:
+    wdcommon.validate_connection(settings)
+except ValueError as ex:
+    agent.set_status("validation-failed")
+    json.dump([{"field": "domain", "parameter": "domain", "value": request.get("domain", ""),
+                "error": "dc_not_resolved"}], fp=sys.stdout)
+    print(agent.SD_ERR + str(ex), file=sys.stderr)
+    sys.exit(3)
+
+if not modsecrets.get("GPO_PASSWORD"):
+    agent.set_status("validation-failed")
+    json.dump([{"field": "password", "parameter": "password", "value": "", "error": "password_required"}], fp=sys.stdout)
+    sys.exit(3)
+
+try:
+    result = wdcommon.run_tool({"op": "check"}, settings=settings, timeout=120)
+except wdcommon.ToolError as ex:
+    msg = str(ex)
+    print(agent.SD_ERR + "check failed: " + msg, file=sys.stderr)
+    agent.set_status("validation-failed")
+    error = "bind_failed" if ("49" in msg or "LOGON_FAILURE" in msg or "credentials" in msg.lower()) else "dc_unreachable"
+    json.dump([{"field": "password" if error == "bind_failed" else "dc_ip",
+                "parameter": "password" if error == "bind_failed" else "dc_ip",
+                "value": "", "error": error}], fp=sys.stdout)
+    sys.exit(3)
+
+with open("rights.json", "w") as f:
+    json.dump(result, f)
+for key in ("can_create_gpo", "can_link_domain", "sysvol"):
+    if not result.get(key):
+        print(agent.SD_WARNING + f"service account lacks {key}", file=sys.stderr)

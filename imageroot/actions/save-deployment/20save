@@ -1,0 +1,127 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Create or update a deployment.
+#
+# Order: validate everything offline, create the GPO if needed, write the
+# files (gpowrite bumps the version and keeps a backup of the previous
+# files), adjust the links, and only then store the deployment. If AD
+# refuses a step the stored list keeps its previous state; a GPO created
+# in this run is removed again.
+
+import copy
+import json
+import os
+import sys
+
+import agent
+import gpogen
+import wdcommon
+import wingetindex
+
+request = json.load(sys.stdin)
+
+
+def fail(field, value, error):
+    agent.set_status("validation-failed")
+    json.dump([{"field": field, "parameter": field, "value": value, "error": error}], fp=sys.stdout)
+    sys.exit(3)
+
+
+# --- offline validation ----------------------------------------------------
+ids = [p["id"] for p in request["packages"]]
+if len(set(i.lower() for i in ids)) != len(ids):
+    fail("packages", ids, "duplicate_package")
+state = wdcommon.state_dir()
+for pid in ids:
+    if not wingetindex.valid_package_id(pid):
+        fail("packages", pid, "invalid_package_id")
+    try:
+        if wingetindex.lookup(state, pid) is None:
+            fail("packages", pid, "package_not_in_index")
+    except wingetindex.IndexError_:
+        fail("packages", pid, "index_missing")
+schedule = request["schedule"]
+if schedule["frequency"] == "weekly" and not schedule.get("days"):
+    fail("schedule.days", [], "weekday_required")
+
+settings = wdcommon.connection_settings()
+try:
+    wdcommon.validate_connection(settings)
+except ValueError as ex:
+    print(agent.SD_ERR + str(ex), file=sys.stderr)
+    fail("domain", settings.get("domain", ""), "not_configured")
+
+current = wdcommon.read_deployments()["deployments"]
+old = None
+if request.get("id"):
+    old = next((d for d in current if d["id"] == request["id"]), None)
+    if old is None:
+        fail("id", request["id"], "deployment_not_found")
+for d in current:
+    if d["name"].lower() == request["name"].lower() and d["id"] != request.get("id"):
+        fail("name", request["name"], "name_in_use")
+
+deployment = copy.deepcopy(old) if old else {"id": wdcommon.new_id(), "gpo_guid": "", "link_targets": [], "_scripts": []}
+old_packages = {p["id"]: p for p in (old or {}).get("packages", [])}
+deployment["name"] = request["name"]
+deployment["schedule"] = {k: v for k, v in schedule.items() if k in ("frequency", "days", "time", "start_date", "random_delay_minutes")}
+deployment["delivery"] = request.get("delivery") or os.environ.get("DEFAULT_DELIVERY", "sysvol")
+deployment["packages"] = []
+for p in request["packages"]:
+    entry = {"id": p["id"], "mode": p.get("mode", "upgrade")}
+    if p["id"] in old_packages and old_packages[p["id"]].get("task_uid"):
+        entry["task_uid"] = old_packages[p["id"]]["task_uid"]  # same task on the clients
+    deployment["packages"].append(entry)
+
+# Generate once offline: bad input fails here, before AD is touched.
+probe = copy.deepcopy(deployment)
+probe["gpo_guid"] = probe["gpo_guid"] or "{00000000-0000-0000-0000-000000000001}"
+try:
+    wdcommon.build_files(probe, settings)
+except gpogen.GenError as ex:
+    print(agent.SD_ERR + str(ex), file=sys.stderr)
+    fail("packages", ids, "generation_failed")
+
+# --- AD --------------------------------------------------------------------
+created = False
+try:
+    agent.set_progress(10)
+    if not deployment["gpo_guid"]:
+        res = wdcommon.run_tool({"op": "create", "display_name": "windeploy: " + deployment["name"]}, settings=settings)
+        deployment["gpo_guid"] = res["guid"]
+        created = True
+    agent.set_progress(40)
+    files = wdcommon.build_files(deployment, settings)
+    res = wdcommon.run_tool({"op": "apply", "guid": deployment["gpo_guid"], "files": files,
+                             "backup_dir": "/backup"}, settings=settings)
+    deployment["version"] = res["version"]
+    agent.set_progress(70)
+    wanted = list(dict.fromkeys(request["link_targets"]))
+    for dn in wanted:
+        if dn not in deployment["link_targets"]:
+            wdcommon.run_tool({"op": "link", "guid": deployment["gpo_guid"], "target_dn": dn}, settings=settings)
+    for dn in deployment["link_targets"]:
+        if dn not in wanted:
+            wdcommon.run_tool({"op": "unlink", "guid": deployment["gpo_guid"], "target_dn": dn}, settings=settings)
+    deployment["link_targets"] = wanted
+except (wdcommon.ToolError, ValueError) as ex:
+    print(agent.SD_ERR + "saving the deployment failed: " + str(ex), file=sys.stderr)
+    if created:
+        try:
+            for dn in request["link_targets"]:
+                wdcommon.run_tool({"op": "unlink", "guid": deployment["gpo_guid"], "target_dn": dn}, settings=settings)
+            wdcommon.run_tool({"op": "delete", "guid": deployment["gpo_guid"]}, settings=settings)
+        except Exception as cleanup:
+            print(agent.SD_ERR + f"could not remove the new GPO {deployment['gpo_guid']}: {cleanup}", file=sys.stderr)
+    sys.exit(1)
+
+with wdcommon.deployments_locked() as data:
+    data["deployments"] = [d for d in data["deployments"] if d["id"] != deployment["id"]] + [deployment]
+agent.set_progress(100)
+print(agent.SD_INFO + f"deployment {deployment['name']!r} saved in GPO {deployment['gpo_guid']} version {deployment.get('version')}", file=sys.stderr)
+json.dump({"id": deployment["id"], "gpo_guid": deployment["gpo_guid"], "version": deployment.get("version")}, fp=sys.stdout)

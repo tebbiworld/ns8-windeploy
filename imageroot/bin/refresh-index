@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Download the winget community index if it changed (ETag).
+# Output: the index metadata as JSON on stdout.
+
+import json
+import os
+import sys
+
+import agent
+import wingetindex
+
+state = os.environ.get("AGENT_STATE_DIR") or os.getcwd()
+force = "--force" in sys.argv
+try:
+    meta, changed = wingetindex.refresh(state, force=force)
+except (wingetindex.IndexError_, OSError) as ex:
+    print(agent.SD_ERR + f"index refresh failed: {ex}", file=sys.stderr)
+    sys.exit(1)
+except Exception as ex:  # requests errors (DNS, TLS, timeout)
+    print(agent.SD_ERR + f"index refresh failed: {type(ex).__name__}: {ex}", file=sys.stderr)
+    sys.exit(1)
+print(agent.SD_INFO + ("index updated: " if changed else "index unchanged: ")
+      + f"{meta.get('packages')} packages, CDN state {meta.get('last_modified')}", file=sys.stderr)
+json.dump(meta, sys.stdout)

@@ -1,8 +1,71 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "configure-module input",
-    "$id": "http://schema.nethserver.org/kickstart/configure-module-input.json",
-    "description": "Configure kickstart",
-    "examples": [],
-    "type": "object"
+    "$id": "http://schema.nethserver.org/windeploy/configure-module-input.json",
+    "description": "Connect windeploy to an Active Directory domain with a delegated service account",
+    "examples": [
+        {
+            "domain": "ad.example.com",
+            "username": "svc-gpodeploy",
+            "password": "Secret-1234"
+        },
+        {
+            "domain": "",
+            "dc_host": "dc01.ad.example.com",
+            "dc_ip": "192.168.1.10",
+            "realm": "AD.EXAMPLE.COM",
+            "workgroup": "EXAMPLE",
+            "username": "svc-gpodeploy",
+            "password": "",
+            "default_delivery": "embedded"
+        }
+    ],
+    "type": "object",
+    "required": ["username"],
+    "properties": {
+        "domain": {
+            "description": "NS8 user domain (Samba AD provider); DC address, realm and NetBIOS name are taken from it. Empty for a domain not managed by NS8",
+            "type": "string",
+            "maxLength": 253,
+            "pattern": "^([A-Za-z0-9-]{1,63}(\\.[A-Za-z0-9-]{1,63})*)?$"
+        },
+        "dc_host": {
+            "description": "DNS name of the domain controller (overrides the NS8 domain)",
+            "type": "string",
+            "maxLength": 253,
+            "pattern": "^([A-Za-z0-9-]{1,63}(\\.[A-Za-z0-9-]{1,63})*)?$"
+        },
+        "dc_ip": {
+            "description": "IPv4 address of the domain controller",
+            "type": "string",
+            "anyOf": [{"format": "ipv4"}, {"maxLength": 0}]
+        },
+        "realm": {
+            "type": "string",
+            "maxLength": 253,
+            "pattern": "^([A-Za-z0-9-]{1,63}(\\.[A-Za-z0-9-]{1,63})*)?$"
+        },
+        "workgroup": {
+            "description": "NetBIOS domain name",
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]{0,15}$"
+        },
+        "username": {
+            "description": "sAMAccountName of the delegated service account (not a domain admin)",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20,
+            "pattern": "^[A-Za-z0-9._-]+$"
+        },
+        "password": {
+            "description": "Password of the service account; empty keeps the stored one",
+            "type": "string",
+            "maxLength": 256
+        },
+        "default_delivery": {
+            "description": "How new deployments hand the script to the task: from SYSVOL or embedded as -EncodedCommand",
+            "type": "string",
+            "enum": ["sysvol", "embedded"]
+        }
+    }
 }

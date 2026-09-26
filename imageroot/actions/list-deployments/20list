@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Deployments with the live state of their GPOs (version, links).
+
+import json
+import sys
+
+import agent
+import wdcommon
+
+data = wdcommon.read_deployments()
+deployments = data["deployments"]
+live = {}
+error = ""
+guids = [d["gpo_guid"] for d in deployments if d.get("gpo_guid")]
+if guids:
+    try:
+        live = {g["guid"]: g for g in wdcommon.run_tool({"op": "list", "guids": guids}, timeout=120)}
+    except (wdcommon.ToolError, ValueError) as ex:
+        error = str(ex)
+        print(agent.SD_WARNING + "cannot read the GPOs: " + error, file=sys.stderr)
+out = []
+for d in deployments:
+    item = {k: v for k, v in d.items() if not k.startswith("_")}
+    item["gpo"] = live.get(d.get("gpo_guid"))
+    out.append(item)
+json.dump({"deployments": out, "error": error}, fp=sys.stdout)

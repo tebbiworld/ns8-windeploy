@@ -1,35 +1,23 @@
 #!/usr/bin/env python3
 
 #
-# Copyright (C) 2023 Nethesis S.r.l.
+# Copyright (C) 2026 tebbi
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-# Remove traefik route
+# Removing the module does not touch AD: the GPOs of the deployments stay
+# linked and keep running on the clients. They are listed in the log so
+# the admin can remove them (or remove the deployments first).
 
-import os
-import sys
 import json
+import subprocess
+import sys
+
 import agent
-import agent.tasks
+import wdcommon
 
-# Try to parse the stdin as JSON.
-# If parsing fails, output everything to stderr
-data = json.load(sys.stdin)
-
-# Find default traefik instance for current node
-default_traefik_id = agent.resolve_agent_id('traefik@node')
-if default_traefik_id is None:
-    sys.exit(2)
-
-# Remove traefik route
-response = agent.tasks.run(
-    agent_id=default_traefik_id,
-    action='delete-route',
-    data={
-        'instance': os.environ['MODULE_ID']
-    },
-)
-
-# Check if traefik configuration has been successfull
-agent.assert_exp(response['exit_code'] == 0)
+subprocess.run(["systemctl", "--user", "disable", "--now", "windeploy-index.timer"], check=False)
+for d in wdcommon.read_deployments()["deployments"]:
+    if d.get("gpo_guid"):
+        print(agent.SD_WARNING + f"GPO {d['gpo_guid']} ({d['name']}) stays in AD, linked to {', '.join(d.get('link_targets', [])) or 'nothing'}",
+              file=sys.stderr)

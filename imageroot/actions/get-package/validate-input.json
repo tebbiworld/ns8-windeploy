@@ -1,0 +1,9 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "get-package input",
+    "$id": "http://schema.nethserver.org/windeploy/get-package-input.json",
+    "examples": [{"id": "Nextcloud.NextcloudDesktop"}],
+    "type": "object",
+    "required": ["id"],
+    "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 128}}
+}

@@ -1,0 +1,12 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "search-packages input",
+    "$id": "http://schema.nethserver.org/windeploy/search-packages-input.json",
+    "examples": [{"query": "nextcloud", "limit": 50}],
+    "type": "object",
+    "required": ["query"],
+    "properties": {
+        "query": {"type": "string", "minLength": 1, "maxLength": 100},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 200}
+    }
+}

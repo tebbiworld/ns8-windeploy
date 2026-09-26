@@ -1,0 +1,13 @@
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+[Unit]
+Description=Refresh the winget package index of %u
+
+[Service]
+Type=oneshot
+WorkingDirectory=%S/state
+ExecStart=runagent %S/bin/refresh-index
+SyslogIdentifier=%u
