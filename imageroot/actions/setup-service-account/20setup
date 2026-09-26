@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# One-time setup from the UI: with domain admin credentials (used for this
+# request only, never stored or logged) create or reset the service
+# account, give it the rights it needs, then store it through
+# configure-module (which also re-checks the rights).
+
+import json
+import os
+import secrets
+import string
+import sys
+
+import agent
+import wdcommon
+
+request = json.load(sys.stdin)
+
+env = {
+    "GPO_DOMAIN": request.get("domain", ""),
+    "GPO_DC_HOST": request.get("dc_host", ""),
+    "GPO_DC_IP": request.get("dc_ip", ""),
+    "GPO_REALM": request.get("realm", "").upper(),
+    "GPO_WORKGROUP": request.get("workgroup", "").upper(),
+    "GPO_USER": request["username"],
+}
+settings = wdcommon.connection_settings(env)
+try:
+    wdcommon.validate_connection(settings)
+except ValueError as ex:
+    print(agent.SD_ERR + str(ex), file=sys.stderr)
+    agent.set_status("validation-failed")
+    json.dump([{"field": "domain", "parameter": "domain", "value": request.get("domain", ""), "error": "dc_not_resolved"}], fp=sys.stdout)
+    sys.exit(3)
+
+# Long random password with all four character classes (AD complexity).
+alphabet = string.ascii_letters + string.digits
+password = "".join(secrets.choice(alphabet) for _ in range(28)) + secrets.choice("!#%+-=") + "aZ9"
+
+try:
+    result = wdcommon.run_tool({
+        "op": "provision",
+        "admin_user": request["admin_user"],
+        "admin_password": request["admin_password"],
+        "username": request["username"],
+        "password": password,
+        "link_targets": request.get("link_targets") or [],
+    }, settings=settings, timeout=180)
+except wdcommon.ToolError as ex:
+    msg = str(ex)
+    print(agent.SD_ERR + "service account setup failed: " + msg, file=sys.stderr)
+    agent.set_status("validation-failed")
+    if "49" in msg or "LOGON_FAILURE" in msg or "credentials" in msg.lower():
+        error, field = "admin_bind_failed", "admin_password"
+    elif "INSUFFICIENT_ACCESS" in msg or "50" in msg:
+        error, field = "admin_not_allowed", "admin_user"
+    else:
+        error, field = "setup_failed", "admin_user"
+    json.dump([{"field": field, "parameter": field, "value": "", "error": error}], fp=sys.stdout)
+    sys.exit(3)
+
+print(agent.SD_INFO + f"service account {result['username']} ready: {', '.join(result['steps']) or 'nothing to change'}", file=sys.stderr)
+
+data = {
+    "domain": request.get("domain", ""),
+    "dc_host": request.get("dc_host", ""),
+    "dc_ip": request.get("dc_ip", ""),
+    "realm": request.get("realm", ""),
+    "workgroup": request.get("workgroup", ""),
+    "username": request["username"],
+    "password": password,
+}
+response = agent.tasks.run(agent_id=os.environ["AGENT_ID"], action="configure-module", data=data)
+agent.assert_exp(response["exit_code"] == 0, "The configure-module subtask failed!")
+json.dump({"username": result["username"], "steps": result["steps"]}, fp=sys.stdout)

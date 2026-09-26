@@ -1,0 +1,22 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "setup-service-account input",
+    "$id": "http://schema.nethserver.org/windeploy/setup-service-account-input.json",
+    "description": "Create (or reset) the delegated service account with domain admin credentials that are used once and not stored",
+    "examples": [
+        {"domain": "ad.example.com", "admin_user": "administrator", "admin_password": "Secret", "username": "svc-windeploy"}
+    ],
+    "type": "object",
+    "required": ["admin_user", "admin_password", "username"],
+    "properties": {
+        "domain": {"type": "string", "maxLength": 253, "pattern": "^([A-Za-z0-9-]{1,63}(\\.[A-Za-z0-9-]{1,63})*)?$"},
+        "dc_host": {"type": "string", "maxLength": 253, "pattern": "^([A-Za-z0-9-]{1,63}(\\.[A-Za-z0-9-]{1,63})*)?$"},
+        "dc_ip": {"type": "string", "anyOf": [{"format": "ipv4"}, {"maxLength": 0}]},
+        "realm": {"type": "string", "maxLength": 253, "pattern": "^([A-Za-z0-9-]{1,63}(\\.[A-Za-z0-9-]{1,63})*)?$"},
+        "workgroup": {"type": "string", "pattern": "^[A-Za-z0-9-]{0,15}$"},
+        "admin_user": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9._@-]+$"},
+        "admin_password": {"type": "string", "minLength": 1, "maxLength": 256},
+        "username": {"type": "string", "minLength": 1, "maxLength": 20, "pattern": "^[A-Za-z0-9._-]+$"},
+        "link_targets": {"type": "array", "maxItems": 20, "items": {"type": "string", "minLength": 3, "maxLength": 512}}
+    }
+}

@@ -7,6 +7,7 @@ import VueRouter from "vue-router";
 import Status from "../views/Status.vue";
 import Settings from "../views/Settings.vue";
 import Deployments from "../views/Deployments.vue";
+import Guide from "../views/Guide.vue";
 
 Vue.use(VueRouter);
 
@@ -21,6 +22,11 @@ const routes = [
     path: "/deployments",
     name: "Deployments",
     component: Deployments,
+  },
+  {
+    path: "/guide",
+    name: "Guide",
+    component: Guide,
   },
   {
     path: "/settings",

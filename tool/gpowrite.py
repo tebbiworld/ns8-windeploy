@@ -33,6 +33,11 @@ Requests (field "op"):
   delete  {guid}          remove links are the caller's job; removes the
                           GPO object and its SYSVOL folder
   targets                 domain root and organizational units (link targets)
+  provision {admin_user, admin_password, username, password, link_targets}
+                          one-time setup with domain admin credentials (not
+                          stored): create or reset the service account, add
+                          it to Group Policy Creator Owners and delegate GPO
+                          creation and linking to it
 """
 
 import base64
@@ -48,7 +53,7 @@ import ldb
 from samba import credentials, param
 from samba.credentials import SMB_SIGNING_REQUIRED
 from samba.dcerpc import security
-from samba.ndr import ndr_unpack
+from samba.ndr import ndr_pack, ndr_unpack
 from samba.samba3 import libsmb_samba_internal as libsmb
 from samba.samba3 import param as s3param
 from samba.samdb import SamDB
@@ -91,7 +96,7 @@ def _write_krb5_conf(realm, kdc_ip):
 
 
 class Session:
-    def __init__(self):
+    def __init__(self, user=None, password=None):
         env = os.environ
         if not re.fullmatch(r"[A-Za-z0-9.-]{1,253}", env["GPO_REALM"]):
             raise GpoError("invalid realm")
@@ -104,10 +109,10 @@ class Session:
         self.lp.load(env.get("SMB_CONF", "/etc/samba/smb.conf"))
         creds = credentials.Credentials()
         creds.guess(self.lp)
-        creds.set_username(env["GPO_USER"])
+        creds.set_username(user or env["GPO_USER"])
         creds.set_domain(self.workgroup)
         creds.set_realm(self.realm)
-        creds.set_password(env["PASSWD"])
+        creds.set_password(password if password is not None else env["PASSWD"])
         self.creds = creds
         # LDAP with SASL sign+seal (the DC refuses simple binds in clear text)
         self.samdb = SamDB(url=f"ldap://{self.host}", credentials=creds, lp=self.lp)
@@ -379,6 +384,55 @@ class Session:
             out.append({"dn": str(r.dn), "name": str(r.get("name", [b""])[0]), "kind": "ou"})
         return out
 
+    def provision(self, username, password, link_targets):
+        """Runs bound as a domain admin."""
+        if not re.fullmatch(r"[A-Za-z0-9._-]{1,20}", username):
+            raise GpoError("invalid service account name")
+        steps = []
+        found = self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
+                                  expression=f"(sAMAccountName={ldb.binary_encode(username)})", attrs=["dn"])
+        if found:
+            self.samdb.setpassword(f"(sAMAccountName={ldb.binary_encode(username)})", password)
+            steps.append("password_reset")
+        else:
+            self.samdb.newuser(username, password,
+                               description="Service account of the NethServer module windeploy (GPO software deployment)")
+            steps.append("account_created")
+        self.samdb.setexpiry(f"(sAMAccountName={ldb.binary_encode(username)})", 0, no_expiry_req=True)
+        group = self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
+                                  expression="(objectSid=%s-520)" % self._domain_sid_str(), attrs=["sAMAccountName", "member"])[0]
+        user_dn = str(self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
+                                        expression=f"(sAMAccountName={ldb.binary_encode(username)})", attrs=["dn"])[0].dn)
+        if user_dn.lower() not in [str(m).lower() for m in group.get("member", [])]:
+            self.samdb.add_remove_group_members(str(group["sAMAccountName"][0]), [username], add_members_operation=True)
+            steps.append("group_added")
+        sid = str(ndr_unpack(security.dom_sid, self.samdb.search(user_dn, scope=ldb.SCOPE_BASE, attrs=["objectSid"])[0]["objectSid"][0]))
+        aces = [(f"CN=Policies,CN=System,{self.domain_dn}", f"(OA;;CC;{SCHEMA_GPC};;{sid})")]
+        for dn in (link_targets or [self.domain_dn]):
+            aces.append((dn, f"(OA;;RPWP;{ATTR_GPLINK};;{sid})"))
+            aces.append((dn, f"(OA;;RPWP;{ATTR_GPOPTIONS};;{sid})"))
+        for dn, ace in aces:
+            if self._add_ace(dn, ace):
+                steps.append(f"ace:{dn}")
+        return {"username": username, "sid": sid, "steps": steps}
+
+    def _domain_sid_str(self):
+        return str(self.domain_sid)
+
+    def _add_ace(self, dn, ace):
+        """Add an ACE to the DACL of dn unless it is already there."""
+        res = self.samdb.search(dn, scope=ldb.SCOPE_BASE, attrs=["nTSecurityDescriptor"], controls=["sd_flags:1:4"])
+        desc = ndr_unpack(security.descriptor, res[0]["nTSecurityDescriptor"][0])
+        if ace.lower() in desc.as_sddl(self.domain_sid).lower():
+            return False
+        new = security.descriptor.from_sddl("D:" + ace, self.domain_sid)
+        for a in new.dacl.aces:
+            desc.dacl_add(a)
+        msg = ldb.Message(ldb.Dn(self.samdb, dn))
+        msg["nTSecurityDescriptor"] = ldb.MessageElement(ndr_pack(desc), ldb.FLAG_MOD_REPLACE, "nTSecurityDescriptor")
+        self.samdb.modify(msg, controls=["sd_flags:1:4"])
+        return True
+
     def delete(self, guid):
         _check_guid(guid)
         links = self._links_of(guid)
@@ -463,6 +517,11 @@ def main():
     request = json.load(sys.stdin)
     op = request.get("op")
     try:
+        if op == "provision":
+            admin = Session(user=request["admin_user"], password=request["admin_password"])
+            result = admin.provision(request["username"], request["password"], request.get("link_targets"))
+            json.dump({"ok": True, "result": result}, sys.stdout)
+            return
         s = Session()
         if op == "check":
             result = s.check()
