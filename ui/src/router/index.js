@@ -6,6 +6,7 @@ import Vue from "vue";
 import VueRouter from "vue-router";
 import Status from "../views/Status.vue";
 import Settings from "../views/Settings.vue";
+import Deployments from "../views/Deployments.vue";
 
 Vue.use(VueRouter);
 
@@ -15,6 +16,11 @@ const routes = [
     name: "Status",
     component: Status,
     alias: "/status", // important
+  },
+  {
+    path: "/deployments",
+    name: "Deployments",
+    component: Deployments,
   },
   {
     path: "/settings",

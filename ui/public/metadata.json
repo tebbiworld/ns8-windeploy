@@ -1,19 +1,20 @@
 {
-  "name": "kickstart",
+  "name": "GPO based Software Deployment for Windows",
   "description": {
-    "en": "My kickstart module"
+    "en": "Search the winget community repository and roll out Windows software through Group Policy scheduled tasks in a Samba or Windows Active Directory",
+    "de": "Windows-Software aus dem winget-Community-Repository suchen und per Gruppenrichtlinie (geplante Aufgabe) im Samba- oder Windows-AD verteilen"
   },
-  "categories": [],
+  "categories": ["system_administration"],
   "authors": [
     {
-      "name": "Name Surname",
-      "email": "author@yourmail.org"
+      "name": "tebbiworld",
+      "email": "214554644+tebbiworld@users.noreply.github.com"
     }
   ],
   "docs": {
-    "documentation_url": "https://docs.kickstart.com/",
-    "bug_url": "https://github.com/NethServer/dev",
-    "code_url": "https://github.com/author/ns8-kickstart"
+    "documentation_url": "https://github.com/tebbiworld/ns8-windeploy",
+    "bug_url": "https://github.com/tebbiworld/ns8-windeploy/issues",
+    "code_url": "https://github.com/tebbiworld/ns8-windeploy"
   },
-  "source": "ghcr.io/nethserver/kickstart"
+  "source": "ghcr.io/tebbiworld/windeploy"
 }
