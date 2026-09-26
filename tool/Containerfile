@@ -1,0 +1,23 @@
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Samba client runtime for writing GPOs (LDAP + SMB via python3-samba).
+# Debian instead of Alpine: python3-samba with the s3 SMB bindings
+# (libsmb_samba_internal) is packaged there. samba-dsdb-modules brings the
+# ildap ldb backend: without it ldap:// URLs bind anonymously.
+
+FROM docker.io/library/debian:13.7-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3-samba samba-dsdb-modules samba-common krb5-config- \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --system --uid 1001 --home-dir /app --shell /usr/sbin/nologin gpo \
+    && printf '[global]\n  client signing = required\n  client min protocol = SMB2_10\n' > /etc/samba/smb.conf
+
+COPY gpowrite.py /app/gpowrite.py
+COPY gpogen.py wingetindex.py /app/
+
+USER gpo
+WORKDIR /app
+ENTRYPOINT ["python3", "/app/gpowrite.py"]
