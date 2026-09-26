@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# Copyright (C) 2023 Nethesis S.r.l.
+# Copyright (C) 2026 tebbi
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
@@ -10,36 +10,47 @@ set -e
 
 # Prepare variables for later use
 images=()
-# The image will be pushed to GitHub container registry
-repobase="${REPOBASE:-ghcr.io/nethserver}"
+# The images will be pushed to the GitHub container registry
+repobase="${REPOBASE:-ghcr.io/tebbiworld}"
 # Configure the image name
-reponame="kickstart"
+reponame="windeploy"
+
+#
+# Samba runtime: writes GPOs over LDAP and SMB (tool/Containerfile). The
+# module image pins it with the same tag, so module and runtime always
+# come from the same build.
+#
+tool_ctx=$(mktemp -d)
+trap 'rm -rf "${tool_ctx}"' EXIT
+cp tool/Containerfile tool/gpowrite.py imageroot/pypkg/gpogen.py imageroot/pypkg/wingetindex.py "${tool_ctx}/"
+buildah build --layers --tag "${repobase}/${reponame}-samba" "${tool_ctx}"
+images+=("${repobase}/${reponame}-samba")
 
 # Create a new empty container image
 container=$(buildah from scratch)
 
-# Reuse existing nodebuilder-kickstart container, to speed up builds
-if ! buildah containers --format "{{.ContainerName}}" | grep -q nodebuilder-kickstart; then
+# Reuse existing nodebuilder-windeploy container, to speed up builds
+if ! buildah containers --format "{{.ContainerName}}" | grep -q nodebuilder-windeploy; then
     echo "Pulling NodeJS runtime..."
-    buildah from --name nodebuilder-kickstart -v "${PWD}:/usr/src:Z" docker.io/library/node:24.16.0-slim
+    buildah from --name nodebuilder-windeploy -v "${PWD}:/usr/src:Z" docker.io/library/node:24.16.0-slim
 fi
 
 echo "Build static UI files with node..."
 buildah run \
     --workingdir=/usr/src/ui \
     --env="NODE_OPTIONS=--openssl-legacy-provider" \
-    nodebuilder-kickstart \
+    nodebuilder-windeploy \
     sh -c "yarn install && yarn build"
 
-# Add imageroot directory to the container image
+# Add imageroot and the compiled UI to the container image
 buildah add "${container}" imageroot /imageroot
 buildah add "${container}" ui/dist /ui
-# Setup the entrypoint, ask to reserve one TCP port with the label and set a rootless container
+# Rootless module without TCP ports or routes: the UI talks to it through
+# actions only. The Samba runtime image is pre-pulled by the node agent and
+# exposed to the actions as ${WINDEPLOY_SAMBA_IMAGE}.
 buildah config --entrypoint=/ \
-    --label="org.nethserver.authorizations=traefik@node:routeadm" \
-    --label="org.nethserver.tcp-ports-demand=1" \
     --label="org.nethserver.rootfull=0" \
-    --label="org.nethserver.images=docker.io/jmalloc/echo-server:latest" \
+    --label="org.nethserver.images=${repobase}/${reponame}-samba:${IMAGETAG:-latest}" \
     "${container}"
 # Commit the image
 buildah commit "${container}" "${repobase}/${reponame}"
@@ -48,17 +59,7 @@ buildah commit "${container}" "${repobase}/${reponame}"
 images+=("${repobase}/${reponame}")
 
 #
-# NOTICE:
-#
-# It is possible to build and publish multiple images.
-#
-# 1. create another buildah container
-# 2. add things to it and commit it
-# 3. append the image url to the images array
-#
-
-#
-# Setup CI when pushing to Github. 
+# Setup CI when pushing to Github.
 # Warning! docker::// protocol expects lowercase letters (,,)
 if [[ -n "${CI}" ]]; then
     # Set output value for Github Actions
