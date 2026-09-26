@@ -10,4 +10,6 @@ Description=Refresh the winget package index of %u
 Type=oneshot
 WorkingDirectory=%S/state
 ExecStart=runagent %S/bin/refresh-index
+# the metadata JSON is for the refresh-index action, not for the journal
+StandardOutput=null
 SyslogIdentifier=%u

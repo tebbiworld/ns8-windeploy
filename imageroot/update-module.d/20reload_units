@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Pick up changed unit files; keep the index timer running if it was.
+exec 1>&2
+systemctl --user daemon-reload
+if systemctl --user is-enabled --quiet windeploy-index.timer; then
+    systemctl --user restart windeploy-index.timer
+fi
