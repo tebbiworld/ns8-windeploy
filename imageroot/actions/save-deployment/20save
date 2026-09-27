@@ -56,6 +56,18 @@ except ValueError as ex:
     print(agent.SD_ERR + str(ex), file=sys.stderr)
     fail("domain", settings.get("domain", ""), "not_configured")
 
+# Link targets: only the domain root and existing organizational units
+# (Domain Controllers is not offered). Checked before anything is written.
+if request["link_targets"]:
+    try:
+        valid = {t["dn"].lower() for t in wdcommon.run_tool({"op": "targets"}, settings=settings, timeout=120)}
+    except (wdcommon.ToolError, ValueError) as ex:
+        print(agent.SD_ERR + "cannot read the link targets: " + str(ex), file=sys.stderr)
+        sys.exit(1)
+    for dn in request["link_targets"]:
+        if dn.lower() not in valid:
+            fail("link_targets", dn, "link_target_not_found")
+
 current = wdcommon.read_deployments()["deployments"]
 old = None
 if request.get("id"):

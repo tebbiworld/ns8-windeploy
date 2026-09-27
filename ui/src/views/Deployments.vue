@@ -359,7 +359,7 @@
           </div>
           <div v-else class="targets">
             <cv-checkbox
-              v-for="t in targets"
+              v-for="t in allTargets"
               :key="t.dn"
               :value="t.dn"
               :label="
@@ -369,6 +369,24 @@
               "
               v-model="editor.link_targets"
             />
+          </div>
+          <div class="ou-add">
+            <NsTextInput
+              :label="$t('deployments.ou_input')"
+              v-model.trim="ouInput"
+              :placeholder="ouPlaceholder"
+              :helper-text="$t('deployments.ou_helper')"
+              :invalid-message="error.ou"
+              class="ou-field"
+              @keydown.enter.prevent="addOu"
+            />
+            <NsButton
+              kind="tertiary"
+              size="field"
+              :icon="Add20"
+              @click="addOu"
+              >{{ $t("deployments.add") }}</NsButton
+            >
           </div>
 
           <NsInlineNotification
@@ -477,6 +495,8 @@ export default {
       Play20,
       runNow: { id: "", message: "", failed: false },
       weekdays: WEEKDAYS,
+      ouInput: "",
+      customTargets: [],
       deployments: [],
       targets: [],
       index: {},
@@ -503,11 +523,28 @@ export default {
         time: "",
         start_date: "",
         days: "",
+        ou: "",
       },
     };
   },
   computed: {
     ...mapState(["instanceName", "core", "appName"]),
+    allTargets() {
+      // targets read from AD plus OUs entered by hand (checked on save)
+      const known = new Set(this.targets.map((t) => t.dn.toLowerCase()));
+      const extra = [...this.customTargets, ...this.editor.link_targets]
+        .filter((dn, i, a) => a.indexOf(dn) === i)
+        .filter((dn) => !known.has(dn.toLowerCase()))
+        .map((dn) => ({ dn, name: dn, kind: "ou" }));
+      return [...this.targets, ...extra];
+    },
+    domainDn() {
+      const d = this.targets.find((t) => t.kind === "domain");
+      return d ? d.dn : "DC=example,DC=com";
+    },
+    ouPlaceholder() {
+      return "OU=Laptops," + this.domainDn;
+    },
   },
   beforeRouteEnter(to, from, next) {
     next((vm) => {
@@ -665,6 +702,24 @@ export default {
       } finally {
         this.details.loading = false;
       }
+    },
+    addOu() {
+      this.error.ou = "";
+      const dn = this.ouInput;
+      if (!dn) return;
+      if (
+        !/^OU=[^,]+(,(OU|CN)=[^,]+)*,DC=/i.test(dn) ||
+        !dn.toLowerCase().endsWith(this.domainDn.toLowerCase())
+      ) {
+        this.error.ou = this.$t("deployments.ou_invalid", {
+          dn: this.domainDn,
+        });
+        return;
+      }
+      if (!this.customTargets.includes(dn)) this.customTargets.push(dn);
+      if (!this.editor.link_targets.includes(dn))
+        this.editor.link_targets.push(dn);
+      this.ouInput = "";
     },
     isSelected(id) {
       return this.editor.packages.some((p) => p.id === id);
@@ -921,6 +976,18 @@ table.deployments {
   flex-wrap: wrap;
   gap: $spacing-05;
   margin-top: $spacing-04;
+}
+.ou-add {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-03;
+  margin-top: $spacing-05;
+  .ou-field {
+    flex: 1;
+  }
+  .bx--btn {
+    margin-top: 1.5rem;
+  }
 }
 .targets {
   display: flex;

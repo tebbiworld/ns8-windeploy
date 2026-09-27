@@ -68,6 +68,7 @@ ALLOWED_FILE_RE = re.compile(r"^Machine/(Preferences/ScheduledTasks/ScheduledTas
 SCHEMA_GPC = "f30e3bc2-9ff0-11d1-b603-0000f80367c1"      # groupPolicyContainer
 ATTR_GPLINK = "f30e3bbe-9ff0-11d1-b603-0000f80367c1"
 ATTR_GPOPTIONS = "f30e3bbf-9ff0-11d1-b603-0000f80367c1"
+CLASS_OU = "bf967aa5-0de6-11d0-a285-00aa003049e2"            # organizationalUnit
 
 
 def log(msg):
@@ -416,6 +417,11 @@ class Session:
         for dn in (link_targets or [self.domain_dn]):
             aces.append((dn, f"(OA;;RPWP;{ATTR_GPLINK};;{sid})"))
             aces.append((dn, f"(OA;;RPWP;{ATTR_GPOPTIONS};;{sid})"))
+        # Linking to organizational units, also ones created later: inherited
+        # to OU objects only (what the "manage Group Policy links" delegation
+        # of the Windows tools sets).
+        aces.append((self.domain_dn, f"(OA;CIIO;RPWP;{ATTR_GPLINK};{CLASS_OU};{sid})"))
+        aces.append((self.domain_dn, f"(OA;CIIO;RPWP;{ATTR_GPOPTIONS};{CLASS_OU};{sid})"))
         for dn, ace in aces:
             if self._add_ace(dn, ace):
                 steps.append(f"ace:{dn}")
