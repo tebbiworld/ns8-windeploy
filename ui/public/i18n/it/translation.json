@@ -19,14 +19,14 @@
         "app_instance": "Istanza app",
         "app_volumes": "Volume app|Volumi app",
         "installation_node": "Nodo di installazione",
-        "mount": "Percorso di mount"
+        "mount": "Percorso di mount",
+        "rights_fix": "Mancano alcuni diritti: vedi le impostazioni."
     },
     "settings": {
         "save": "Salva",
         "title": "Impostazioni",
         "configure_instance": "Configura {instance}",
         "connection_title": "Connessione ad Active Directory",
-        "connection_help": "Le distribuzioni vengono scritte come GPO da un account di servizio. Non deve essere un amministratore di dominio: servono solo i diritti per creare e collegare GPO (vedi la verifica dei diritti).",
         "domain": "Dominio",
         "external": "esterno",
         "other_domain": "Altro dominio (inserire il domain controller)",
@@ -46,15 +46,12 @@
         "password_required": "Obbligatoria alla prima configurazione",
         "default_delivery": "Consegna predefinita dello script per le nuove distribuzioni",
         "rights_title": "Verifica dei diritti",
-        "rights_help": "Risultato dell'ultimo accesso con l'account di servizio.",
         "rights_unknown": "Non ancora verificato: salva le impostazioni.",
         "right_can_create_gpo": "Creare GPO",
         "right_can_link_domain": "Collegare GPO al dominio",
         "right_sysvol": "Scrivere in SYSVOL",
         "delegation_title": "Delega mancante",
-        "delegation_desc": "Con Samba il gruppo Group Policy Creator Owners non può creare GPO. Esegui una volta questi comandi su un domain controller, poi salva di nuovo le impostazioni:",
         "index_title": "Indice dei pacchetti",
-        "index_help": "L'indice del repository della community di winget viene scaricato dalla CDN di winget e aggiornato ogni giorno.",
         "index_packages": "{n} pacchetti",
         "index_cdn": "Indice pubblicato: {date}",
         "index_checked": "Ultimo controllo: {date}",
@@ -64,7 +61,10 @@
         "error_bind_failed": "L'account di servizio non è riuscito ad accedere",
         "error_dc_unreachable": "Il domain controller non è raggiungibile",
         "error_password_required": "Password obbligatoria",
-        "error_dc_not_resolved": "Nessun domain controller noto per questo dominio"
+        "error_dc_not_resolved": "Nessun domain controller noto per questo dominio",
+        "rights_account": "Account di servizio: {user}",
+        "delegation_short": "Esegui una volta questi comandi su un domain controller (oppure usa la configurazione automatica qui sotto), poi salva di nuovo le impostazioni:",
+        "auto_see_guide": "Di cosa ha bisogno l'account e come configurarlo a mano:"
     },
     "error": {
         "error": "Errore",
@@ -170,7 +170,8 @@
         "run_now_task": "Esegui subito {name}",
         "run_now_done": "{name}: i computer eseguono i pacchetti una volta al prossimo aggiornamento dei criteri (all'avvio, circa ogni 90 minuti o con gpupdate).",
         "run_now_failed": "Esecuzione immediata non riuscita, vedi il log del modulo",
-        "run_now_at": "esecuzione immediata richiesta il {date}"
+        "run_now_at": "esecuzione immediata richiesta il {date}",
+        "package_link": "Pagina del pacchetto"
     },
     "mode": {
         "upgrade": "Aggiorna se installato",
@@ -214,12 +215,11 @@
         "account_ok_title": "Account di servizio pronto",
         "account_ok_desc": "{user} ha tutti i diritti necessari al modulo.",
         "auto_title": "Configurazione automatica",
-        "auto_help": "Per un dominio di questo cluster il modulo crea l'account da solo. Le credenziali di amministratore di dominio vengono usate solo per questa richiesta e non vengono salvate. L'account riceve una password casuale nota solo al modulo. Rieseguendo la configurazione la password viene reimpostata e vengono aggiunti i diritti mancanti.",
+        "auto_help": "Per un dominio di questo cluster il modulo può creare l'account da solo, con credenziali di amministratore di dominio usate una sola volta e non salvate. L'account riceve una password casuale nota solo al modulo. La configurazione automatica si trova in",
         "auto_no_domain": "Nessun dominio Active Directory di questo cluster trovato: usa i comandi qui sotto sul domain controller.",
         "admin_user": "Amministratore di dominio",
         "admin_password": "Password dell'amministratore di dominio",
         "admin_password_helper": "Usata una sola volta, non salvata",
-        "username_helper": "Nome dell'account di servizio da creare",
         "auto_button": "Crea account di servizio",
         "auto_task": "Configura account di servizio {user}",
         "auto_done_title": "Account di servizio pronto",
@@ -235,7 +235,6 @@
         "clients_1": "Windows 10 o 11 nel dominio, con il Programma di installazione app (winget) del Microsoft Store; la versione 1.21 di alcune immagini di installazione è troppo vecchia: aggiornala o installala da github.com/microsoft/winget-cli.",
         "clients_2": "Accesso a Internet per i download dei produttori (l'indice viene letto solo da questo server).",
         "clients_3": "Non serve il Visual C++ Redistributable: lo script aggiunge da solo il runtime di winget al percorso di ricerca.",
-        "clients_4": "«Aggiorna se installato» riguarda solo i computer che hanno già il pacchetto; «Installa o aggiorna» lo installa ovunque si applichi il GPO.",
         "check_title": "3. Verifica su un computer",
         "check_help": "In un PowerShell da amministratore:",
         "timing_title": "4. Quando viene eseguito?",
@@ -245,6 +244,18 @@
         "error_admin_bind_failed": "L'amministratore di dominio non è riuscito ad accedere",
         "error_admin_not_allowed": "Questo account non può creare utenti o modificare permessi",
         "error_setup_failed": "Configurazione dell'account non riuscita, vedi il log del modulo",
-        "error_dc_not_resolved": "Nessun domain controller noto per questo dominio"
+        "error_dc_not_resolved": "Nessun domain controller noto per questo dominio",
+        "options_title": "Opzioni di una distribuzione",
+        "delivery_sysvol": "Lo script si trova nella cartella del GPO in SYSVOL; l'operazione lo avvia da lì (\\\\dominio\\SysVol\\...). Leggibile nel GPO e facile da verificare, ma il computer deve raggiungere SYSVOL quando l'operazione viene eseguita.",
+        "delivery_embedded": "Lo script fa parte della riga di comando dell'operazione (-EncodedCommand). Al momento dell'esecuzione l'operazione non ha bisogno d'altro, ad es. su un portatile fuori ufficio; nel GPO lo script non è leggibile in chiaro.",
+        "delivery_choice": "Entrambi i modi sono testati. Il valore predefinito per le nuove distribuzioni si imposta nelle impostazioni.",
+        "link_domain_title": "Intero dominio",
+        "link_domain": "Il GPO si applica a ogni computer del dominio.",
+        "link_ou_title": "Unità organizzativa",
+        "link_ou": "Il GPO si applica solo ai computer di questa unità organizzativa e di quelle sottostanti. L'unità Domain Controllers non viene proposta: in NS8 i domain controller sono server Samba, non computer Windows.",
+        "link_computers": "I nuovi computer finiscono nel contenitore Computers, che non è un'unità organizzativa: ricevono solo le distribuzioni collegate all'intero dominio finché non vengono spostati in un'unità organizzativa.",
+        "mode_upgrade": "Aggiorna il pacchetto sui computer dove è installato; sugli altri non succede nulla.",
+        "mode_install": "Installa il pacchetto dove manca e lo aggiorna dove è installato.",
+        "mode_msi": "Per la distribuzione preferisci i pacchetti MSI (ad es. Google.Chrome invece di Google.Chrome.EXE): alcuni programmi di installazione EXE attendono un desktop quando vengono eseguiti come SYSTEM. Un'esecuzione viene interrotta dopo due ore."
     }
 }

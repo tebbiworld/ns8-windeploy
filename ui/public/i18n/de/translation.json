@@ -16,7 +16,6 @@
         "save": "Speichern",
         "title": "Einstellungen",
         "connection_title": "Verbindung zum Active Directory",
-        "connection_help": "Verteilungen werden von einem Dienstkonto als GPO geschrieben. Es darf kein Domänen-Admin sein: Es braucht nur das Recht, GPOs anzulegen und zu verknüpfen (siehe Rechteprüfung).",
         "domain": "Domäne",
         "external": "extern",
         "other_domain": "Andere Domäne (Domänencontroller eingeben)",
@@ -36,15 +35,12 @@
         "password_required": "Bei der ersten Einrichtung erforderlich",
         "default_delivery": "Standard-Auslieferung des Skripts für neue Verteilungen",
         "rights_title": "Rechteprüfung",
-        "rights_help": "Ergebnis der letzten Anmeldung mit dem Dienstkonto.",
         "rights_unknown": "Noch nicht geprüft: Einstellungen speichern.",
         "right_can_create_gpo": "GPOs anlegen",
         "right_can_link_domain": "GPOs mit der Domäne verknüpfen",
         "right_sysvol": "In SYSVOL schreiben",
         "delegation_title": "Delegation fehlt",
-        "delegation_desc": "Unter Samba darf die Gruppe Richtlinien-Ersteller-Besitzer keine GPOs anlegen. Diese Befehle einmal auf einem Domänencontroller ausführen und danach die Einstellungen erneut speichern:",
         "index_title": "Paketindex",
-        "index_help": "Der Index des winget-Community-Repositorys wird vom winget-CDN geladen und täglich aktualisiert.",
         "index_packages": "{n} Pakete",
         "index_cdn": "Index veröffentlicht: {date}",
         "index_checked": "Zuletzt geprüft: {date}",
@@ -54,7 +50,10 @@
         "error_bind_failed": "Das Dienstkonto konnte sich nicht anmelden",
         "error_dc_unreachable": "Der Domänencontroller ist nicht erreichbar",
         "error_password_required": "Kennwort erforderlich",
-        "error_dc_not_resolved": "Für diese Domäne ist kein Domänencontroller bekannt"
+        "error_dc_not_resolved": "Für diese Domäne ist kein Domänencontroller bekannt",
+        "rights_account": "Dienstkonto: {user}",
+        "delegation_short": "Diese Befehle einmal auf einem Domänencontroller ausführen (oder unten automatisch einrichten), danach die Einstellungen erneut speichern:",
+        "auto_see_guide": "Was das Konto braucht und wie man es von Hand einrichtet:"
     },
     "common": {
         "required": "Erforderlich",
@@ -76,7 +75,8 @@
         "title": "Status",
         "installation_node": "Knoten der Installation",
         "node": "Knoten",
-        "no_volumes": "Keine Volumen"
+        "no_volumes": "Keine Volumen",
+        "rights_fix": "Es fehlen Rechte: siehe Einstellungen."
     },
     "about": {
         "title": "Über"
@@ -170,7 +170,8 @@
         "run_now_task": "{name} sofort auslösen",
         "run_now_done": "{name}: Die Rechner führen die Pakete beim nächsten Richtlinienabgleich einmal aus (beim Start, etwa alle 90 Minuten oder mit gpupdate).",
         "run_now_failed": "Sofort auslösen fehlgeschlagen, siehe Modulprotokoll",
-        "run_now_at": "sofort ausgelöst {date}"
+        "run_now_at": "sofort ausgelöst {date}",
+        "package_link": "Paketseite"
     },
     "mode": {
         "upgrade": "Aktualisieren, wenn installiert",
@@ -214,12 +215,11 @@
         "account_ok_title": "Dienstkonto bereit",
         "account_ok_desc": "{user} hat alle Rechte, die das Modul braucht.",
         "auto_title": "Automatisch einrichten",
-        "auto_help": "Für eine Domäne dieses Clusters legt das Modul das Konto selbst an. Die Domänen-Admin-Zugangsdaten werden nur für diesen einen Vorgang verwendet und nicht gespeichert. Das Konto erhält ein zufälliges Kennwort, das nur das Modul kennt. Erneutes Ausführen setzt dieses Kennwort neu und ergänzt fehlende Rechte.",
+        "auto_help": "Für eine Domäne dieses Clusters kann das Modul das Konto selbst anlegen, mit Domänen-Admin-Zugangsdaten, die einmalig verwendet und nicht gespeichert werden. Das Konto erhält ein zufälliges Kennwort, das nur das Modul kennt. Die automatische Einrichtung findest du unter",
         "auto_no_domain": "Keine Active-Directory-Domäne dieses Clusters gefunden: die Befehle unten auf dem Domänencontroller ausführen.",
         "admin_user": "Domänen-Admin",
         "admin_password": "Kennwort des Domänen-Admins",
         "admin_password_helper": "Wird einmalig verwendet, nicht gespeichert",
-        "username_helper": "Name des anzulegenden Dienstkontos",
         "auto_button": "Dienstkonto anlegen",
         "auto_task": "Dienstkonto {user} einrichten",
         "auto_done_title": "Dienstkonto bereit",
@@ -235,7 +235,6 @@
         "clients_1": "Windows 10 oder 11 in der Domäne, mit dem App Installer (winget) aus dem Microsoft Store; die Version 1.21 mancher Installationsabbilder ist zu alt: aktualisieren oder von github.com/microsoft/winget-cli einspielen.",
         "clients_2": "Internetzugang zu den Downloads der Hersteller (den Index liest nur dieser Server).",
         "clients_3": "Kein VC++-Redistributable nötig: Das Skript nimmt die Laufzeit von winget selbst in den Suchpfad.",
-        "clients_4": "„Aktualisieren, wenn installiert“ betrifft nur Rechner, die das Paket haben; „Installieren oder aktualisieren“ installiert es überall, wo das GPO gilt.",
         "check_title": "3. Auf einem Rechner prüfen",
         "check_help": "In einer PowerShell als Administrator:",
         "timing_title": "4. Wann läuft es?",
@@ -245,6 +244,18 @@
         "error_admin_bind_failed": "Der Domänen-Admin konnte sich nicht anmelden",
         "error_admin_not_allowed": "Dieses Konto darf keine Benutzer anlegen oder Rechte ändern",
         "error_setup_failed": "Einrichten des Kontos fehlgeschlagen, siehe Modulprotokoll",
-        "error_dc_not_resolved": "Für diese Domäne ist kein Domänencontroller bekannt"
+        "error_dc_not_resolved": "Für diese Domäne ist kein Domänencontroller bekannt",
+        "options_title": "Optionen einer Verteilung",
+        "delivery_sysvol": "Das Skript liegt im GPO-Ordner im SYSVOL; die Aufgabe startet es von dort (\\\\Domäne\\SysVol\\...). Im GPO lesbar und leicht zu prüfen, aber der Rechner muss das SYSVOL erreichen, wenn die Aufgabe läuft.",
+        "delivery_embedded": "Das Skript steckt in der Befehlszeile der Aufgabe (-EncodedCommand). Die Aufgabe braucht zur Laufzeit nichts außer sich selbst, etwa auf einem Notebook außerhalb des Büros; im GPO ist das Skript nicht im Klartext lesbar.",
+        "delivery_choice": "Beides ist getestet. Die Voreinstellung für neue Verteilungen steht in den Einstellungen.",
+        "link_domain_title": "Ganze Domäne",
+        "link_domain": "Das GPO gilt für jeden Rechner der Domäne.",
+        "link_ou_title": "Organisationseinheit",
+        "link_ou": "Das GPO gilt nur für Rechner in dieser Organisationseinheit und den darunterliegenden. Die Einheit Domain Controllers wird nicht angeboten: Unter NS8 sind die Domänencontroller Samba-Server, keine Windows-Rechner.",
+        "link_computers": "Neue Rechner landen im Container Computers, der keine Organisationseinheit ist: Sie erhalten nur Verteilungen, die mit der ganzen Domäne verknüpft sind, bis sie in eine Organisationseinheit verschoben werden.",
+        "mode_upgrade": "Aktualisiert das Paket auf Rechnern, auf denen es installiert ist; auf den anderen passiert nichts.",
+        "mode_install": "Installiert das Paket, wo es fehlt, und aktualisiert es, wo es installiert ist.",
+        "mode_msi": "Für die Verteilung MSI-Pakete bevorzugen (z. B. Google.Chrome statt Google.Chrome.EXE): Manche EXE-Installer warten als SYSTEM auf einen Desktop. Ein Lauf wird nach zwei Stunden abgebrochen."
     }
 }

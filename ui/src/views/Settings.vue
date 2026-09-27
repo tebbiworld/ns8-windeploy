@@ -20,10 +20,10 @@
       </cv-column>
     </cv-row>
     <cv-row>
+      <!-- left: connection, package index -->
       <cv-column :md="4" :max="8">
-        <cv-tile light>
+        <cv-tile light class="tile">
           <h4 class="section-title">{{ $t("settings.connection_title") }}</h4>
-          <p class="section-help">{{ $t("settings.connection_help") }}</p>
           <cv-form @submit.prevent="configureModule">
             <cv-dropdown
               :label="$t('settings.domain')"
@@ -93,7 +93,7 @@
             <NsTextInput
               :label="$t('settings.username')"
               v-model.trim="username"
-              placeholder="svc-gpodeploy"
+              placeholder="svc-windeploy"
               :helper-text="$t('settings.username_helper')"
               :invalid-message="error.username"
               :disabled="busy"
@@ -141,36 +141,8 @@
             >
           </cv-form>
         </cv-tile>
-      </cv-column>
-      <cv-column :md="4" :max="8">
-        <cv-tile light class="side-tile">
-          <h4 class="section-title">{{ $t("settings.rights_title") }}</h4>
-          <p class="section-help">{{ $t("settings.rights_help") }}</p>
-          <cv-skeleton-text v-if="loading.getConfiguration" />
-          <div v-else-if="!rights" class="section-help">
-            {{ $t("settings.rights_unknown") }}
-          </div>
-          <ul v-else class="rights">
-            <li v-for="key in rightKeys" :key="key">
-              <CheckmarkFilled16 v-if="rights[key]" class="ok" />
-              <WarningFilled16 v-else class="bad" />
-              {{ $t("settings.right_" + key) }}
-            </li>
-          </ul>
-          <NsInlineNotification
-            v-if="rights && !allRights"
-            kind="warning"
-            :title="$t('settings.delegation_title')"
-            :description="$t('settings.delegation_desc')"
-            :showCloseButton="false"
-          />
-          <pre v-if="rights && !allRights" class="delegation">{{
-            delegationCommands
-          }}</pre>
-        </cv-tile>
-        <cv-tile light class="side-tile">
+        <cv-tile light class="tile">
           <h4 class="section-title">{{ $t("settings.index_title") }}</h4>
-          <p class="section-help">{{ $t("settings.index_help") }}</p>
           <div v-if="index.packages" class="index-info">
             <div>
               {{ $t("settings.index_packages", { n: index.packages }) }}
@@ -190,7 +162,7 @@
               }}
             </div>
           </div>
-          <div v-else class="section-help">
+          <div v-else class="muted index-info">
             {{ $t("settings.index_missing") }}
           </div>
           <NsInlineNotification
@@ -210,6 +182,95 @@
           >
         </cv-tile>
       </cv-column>
+
+      <!-- right: rights check, automatic setup -->
+      <cv-column :md="4" :max="8">
+        <cv-tile light class="tile">
+          <h4 class="section-title">{{ $t("settings.rights_title") }}</h4>
+          <RightsCheck
+            :rights="rights"
+            :username="rights ? username : ''"
+            :loading="loading.getConfiguration"
+          />
+          <template v-if="rights && !allRights">
+            <NsInlineNotification
+              kind="warning"
+              :title="$t('settings.delegation_title')"
+              :description="$t('settings.delegation_short')"
+              :showCloseButton="false"
+            />
+            <pre class="code">{{ delegationCommands }}</pre>
+          </template>
+        </cv-tile>
+        <cv-tile light class="tile">
+          <h4 class="section-title">{{ $t("guide.auto_title") }}</h4>
+          <p class="muted help">
+            {{ $t("settings.auto_see_guide") }}
+            <cv-link @click="goToAppPage(instanceName, 'guide')">{{
+              $t("guide.title")
+            }}</cv-link>
+          </p>
+          <p v-if="!internalDomains.length" class="muted help">
+            {{ $t("guide.auto_no_domain") }}
+          </p>
+          <cv-form v-else @submit.prevent="setupAccount">
+            <cv-dropdown
+              :label="$t('settings.domain')"
+              v-model="setup.domain"
+              class="field"
+            >
+              <cv-dropdown-item
+                v-for="d in internalDomains"
+                :key="d.name"
+                :value="d.name"
+                >{{ d.name }}</cv-dropdown-item
+              >
+            </cv-dropdown>
+            <NsTextInput
+              :label="$t('guide.admin_user')"
+              v-model.trim="setup.admin_user"
+              placeholder="administrator"
+              :invalid-message="error.admin_user"
+              ref="admin_user"
+            />
+            <NsTextInput
+              :label="$t('guide.admin_password')"
+              type="password"
+              v-model="setup.admin_password"
+              :helper-text="$t('guide.admin_password_helper')"
+              :invalid-message="error.admin_password"
+              ref="admin_password"
+            />
+            <NsTextInput
+              :label="$t('settings.username')"
+              v-model.trim="setup.username"
+              :invalid-message="error.setup_username"
+              ref="setup_username"
+            />
+            <NsInlineNotification
+              v-if="error.setup"
+              kind="error"
+              :title="$t('action.setup-service-account')"
+              :description="error.setup"
+              :showCloseButton="false"
+            />
+            <NsInlineNotification
+              v-if="setupDone"
+              kind="success"
+              :title="$t('guide.auto_done_title')"
+              :description="$t('guide.auto_done_desc', { user: setupDone })"
+              :showCloseButton="false"
+            />
+            <NsButton
+              kind="secondary"
+              :icon="UserFollow20"
+              :loading="loading.setup"
+              :disabled="loading.setup"
+              >{{ $t("guide.auto_button") }}</NsButton
+            >
+          </cv-form>
+        </cv-tile>
+      </cv-column>
     </cv-row>
   </cv-grid>
 </template>
@@ -217,8 +278,7 @@
 <script>
 import { mapState } from "vuex";
 import Renew20 from "@carbon/icons-vue/es/renew/20";
-import CheckmarkFilled16 from "@carbon/icons-vue/es/checkmark--filled/16";
-import WarningFilled16 from "@carbon/icons-vue/es/warning--filled/16";
+import UserFollow20 from "@carbon/icons-vue/es/user--follow/20";
 import {
   QueryParamService,
   UtilService,
@@ -226,10 +286,11 @@ import {
   PageTitleService,
 } from "@nethserver/ns8-ui-lib";
 import moduleTask from "@/mixins/moduleTask";
+import RightsCheck, { rightsComplete } from "@/components/RightsCheck";
 
 export default {
   name: "Settings",
-  components: { CheckmarkFilled16, WarningFilled16 },
+  components: { RightsCheck },
   mixins: [
     moduleTask,
     IconService,
@@ -245,6 +306,7 @@ export default {
       q: { page: "settings" },
       urlCheckInterval: null,
       Renew20,
+      UserFollow20,
       domains: [],
       domain: "",
       dc_host: "",
@@ -255,25 +317,35 @@ export default {
       password: "",
       password_set: false,
       default_delivery: "sysvol",
-      effective: {},
       rights: null,
       index: {},
-      rightKeys: ["can_create_gpo", "can_link_domain", "sysvol"],
+      setup: {
+        domain: "",
+        admin_user: "administrator",
+        admin_password: "",
+        username: "svc-windeploy",
+      },
+      setupDone: "",
       loading: {
         getConfiguration: false,
         configureModule: false,
         refreshIndex: false,
+        setup: false,
       },
       error: {
         getConfiguration: "",
         configureModule: "",
         refreshIndex: "",
+        setup: "",
         dc_host: "",
         dc_ip: "",
         realm: "",
         workgroup: "",
         username: "",
         password: "",
+        admin_user: "",
+        admin_password: "",
+        setup_username: "",
       },
     };
   },
@@ -285,6 +357,9 @@ export default {
     selectedDomain() {
       return this.domains.find((d) => d.name === this.domain);
     },
+    internalDomains() {
+      return this.domains.filter((d) => d.location === "internal");
+    },
     manualDc() {
       return !this.selectedDomain || this.selectedDomain.providers.length === 0;
     },
@@ -293,7 +368,7 @@ export default {
       return p ? { host: p.hostname, ip: p.ip, realm: p.realm } : null;
     },
     allRights() {
-      return this.rights && this.rightKeys.every((k) => this.rights[k]);
+      return rightsComplete(this.rights);
     },
     delegationCommands() {
       const sid = (this.rights && this.rights.account_sid) || "<SID>";
@@ -343,9 +418,11 @@ export default {
         this.password = "";
         this.password_set = c.password_set;
         this.default_delivery = c.default_delivery || "sysvol";
-        this.effective = c.effective || {};
         this.rights = c.rights;
         this.index = c.index || {};
+        const own = this.internalDomains.find((d) => d.name === this.domain);
+        this.setup.domain = (own || this.internalDomains[0] || {}).name || "";
+        if (c.username) this.setup.username = c.username;
       } catch (e) {
         this.error.getConfiguration = e.error || this.$t("error.generic_error");
       } finally {
@@ -418,17 +495,68 @@ export default {
         this.loading.refreshIndex = false;
       }
     },
+    async setupAccount() {
+      this.clearErrors(this);
+      this.setupDone = "";
+      const fields = {
+        admin_user: this.setup.admin_user,
+        admin_password: this.setup.admin_password,
+        setup_username: this.setup.username,
+      };
+      let ok = true;
+      for (const [f, v] of Object.entries(fields)) {
+        if (!v) {
+          this.error[f] = this.$t("common.required");
+          if (ok) this.focusElement(f);
+          ok = false;
+        }
+      }
+      if (!ok) return;
+      this.loading.setup = true;
+      try {
+        const res = await this.runModuleTask(
+          "setup-service-account",
+          {
+            domain: this.setup.domain,
+            admin_user: this.setup.admin_user,
+            admin_password: this.setup.admin_password,
+            username: this.setup.username,
+          },
+          {
+            title: this.$t("guide.auto_task", { user: this.setup.username }),
+            hidden: false,
+          }
+        );
+        this.setupDone = res.username;
+        this.getConfiguration();
+      } catch (e) {
+        if (e.validation) {
+          const v = e.validation[0];
+          const field = v.field in this.error ? v.field : "setup";
+          this.error[field] = this.$t("guide.error_" + v.error);
+        } else {
+          this.error.setup = this.$t("guide.error_setup_failed");
+        }
+      } finally {
+        // never keep the admin password in the page
+        this.setup.admin_password = "";
+        this.loading.setup = false;
+      }
+    },
   },
 };
 </script>
 
 <style scoped lang="scss">
 @import "../styles/carbon-utils";
-.section-title {
-  margin-bottom: $spacing-03;
-}
-.section-help {
+.tile {
   margin-bottom: $spacing-06;
+}
+.section-title {
+  margin-bottom: $spacing-05;
+}
+.help {
+  margin-bottom: $spacing-05;
 }
 .field {
   margin-bottom: $spacing-06;
@@ -437,25 +565,16 @@ export default {
   margin-bottom: $spacing-06;
   color: $text-02;
 }
-.side-tile {
-  margin-bottom: $spacing-06;
+.muted {
+  color: $text-02;
 }
-.rights {
+.index-info {
   margin-bottom: $spacing-05;
-  li {
-    display: flex;
-    align-items: center;
-    gap: $spacing-03;
-    margin-bottom: $spacing-03;
-  }
-  .ok {
-    fill: $support-02;
-  }
-  .bad {
-    fill: $support-03;
+  div {
+    margin-bottom: $spacing-02;
   }
 }
-.delegation {
+.code {
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.75rem;
   white-space: pre-wrap;
@@ -463,11 +582,5 @@ export default {
   margin: $spacing-05 0;
   padding: $spacing-04;
   background: $ui-01;
-}
-.index-info {
-  margin-bottom: $spacing-05;
-  div {
-    margin-bottom: $spacing-02;
-  }
 }
 </style>

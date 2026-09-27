@@ -19,7 +19,8 @@
         "mount": "Point de montage",
         "no_services": "Aucun service",
         "no_images": "Aucune image",
-        "no_volumes": "Aucun volume"
+        "no_volumes": "Aucun volume",
+        "rights_fix": "Des droits manquent : voir les paramètres."
     },
     "about": {
         "title": "À propos"
@@ -63,7 +64,6 @@
         "configure_instance": "Configurer {instance}",
         "save": "Enregistrer",
         "connection_title": "Connexion à Active Directory",
-        "connection_help": "Les déploiements sont écrits sous forme de GPO par un compte de service. Il ne doit pas être administrateur du domaine : il lui faut seulement le droit de créer et de lier des GPO (voir la vérification des droits).",
         "domain": "Domaine",
         "external": "externe",
         "other_domain": "Autre domaine (saisir le contrôleur de domaine)",
@@ -83,15 +83,12 @@
         "password_required": "Obligatoire lors de la première configuration",
         "default_delivery": "Mode de livraison du script par défaut pour les nouveaux déploiements",
         "rights_title": "Vérification des droits",
-        "rights_help": "Résultat de la dernière connexion avec le compte de service.",
         "rights_unknown": "Pas encore vérifié : enregistrez les paramètres.",
         "right_can_create_gpo": "Créer des GPO",
         "right_can_link_domain": "Lier des GPO au domaine",
         "right_sysvol": "Écrire dans SYSVOL",
         "delegation_title": "Délégation manquante",
-        "delegation_desc": "Avec Samba, le groupe Group Policy Creator Owners ne peut pas créer de GPO. Exécutez une fois ces commandes sur un contrôleur de domaine, puis enregistrez à nouveau les paramètres :",
         "index_title": "Index des paquets",
-        "index_help": "L'index du dépôt communautaire winget est téléchargé depuis le CDN de winget et actualisé chaque jour.",
         "index_packages": "{n} paquets",
         "index_cdn": "Index publié : {date}",
         "index_checked": "Dernière vérification : {date}",
@@ -101,7 +98,10 @@
         "error_bind_failed": "Le compte de service n'a pas pu se connecter",
         "error_dc_unreachable": "Le contrôleur de domaine est injoignable",
         "error_password_required": "Mot de passe obligatoire",
-        "error_dc_not_resolved": "Aucun contrôleur de domaine connu pour ce domaine"
+        "error_dc_not_resolved": "Aucun contrôleur de domaine connu pour ce domaine",
+        "rights_account": "Compte de service : {user}",
+        "delegation_short": "Exécutez une fois ces commandes sur un contrôleur de domaine (ou utilisez la configuration automatique ci-dessous), puis enregistrez à nouveau les paramètres :",
+        "auto_see_guide": "Ce dont le compte a besoin et comment le configurer manuellement :"
     },
     "deployments": {
         "title": "Déploiements",
@@ -170,7 +170,8 @@
         "run_now_task": "Exécuter {name} maintenant",
         "run_now_done": "{name} : les ordinateurs exécutent les paquets une fois lors de la prochaine actualisation des stratégies (au démarrage, environ toutes les 90 minutes ou avec gpupdate).",
         "run_now_failed": "L'exécution immédiate a échoué, voir le journal du module",
-        "run_now_at": "exécution immédiate demandée le {date}"
+        "run_now_at": "exécution immédiate demandée le {date}",
+        "package_link": "Page du paquet"
     },
     "mode": {
         "upgrade": "Mettre à jour si installé",
@@ -214,12 +215,11 @@
         "account_ok_title": "Compte de service prêt",
         "account_ok_desc": "{user} dispose de tous les droits nécessaires au module.",
         "auto_title": "Configuration automatique",
-        "auto_help": "Pour un domaine de ce cluster, le module crée lui-même le compte. Les identifiants d'administrateur du domaine ne servent qu'à cette requête et ne sont pas enregistrés. Le compte reçoit un mot de passe aléatoire connu du seul module. Relancer la configuration réinitialise ce mot de passe et ajoute les droits manquants.",
+        "auto_help": "Pour un domaine de ce cluster, le module peut créer lui-même le compte, avec des identifiants d'administrateur du domaine utilisés une seule fois et non enregistrés. Le compte reçoit un mot de passe aléatoire connu du seul module. La configuration automatique se trouve dans",
         "auto_no_domain": "Aucun domaine Active Directory de ce cluster trouvé : utilisez les commandes ci-dessous sur le contrôleur de domaine.",
         "admin_user": "Administrateur du domaine",
         "admin_password": "Mot de passe de l'administrateur du domaine",
         "admin_password_helper": "Utilisé une seule fois, non enregistré",
-        "username_helper": "Nom du compte de service à créer",
         "auto_button": "Créer le compte de service",
         "auto_task": "Configurer le compte de service {user}",
         "auto_done_title": "Compte de service prêt",
@@ -235,7 +235,6 @@
         "clients_1": "Windows 10 ou 11 joint au domaine, avec le Programme d'installation d'application (winget) du Microsoft Store ; la version 1.21 de certaines images d'installation est trop ancienne : mettez-la à jour ou installez-la depuis github.com/microsoft/winget-cli.",
         "clients_2": "Accès Internet aux téléchargements des éditeurs (seul ce serveur lit l'index).",
         "clients_3": "Aucun Visual C++ Redistributable n'est nécessaire : le script ajoute lui-même le runtime de winget au chemin de recherche.",
-        "clients_4": "« Mettre à jour si installé » ne concerne que les ordinateurs qui ont déjà le paquet ; « Installer ou mettre à jour » l'installe partout où la GPO s'applique.",
         "check_title": "3. Vérifier sur un ordinateur",
         "check_help": "Dans un PowerShell administrateur :",
         "timing_title": "4. Quand cela s'exécute-t-il ?",
@@ -245,6 +244,18 @@
         "error_admin_bind_failed": "L'administrateur du domaine n'a pas pu se connecter",
         "error_admin_not_allowed": "Ce compte ne peut pas créer d'utilisateurs ni modifier des autorisations",
         "error_setup_failed": "La configuration du compte a échoué, voir le journal du module",
-        "error_dc_not_resolved": "Aucun contrôleur de domaine connu pour ce domaine"
+        "error_dc_not_resolved": "Aucun contrôleur de domaine connu pour ce domaine",
+        "options_title": "Options d'un déploiement",
+        "delivery_sysvol": "Le script se trouve dans le dossier de la GPO dans SYSVOL ; la tâche le lance depuis cet emplacement (\\\\domaine\\SysVol\\...). Lisible dans la GPO et facile à vérifier, mais l'ordinateur doit accéder à SYSVOL au moment où la tâche s'exécute.",
+        "delivery_embedded": "Le script fait partie de la ligne de commande de la tâche (-EncodedCommand). Au moment de l'exécution, la tâche n'a besoin de rien d'autre, par ex. sur un portable hors du bureau ; dans la GPO, le script n'est pas lisible en clair.",
+        "delivery_choice": "Les deux modes sont testés. La valeur par défaut des nouveaux déploiements se règle dans les paramètres.",
+        "link_domain_title": "Domaine entier",
+        "link_domain": "La GPO s'applique à chaque ordinateur du domaine.",
+        "link_ou_title": "Unité d'organisation",
+        "link_ou": "La GPO ne s'applique qu'aux ordinateurs de cette unité d'organisation et de celles situées en dessous. L'unité Domain Controllers n'est pas proposée : sous NS8, les contrôleurs de domaine sont des serveurs Samba, pas des ordinateurs Windows.",
+        "link_computers": "Les nouveaux ordinateurs sont placés dans le conteneur Computers, qui n'est pas une unité d'organisation : ils ne reçoivent que les déploiements liés au domaine entier tant qu'ils ne sont pas déplacés dans une unité d'organisation.",
+        "mode_upgrade": "Met à jour le paquet sur les ordinateurs où il est installé ; sur les autres, rien ne se passe.",
+        "mode_install": "Installe le paquet là où il manque et le met à jour là où il est installé.",
+        "mode_msi": "Pour le déploiement, préférez les paquets MSI (par ex. Google.Chrome plutôt que Google.Chrome.EXE) : certains programmes d'installation EXE attendent un bureau lorsqu'ils s'exécutent en tant que SYSTEM. Une exécution est interrompue après deux heures."
     }
 }

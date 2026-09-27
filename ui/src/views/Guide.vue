@@ -37,67 +37,12 @@
           />
 
           <h5 class="sub">{{ $t("guide.auto_title") }}</h5>
-          <p class="help">{{ $t("guide.auto_help") }}</p>
-          <cv-form @submit.prevent="setupAccount">
-            <cv-dropdown
-              :label="$t('settings.domain')"
-              v-model="setup.domain"
-              class="field"
-            >
-              <cv-dropdown-item
-                v-for="d in internalDomains"
-                :key="d.name"
-                :value="d.name"
-                >{{ d.name }}</cv-dropdown-item
-              >
-            </cv-dropdown>
-            <p v-if="!internalDomains.length" class="help">
-              {{ $t("guide.auto_no_domain") }}
-            </p>
-            <NsTextInput
-              :label="$t('guide.admin_user')"
-              v-model.trim="setup.admin_user"
-              placeholder="administrator"
-              :invalid-message="error.admin_user"
-              ref="admin_user"
-            />
-            <NsTextInput
-              :label="$t('guide.admin_password')"
-              type="password"
-              v-model="setup.admin_password"
-              :helper-text="$t('guide.admin_password_helper')"
-              :invalid-message="error.admin_password"
-              ref="admin_password"
-            />
-            <NsTextInput
-              :label="$t('settings.username')"
-              v-model.trim="setup.username"
-              :helper-text="$t('guide.username_helper')"
-              :invalid-message="error.username"
-              ref="username"
-            />
-            <NsInlineNotification
-              v-if="error.setup"
-              kind="error"
-              :title="$t('action.setup-service-account')"
-              :description="error.setup"
-              :showCloseButton="false"
-            />
-            <NsInlineNotification
-              v-if="setupDone"
-              kind="success"
-              :title="$t('guide.auto_done_title')"
-              :description="$t('guide.auto_done_desc', { user: setupDone })"
-              :showCloseButton="false"
-            />
-            <NsButton
-              kind="primary"
-              :icon="UserFollow20"
-              :loading="loading.setup"
-              :disabled="loading.setup || !internalDomains.length"
-              >{{ $t("guide.auto_button") }}</NsButton
-            >
-          </cv-form>
+          <p class="help">
+            {{ $t("guide.auto_help") }}
+            <cv-link @click="goToAppPage(instanceName, 'settings')">{{
+              $t("settings.title")
+            }}</cv-link>
+          </p>
 
           <h5 class="sub">{{ $t("guide.manual_title") }}</h5>
           <p class="help">{{ $t("guide.manual_help") }}</p>
@@ -106,9 +51,37 @@
         </cv-tile>
 
         <cv-tile light class="tile">
+          <h4>{{ $t("guide.options_title") }}</h4>
+          <h5 class="sub first">{{ $t("deployments.delivery") }}</h5>
+          <dl class="options">
+            <dt>{{ $t("delivery.sysvol") }}</dt>
+            <dd>{{ $t("guide.delivery_sysvol") }}</dd>
+            <dt>{{ $t("delivery.embedded") }}</dt>
+            <dd>{{ $t("guide.delivery_embedded") }}</dd>
+          </dl>
+          <p class="help">{{ $t("guide.delivery_choice") }}</p>
+          <h5 class="sub">{{ $t("deployments.links") }}</h5>
+          <dl class="options">
+            <dt>{{ $t("guide.link_domain_title") }}</dt>
+            <dd>{{ $t("guide.link_domain") }}</dd>
+            <dt>{{ $t("guide.link_ou_title") }}</dt>
+            <dd>{{ $t("guide.link_ou") }}</dd>
+          </dl>
+          <p class="help">{{ $t("guide.link_computers") }}</p>
+          <h5 class="sub">{{ $t("deployments.packages") }}</h5>
+          <dl class="options">
+            <dt>{{ $t("mode.upgrade") }}</dt>
+            <dd>{{ $t("guide.mode_upgrade") }}</dd>
+            <dt>{{ $t("mode.install") }}</dt>
+            <dd>{{ $t("guide.mode_install") }}</dd>
+          </dl>
+          <p class="help">{{ $t("guide.mode_msi") }}</p>
+        </cv-tile>
+
+        <cv-tile light class="tile">
           <h4>{{ $t("guide.clients_title") }}</h4>
           <ul class="bullets">
-            <li v-for="n in 4" :key="n">{{ $t("guide.clients_" + n) }}</li>
+            <li v-for="n in 3" :key="n">{{ $t("guide.clients_" + n) }}</li>
           </ul>
         </cv-tile>
 
@@ -131,7 +104,6 @@
 
 <script>
 import { mapState } from "vuex";
-import UserFollow20 from "@carbon/icons-vue/es/user--follow/20";
 import {
   QueryParamService,
   UtilService,
@@ -156,17 +128,9 @@ export default {
     return {
       q: { page: "guide" },
       urlCheckInterval: null,
-      UserFollow20,
       config: {},
-      setup: {
-        domain: "",
-        admin_user: "administrator",
-        admin_password: "",
-        username: "svc-windeploy",
-      },
-      setupDone: "",
-      loading: { setup: false },
-      error: { setup: "", admin_user: "", admin_password: "", username: "" },
+      // domain and account name for the manual commands
+      setup: { domain: "", username: "svc-windeploy" },
     };
   },
   computed: {
@@ -252,49 +216,6 @@ export default {
         this.config = {};
       }
     },
-    async setupAccount() {
-      this.clearErrors(this);
-      this.setupDone = "";
-      let ok = true;
-      for (const f of ["admin_user", "admin_password", "username"]) {
-        if (!this.setup[f]) {
-          this.error[f] = this.$t("common.required");
-          if (ok) this.focusElement(f);
-          ok = false;
-        }
-      }
-      if (!ok) return;
-      this.loading.setup = true;
-      try {
-        const res = await this.runModuleTask(
-          "setup-service-account",
-          {
-            domain: this.setup.domain,
-            admin_user: this.setup.admin_user,
-            admin_password: this.setup.admin_password,
-            username: this.setup.username,
-          },
-          {
-            title: this.$t("guide.auto_task", { user: this.setup.username }),
-            hidden: false,
-          }
-        );
-        this.setupDone = res.username;
-        this.loadConfig();
-      } catch (e) {
-        if (e.validation) {
-          const v = e.validation[0];
-          const field = v.field in this.error ? v.field : "setup";
-          this.error[field] = this.$t("guide.error_" + v.error);
-        } else {
-          this.error.setup = this.$t("guide.error_setup_failed");
-        }
-      } finally {
-        // never keep the admin password in the page
-        this.setup.admin_password = "";
-        this.loading.setup = false;
-      }
-    },
   },
 };
 </script>
@@ -328,6 +249,19 @@ h4 {
 }
 .bullets {
   list-style: disc;
+}
+.options {
+  margin-bottom: $spacing-04;
+  dt {
+    font-weight: 600;
+    margin-top: $spacing-03;
+  }
+  dd {
+    margin: $spacing-02 0 0 0;
+  }
+}
+.sub.first {
+  margin-top: $spacing-03;
 }
 .code {
   font-family: "IBM Plex Mono", monospace;

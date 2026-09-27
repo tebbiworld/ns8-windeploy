@@ -105,6 +105,58 @@
         />
       </cv-column>
     </cv-row>
+    <cv-row>
+      <cv-column :md="4" :max="8">
+        <cv-tile light class="rights-tile">
+          <h4 class="rights-title">{{ $t("settings.rights_title") }}</h4>
+          <RightsCheck
+            :rights="wd.rights"
+            :username="wd.username"
+            :loading="loading.getConfiguration"
+          />
+          <NsInlineNotification
+            v-if="wd.rights && !wdRightsOk"
+            kind="warning"
+            :title="$t('settings.delegation_title')"
+            :description="$t('status.rights_fix')"
+            :showCloseButton="false"
+          />
+          <cv-link @click="goToAppPage(instanceName, 'settings')">{{
+            $t("settings.title")
+          }}</cv-link>
+        </cv-tile>
+      </cv-column>
+      <cv-column :md="4" :max="4">
+        <NsInfoCard
+          light
+          :title="String(wd.deployments)"
+          :description="$t('deployments.title')"
+          :icon="Deploy32"
+          :loading="loading.getConfiguration"
+          class="min-height-card"
+        />
+      </cv-column>
+      <cv-column :md="4" :max="4">
+        <NsInfoCard
+          light
+          :title="
+            wd.index.packages
+              ? $t('settings.index_packages', { n: wd.index.packages })
+              : '-'
+          "
+          :description="
+            wd.index.last_modified
+              ? $t('settings.index_cdn', {
+                  date: new Date(wd.index.last_modified).toLocaleString(),
+                })
+              : $t('settings.index_missing')
+          "
+          :icon="Catalog32"
+          :loading="loading.getConfiguration"
+          class="min-height-card"
+        />
+      </cv-column>
+    </cv-row>
     <!-- services -->
     <cv-row>
       <cv-column class="page-subtitle">
@@ -256,6 +308,10 @@
 
 <script>
 import to from "await-to-js";
+import Deploy32 from "@carbon/icons-vue/es/deploy/32";
+import Catalog32 from "@carbon/icons-vue/es/catalog/32";
+import RightsCheck, { rightsComplete } from "@/components/RightsCheck";
+import moduleTask from "@/mixins/moduleTask";
 import { mapState } from "vuex";
 import {
   QueryParamService,
@@ -267,7 +323,9 @@ import {
 
 export default {
   name: "Status",
+  components: { RightsCheck },
   mixins: [
+    moduleTask,
     TaskService,
     QueryParamService,
     IconService,
@@ -279,6 +337,9 @@ export default {
   },
   data() {
     return {
+      Deploy32,
+      Catalog32,
+      wd: { rights: null, username: "", deployments: 0, index: {} },
       q: {
         page: "status",
       },
@@ -294,6 +355,7 @@ export default {
       backupRepositories: [],
       backups: [],
       loading: {
+        getConfiguration: false,
         getStatus: false,
         listBackupRepositories: false,
         listBackups: false,
@@ -306,6 +368,9 @@ export default {
     };
   },
   computed: {
+    wdRightsOk() {
+      return rightsComplete(this.wd.rights);
+    },
     ...mapState(["instanceName", "instanceLabel", "core", "appName"]),
     installationNodeTitle() {
       if (this.status && this.status.node) {
@@ -347,9 +412,26 @@ export default {
   },
   created() {
     this.getStatus();
+    this.getWdConfiguration();
     this.listBackupRepositories();
   },
   methods: {
+    async getWdConfiguration() {
+      this.loading.getConfiguration = true;
+      try {
+        const c = await this.runModuleTask("get-configuration");
+        this.wd = {
+          rights: c.rights,
+          username: c.username,
+          deployments: c.deployments,
+          index: c.index || {},
+        };
+      } catch (e) {
+        // the status page works without it
+      } finally {
+        this.loading.getConfiguration = false;
+      }
+    },
     async getStatus() {
       this.loading.getStatus = true;
       this.error.getStatus = "";
@@ -511,6 +593,13 @@ export default {
 
 <style scoped lang="scss">
 @import "../styles/carbon-utils";
+.rights-tile {
+  margin-bottom: $spacing-07;
+  min-height: 7.5rem;
+}
+.rights-title {
+  margin-bottom: $spacing-05;
+}
 
 .break-word {
   word-wrap: break-word;

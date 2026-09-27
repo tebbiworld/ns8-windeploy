@@ -22,13 +22,6 @@
         <span>{{ $t("status.title") }}</span>
       </cv-side-nav-link>
       <cv-side-nav-link
-        @click="goToAppPage(instanceName, 'deployments')"
-        :class="{ 'current-page': isLinkActive('deployments') }"
-      >
-        <template v-slot:nav-icon><Deploy20 /></template>
-        <span>{{ $t("deployments.title") }}</span>
-      </cv-side-nav-link>
-      <cv-side-nav-link
         @click="goToAppPage(instanceName, 'guide')"
         :class="{ 'current-page': isLinkActive('guide') }"
       >
@@ -41,6 +34,13 @@
       >
         <template v-slot:nav-icon><Settings20 /></template>
         <span>{{ $t("settings.title") }}</span>
+      </cv-side-nav-link>
+      <cv-side-nav-link
+        @click="goToAppPage(instanceName, 'deployments')"
+        :class="{ 'current-page': isLinkActive('deployments') }"
+      >
+        <template v-slot:nav-icon><Deploy20 /></template>
+        <span>{{ $t("deployments.title") }}</span>
       </cv-side-nav-link>
       <cv-side-nav-link
         @click="goToAppPage(instanceName, 'about')"
