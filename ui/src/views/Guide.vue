@@ -13,9 +13,9 @@
       <cv-column :md="8" :max="12">
         <cv-tile light class="tile">
           <h4>{{ $t("guide.how_title") }}</h4>
-          <ol class="steps">
-            <li v-for="n in 5" :key="n">{{ $t("guide.how_" + n) }}</li>
-          </ol>
+          <ul class="bullets">
+            <li v-for="n in 6" :key="n">{{ $t("guide.how_" + n) }}</li>
+          </ul>
         </cv-tile>
 
         <cv-tile light class="tile">
@@ -26,41 +26,54 @@
             <li>{{ $t("guide.right_create") }}</li>
             <li>{{ $t("guide.right_link") }}</li>
           </ul>
-          <NsInlineNotification
-            v-if="rightsOk"
-            kind="success"
-            :title="$t('guide.account_ok_title')"
-            :description="
-              $t('guide.account_ok_desc', { user: config.username })
-            "
-            :showCloseButton="false"
-          />
 
-          <h5 class="sub">{{ $t("guide.auto_title") }}</h5>
-          <p class="help">
-            {{ $t("guide.auto_help") }}
-            <cv-link @click="goToAppPage(instanceName, 'settings')">{{
-              $t("settings.title")
-            }}</cv-link>
-          </p>
+          <h5 class="sub">{{ $t("guide.auto_heading") }}</h5>
+          <i18n path="guide.auto_help" tag="p" class="help">
+            <template v-slot:settings>
+              <cv-link @click="goToAppPage(instanceName, 'settings')">{{
+                $t("settings.title")
+              }}</cv-link>
+            </template>
+          </i18n>
 
           <h5 class="sub">{{ $t("guide.manual_title") }}</h5>
           <p class="help">{{ $t("guide.manual_help") }}</p>
           <pre class="code">{{ manualCommands }}</pre>
-          <p class="help">{{ $t("guide.manual_ou") }}</p>
+          <i18n path="guide.manual_ou" tag="p" class="help">
+            <template v-slot:settings>
+              <cv-link @click="goToAppPage(instanceName, 'settings')">{{
+                $t("settings.title")
+              }}</cv-link>
+            </template>
+          </i18n>
+        </cv-tile>
+
+        <cv-tile light class="tile">
+          <h4>{{ $t("guide.clients_title") }}</h4>
+          <ul class="bullets">
+            <li v-for="n in 4" :key="n">{{ $t("guide.clients_" + n) }}</li>
+          </ul>
         </cv-tile>
 
         <cv-tile light class="tile">
           <h4>{{ $t("guide.options_title") }}</h4>
-          <h5 class="sub first">{{ $t("deployments.delivery") }}</h5>
+
+          <h5 class="sub first">{{ $t("guide.delivery_heading") }}</h5>
+          <i18n path="guide.delivery_choice" tag="p" class="help">
+            <template v-slot:settings>
+              <cv-link @click="goToAppPage(instanceName, 'settings')">{{
+                $t("settings.title")
+              }}</cv-link>
+            </template>
+          </i18n>
           <dl class="options">
             <dt>{{ $t("delivery.sysvol") }}</dt>
             <dd>{{ $t("guide.delivery_sysvol") }}</dd>
             <dt>{{ $t("delivery.embedded") }}</dt>
             <dd>{{ $t("guide.delivery_embedded") }}</dd>
           </dl>
-          <p class="help">{{ $t("guide.delivery_choice") }}</p>
-          <h5 class="sub">{{ $t("deployments.links") }}</h5>
+
+          <h5 class="sub">{{ $t("guide.link_heading") }}</h5>
           <dl class="options">
             <dt>{{ $t("guide.link_domain_title") }}</dt>
             <dd>{{ $t("guide.link_domain") }}</dd>
@@ -68,7 +81,8 @@
             <dd>{{ $t("guide.link_ou") }}</dd>
           </dl>
           <p class="help">{{ $t("guide.link_computers") }}</p>
-          <h5 class="sub">{{ $t("deployments.packages") }}</h5>
+
+          <h5 class="sub">{{ $t("guide.mode_heading") }}</h5>
           <dl class="options">
             <dt>{{ $t("mode.upgrade") }}</dt>
             <dd>{{ $t("guide.mode_upgrade") }}</dd>
@@ -79,23 +93,9 @@
         </cv-tile>
 
         <cv-tile light class="tile">
-          <h4>{{ $t("guide.clients_title") }}</h4>
-          <ul class="bullets">
-            <li v-for="n in 3" :key="n">{{ $t("guide.clients_" + n) }}</li>
-          </ul>
-        </cv-tile>
-
-        <cv-tile light class="tile">
           <h4>{{ $t("guide.check_title") }}</h4>
           <p class="help">{{ $t("guide.check_help") }}</p>
           <pre class="code">{{ checkCommands }}</pre>
-        </cv-tile>
-
-        <cv-tile light class="tile">
-          <h4>{{ $t("guide.timing_title") }}</h4>
-          <ul class="bullets">
-            <li v-for="n in 3" :key="n">{{ $t("guide.timing_" + n) }}</li>
-          </ul>
         </cv-tile>
       </cv-column>
     </cv-row>
@@ -140,10 +140,6 @@ export default {
         (d) => d.location === "internal"
       );
     },
-    rightsOk() {
-      const r = this.config.rights;
-      return r && r.can_create_gpo && r.can_link_domain && r.sysvol;
-    },
     domainInfo() {
       const d = this.internalDomains.find((x) => x.name === this.setup.domain);
       const p = d && d.providers[0];
@@ -171,8 +167,9 @@ export default {
         `${run} samba-dc samba-tool group addmembers "Group Policy Creator Owners" ${u}`,
         `# 3. ${this.$t("guide.cmd_sid")}`,
         `SID=$(${run} samba-dc samba-tool user show ${u} --attributes=objectSid | sed -n 's/^objectSid: //p')`,
-        `# 4. ${this.$t("guide.cmd_delegate")}`,
+        `# 4. ${this.$t("guide.cmd_gpo")}`,
         `${run} samba-dc samba-tool dsacl set --objectdn="CN=Policies,CN=System,${dn}" --sddl="(OA;;CC;f30e3bc2-9ff0-11d1-b603-0000f80367c1;;$SID)"`,
+        `# 5. ${this.$t("guide.cmd_link")}`,
         `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;;RPWP;f30e3bbe-9ff0-11d1-b603-0000f80367c1;;$SID)"`,
         `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;;RPWP;f30e3bbf-9ff0-11d1-b603-0000f80367c1;;$SID)"`,
       ].join("\n");
