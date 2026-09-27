@@ -204,6 +204,13 @@
         </cv-tile>
         <cv-tile light class="tile">
           <h4 class="section-title">{{ $t("guide.auto_title") }}</h4>
+          <NsInlineNotification
+            v-if="allRights"
+            kind="success"
+            :title="$t('guide.account_ok_title')"
+            :description="$t('guide.account_ok_desc', { user: username })"
+            :showCloseButton="false"
+          />
           <p class="muted help">
             {{ $t("settings.auto_see_guide") }}
             <cv-link @click="goToAppPage(instanceName, 'guide')">{{
