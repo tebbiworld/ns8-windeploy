@@ -380,7 +380,12 @@ class Session:
         out = [{"dn": self.domain_dn, "name": self.realm.lower(), "kind": "domain"}]
         res = self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
                                 expression="(objectClass=organizationalUnit)", attrs=["name"])
+        dcs = f"ou=domain controllers,{self.domain_dn}".lower()
         for r in sorted(res, key=lambda r: str(r.dn).lower()):
+            # No software for domain controllers (on NS8 they are Samba
+            # servers, not Windows computers).
+            if str(r.dn).lower() == dcs:
+                continue
             out.append({"dn": str(r.dn), "name": str(r.get("name", [b""])[0]), "kind": "ou"})
         return out
 
