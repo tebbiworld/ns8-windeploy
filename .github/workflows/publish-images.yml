@@ -1,26 +1,47 @@
 name: "Publish images"
 
+# Own build instead of NethServer/ns8-github-actions publish-branch.yml:
+# that reusable workflow limits the token to packages:write, which cannot
+# check out a private repository.
+
 on:
   push:
   workflow_dispatch:
 
 permissions:
+  contents: read
   packages: write
-  actions: read
-  contents: write
-  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   publish-images:
-    if: github.run_number > 1
-    uses: NethServer/ns8-github-actions/.github/workflows/publish-branch.yml@v1
-  module:
-    needs: publish-images
-    uses: NethServer/ns8-github-actions/.github/workflows/module-info.yml@v1
-  trivy:
-    needs: module
-
-    if: ${{ needs.module.outputs.release == 'stable' || needs.module.outputs.release == 'latest' || github.event_name == 'workflow_dispatch' }}
-    uses: NethServer/ns8-github-actions/.github/workflows/scan-with-trivy.yml@v1
-    with:
-      images: ${{ needs.module.outputs.images }}
+    name: Publish module images
+    runs-on: ubuntu-latest
+    env:
+      REPOBASE: ghcr.io/${{ github.repository_owner }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/cache@v4
+        with:
+          path: ui/node_modules
+          key: "yarn-${{ hashFiles('ui/yarn.lock') }}"
+      - name: Image tag from the branch or tag name
+        run: |
+          tag="${GITHUB_REF_NAME//\//-}"
+          echo "IMAGETAG=${tag,,}" >> "$GITHUB_ENV"
+      - name: Build
+        run: bash build-images.sh
+      - name: Push
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$TOKEN" | buildah login -u "${{ github.actor }}" --password-stdin ghcr.io
+          for image in windeploy-samba windeploy; do
+            buildah push "${REPOBASE,,}/${image}" "docker://${REPOBASE,,}/${image}:${IMAGETAG}"
+          done
+          echo "### Images" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ${REPOBASE,,}/windeploy:${IMAGETAG}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ${REPOBASE,,}/windeploy-samba:${IMAGETAG}" >> "$GITHUB_STEP_SUMMARY"
