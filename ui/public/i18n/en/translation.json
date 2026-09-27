@@ -243,9 +243,9 @@
         "manual_title": "1.2 Set up by hand",
         "manual_help": "On the node of the domain controller (the values of the selected domain are filled in):",
         "manual_ou": "Step 6 covers all organizational units of the domain, also ones created later. Then enter the account and its password under {settings}.",
-        "cmd_create": "create the account (asks for the password) and keep the password from expiring",
-        "cmd_group": "write access to SYSVOL",
-        "cmd_sid": "get the SID of the account",
+        "cmd_create": "Create the account (asks for the password) and keep the password from expiring.",
+        "cmd_group": "Give write access to SYSVOL.",
+        "cmd_sid": "Get the SID of the account (for the following commands).",
         "clients_title": "2. Requirements on the computers",
         "clients_1": "Windows 10 or 11 joined to the domain",
         "clients_2": "App Installer (winget) from the Microsoft Store; version 1.21 as shipped with some images is too old: update it or install it from github.com/microsoft/winget-cli.",
@@ -270,13 +270,13 @@
         "mode_msi": "Prefer MSI packages (e.g. Google.Chrome instead of Google.Chrome.EXE): some EXE installers wait for a desktop when they run as SYSTEM and hang until the run is stopped after two hours.",
         "how_6": "This server only reads the index and writes the GPO; the computers download the software themselves.",
         "auto_heading": "1.1 Set up automatically",
-        "cmd_gpo": "right to create GPOs",
-        "cmd_link": "right to link GPOs to the domain (gPLink, gPOptions)",
+        "cmd_gpo": "Give the right to create GPOs.",
+        "cmd_link": "Give the right to link GPOs to the domain (gPLink, gPOptions).",
         "clients_4": "No VC++ redistributable needed: the script puts the runtime of winget on its search path.",
         "delivery_heading": "3.1 Script delivery",
         "link_heading": "3.2 Link",
         "mode_heading": "3.3 Action per package",
-        "cmd_link_ous": "right to link GPOs to organizational units (inherited, also for OUs created later)",
-        "cmd_create_ou": "optional: right to create empty organizational units (when linking a new OU)"
+        "cmd_link_ous": "Give the right to link GPOs to organizational units (inherited, also for OUs created later).",
+        "cmd_create_ou": "Optional: give the right to create empty organizational units (when linking a new OU)."
     }
 }

@@ -243,9 +243,9 @@
         "manual_title": "1.2 Configurazione manuale",
         "manual_help": "Sul nodo del domain controller (i valori del dominio selezionato sono già inseriti):",
         "manual_ou": "Il passo 6 vale per tutte le unità organizzative del dominio, anche per quelle create in seguito. Poi inserisci l'account e la password in {settings}.",
-        "cmd_create": "crea l'account (chiede la password) e disattiva la scadenza della password",
-        "cmd_group": "scrittura in SYSVOL",
-        "cmd_sid": "ottieni il SID dell'account",
+        "cmd_create": "Crea l'account (chiede la password) e disattiva la scadenza della password.",
+        "cmd_group": "Concedi la scrittura in SYSVOL.",
+        "cmd_sid": "Ottieni il SID dell'account (per i comandi successivi).",
         "clients_title": "2. Requisiti sui computer",
         "clients_1": "Windows 10 o 11 nel dominio",
         "clients_2": "Programma di installazione app (winget) del Microsoft Store; la versione 1.21 di alcune immagini di installazione è troppo vecchia: aggiornala o installala da github.com/microsoft/winget-cli.",
@@ -270,13 +270,13 @@
         "mode_msi": "Preferisci i pacchetti MSI (ad es. Google.Chrome invece di Google.Chrome.EXE): alcuni programmi di installazione EXE attendono un desktop quando vengono eseguiti come SYSTEM e restano bloccati finché l'esecuzione non viene interrotta dopo due ore.",
         "how_6": "Questo server legge solo l'indice e scrive il GPO; il software viene scaricato dai computer stessi.",
         "auto_heading": "1.1 Configurazione automatica",
-        "cmd_gpo": "diritto di creare GPO",
-        "cmd_link": "diritto di collegare GPO al dominio (gPLink, gPOptions)",
+        "cmd_gpo": "Concedi il diritto di creare GPO.",
+        "cmd_link": "Concedi il diritto di collegare GPO al dominio (gPLink, gPOptions).",
         "clients_4": "Non serve il Visual C++ Redistributable: lo script aggiunge da solo il runtime di winget al percorso di ricerca.",
         "delivery_heading": "3.1 Consegna dello script",
         "link_heading": "3.2 Collegamento",
         "mode_heading": "3.3 Azione per pacchetto",
-        "cmd_link_ous": "diritto di collegare GPO a unità organizzative (ereditato, vale anche per quelle create in seguito)",
-        "cmd_create_ou": "facoltativo: diritto di creare unità organizzative vuote (quando si collega una nuova unità)"
+        "cmd_link_ous": "Concedi il diritto di collegare GPO a unità organizzative (ereditato, vale anche per quelle create in seguito).",
+        "cmd_create_ou": "Facoltativo: concedi il diritto di creare unità organizzative vuote (quando si collega una nuova unità)."
     }
 }

@@ -243,9 +243,9 @@
         "manual_title": "1.2 Von Hand einrichten",
         "manual_help": "Auf dem Knoten des Domänencontrollers (die Werte der gewählten Domäne sind eingesetzt):",
         "manual_ou": "Schritt 6 gilt für alle Organisationseinheiten der Domäne, auch für später angelegte. Danach Konto und Kennwort unter {settings} eintragen.",
-        "cmd_create": "Konto anlegen (fragt nach dem Kennwort) und Ablauf des Kennworts abschalten",
-        "cmd_group": "Schreibrecht im SYSVOL",
-        "cmd_sid": "SID des Kontos ermitteln",
+        "cmd_create": "Konto anlegen (fragt nach dem Kennwort) und den Ablauf des Kennworts abschalten.",
+        "cmd_group": "Schreibrecht im SYSVOL geben.",
+        "cmd_sid": "SID des Kontos ermitteln (für die folgenden Befehle).",
         "clients_title": "2. Voraussetzungen auf den Rechnern",
         "clients_1": "Windows 10 oder 11 in der Domäne",
         "clients_2": "App Installer (winget) aus dem Microsoft Store; die Version 1.21 mancher Installationsabbilder ist zu alt: aktualisieren oder von github.com/microsoft/winget-cli einspielen.",
@@ -270,13 +270,13 @@
         "mode_msi": "MSI-Pakete bevorzugen (z. B. Google.Chrome statt Google.Chrome.EXE): Manche EXE-Installer warten als SYSTEM auf einen Desktop und hängen, bis der Lauf nach zwei Stunden abgebrochen wird.",
         "how_6": "Dieser Server liest nur den Index und schreibt das GPO; die Software laden die Rechner selbst.",
         "auto_heading": "1.1 Automatisch einrichten",
-        "cmd_gpo": "Recht, GPOs anzulegen",
-        "cmd_link": "Recht, GPOs mit der Domäne zu verknüpfen (gPLink, gPOptions)",
+        "cmd_gpo": "Recht geben, GPOs anzulegen.",
+        "cmd_link": "Recht geben, GPOs mit der Domäne zu verknüpfen (gPLink, gPOptions).",
         "clients_4": "Kein VC++-Redistributable nötig: Das Skript nimmt die Laufzeit von winget selbst in den Suchpfad.",
         "delivery_heading": "3.1 Auslieferung des Skripts",
         "link_heading": "3.2 Verknüpfung",
         "mode_heading": "3.3 Aktion pro Paket",
-        "cmd_link_ous": "Recht, GPOs mit Organisationseinheiten zu verknüpfen (vererbt, gilt auch für später angelegte OUs)",
-        "cmd_create_ou": "optional: Recht, leere Organisationseinheiten anzulegen (beim Verknüpfen einer neuen OU)"
+        "cmd_link_ous": "Recht geben, GPOs mit Organisationseinheiten zu verknüpfen (vererbt, gilt auch für später angelegte OUs).",
+        "cmd_create_ou": "Optional: Recht geben, leere Organisationseinheiten anzulegen (beim Verknüpfen einer neuen OU)."
     }
 }

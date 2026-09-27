@@ -391,7 +391,6 @@ export default {
         `  --sddl="(OA;CIIO;RPWP;f30e3bbe-9ff0-11d1-b603-0000f80367c1;bf967aa5-0de6-11d0-a285-00aa003049e2;${sid})"`,
         `samba-tool dsacl set --objectdn="${dn}" \\`,
         `  --sddl="(OA;CIIO;RPWP;f30e3bbf-9ff0-11d1-b603-0000f80367c1;bf967aa5-0de6-11d0-a285-00aa003049e2;${sid})"`,
-        `# ${this.$t("guide.cmd_create_ou")}`,
         `samba-tool dsacl set --objectdn="${dn}" \\`,
         `  --sddl="(OA;;CC;bf967aa5-0de6-11d0-a285-00aa003049e2;;${sid})"`,
         `samba-tool dsacl set --objectdn="${dn}" \\`,

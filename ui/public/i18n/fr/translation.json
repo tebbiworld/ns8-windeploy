@@ -243,9 +243,9 @@
         "manual_title": "1.2 Configuration manuelle",
         "manual_help": "Sur le nœud du contrôleur de domaine (les valeurs du domaine sélectionné sont déjà renseignées) :",
         "manual_ou": "L'étape 6 couvre toutes les unités d'organisation du domaine, y compris celles créées plus tard. Saisissez ensuite le compte et son mot de passe dans {settings}.",
-        "cmd_create": "créer le compte (demande le mot de passe) et désactiver l'expiration du mot de passe",
-        "cmd_group": "écriture dans SYSVOL",
-        "cmd_sid": "obtenir le SID du compte",
+        "cmd_create": "Créer le compte (demande le mot de passe) et désactiver l'expiration du mot de passe.",
+        "cmd_group": "Donner l'accès en écriture à SYSVOL.",
+        "cmd_sid": "Obtenir le SID du compte (pour les commandes suivantes).",
         "clients_title": "2. Prérequis sur les ordinateurs",
         "clients_1": "Windows 10 ou 11 joint au domaine",
         "clients_2": "Programme d'installation d'application (winget) du Microsoft Store ; la version 1.21 de certaines images d'installation est trop ancienne : mettez-la à jour ou installez-la depuis github.com/microsoft/winget-cli.",
@@ -270,13 +270,13 @@
         "mode_msi": "Préférez les paquets MSI (par ex. Google.Chrome plutôt que Google.Chrome.EXE) : certains programmes d'installation EXE attendent un bureau lorsqu'ils s'exécutent en tant que SYSTEM et restent bloqués jusqu'à l'interruption de l'exécution après deux heures.",
         "how_6": "Ce serveur lit seulement l'index et écrit la GPO ; les ordinateurs téléchargent eux-mêmes les logiciels.",
         "auto_heading": "1.1 Configuration automatique",
-        "cmd_gpo": "droit de créer des GPO",
-        "cmd_link": "droit de lier des GPO au domaine (gPLink, gPOptions)",
+        "cmd_gpo": "Donner le droit de créer des GPO.",
+        "cmd_link": "Donner le droit de lier des GPO au domaine (gPLink, gPOptions).",
         "clients_4": "Aucun Visual C++ Redistributable n'est nécessaire : le script ajoute lui-même le runtime de winget au chemin de recherche.",
         "delivery_heading": "3.1 Livraison du script",
         "link_heading": "3.2 Liaison",
         "mode_heading": "3.3 Action par paquet",
-        "cmd_link_ous": "droit de lier des GPO aux unités d'organisation (hérité, valable aussi pour celles créées plus tard)",
-        "cmd_create_ou": "facultatif : droit de créer des unités d'organisation vides (lors de la liaison d'une nouvelle unité)"
+        "cmd_link_ous": "Donner le droit de lier des GPO aux unités d'organisation (hérité, valable aussi pour celles créées plus tard).",
+        "cmd_create_ou": "Facultatif : donner le droit de créer des unités d'organisation vides (lors de la liaison d'une nouvelle unité)."
     }
 }

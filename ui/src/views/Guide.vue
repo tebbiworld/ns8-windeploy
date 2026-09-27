@@ -38,7 +38,12 @@
 
           <h5 class="sub">{{ $t("guide.manual_title") }}</h5>
           <p class="help">{{ $t("guide.manual_help") }}</p>
-          <pre class="code">{{ manualCommands }}</pre>
+          <ol class="manual-steps">
+            <li v-for="(step, i) in manualSteps" :key="i">
+              <p class="step-text">{{ step.text }}</p>
+              <pre class="code">{{ step.commands.join("\n") }}</pre>
+            </li>
+          </ol>
           <i18n path="guide.manual_ou" tag="p" class="help">
             <template v-slot:settings>
               <cv-link @click="goToAppPage(instanceName, 'settings')">{{
@@ -154,31 +159,67 @@ export default {
         .join(",");
       return { module: (p && p.module_id) || "samba1", dn };
     },
-    manualCommands() {
+    manualSteps() {
       const m = this.domainInfo.module;
       const dn = this.domainInfo.dn;
       const u = this.setup.username || "svc-windeploy";
       const run = `runagent -m ${m} podman exec`;
+      const acl = (objdn, ace) =>
+        `${run} samba-dc samba-tool dsacl set --objectdn="${objdn}" --sddl="${ace}"`;
+      const OU = "bf967aa5-0de6-11d0-a285-00aa003049e2";
+      const GPLINK = "f30e3bbe-9ff0-11d1-b603-0000f80367c1";
+      const GPOPT = "f30e3bbf-9ff0-11d1-b603-0000f80367c1";
       return [
-        `# 1. ${this.$t("guide.cmd_create")}`,
-        `${run} -it samba-dc samba-tool user create ${u}`,
-        `${run} samba-dc samba-tool user setexpiry ${u} --noexpiry`,
-        `# 2. ${this.$t("guide.cmd_group")}`,
-        `${run} samba-dc samba-tool group addmembers "Group Policy Creator Owners" ${u}`,
-        `# 3. ${this.$t("guide.cmd_sid")}`,
-        `SID=$(${run} samba-dc samba-tool user show ${u} --attributes=objectSid | sed -n 's/^objectSid: //p')`,
-        `# 4. ${this.$t("guide.cmd_gpo")}`,
-        `${run} samba-dc samba-tool dsacl set --objectdn="CN=Policies,CN=System,${dn}" --sddl="(OA;;CC;f30e3bc2-9ff0-11d1-b603-0000f80367c1;;$SID)"`,
-        `# 5. ${this.$t("guide.cmd_link")}`,
-        `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;;RPWP;f30e3bbe-9ff0-11d1-b603-0000f80367c1;;$SID)"`,
-        `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;;RPWP;f30e3bbf-9ff0-11d1-b603-0000f80367c1;;$SID)"`,
-        `# 6. ${this.$t("guide.cmd_link_ous")}`,
-        `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;CIIO;RPWP;f30e3bbe-9ff0-11d1-b603-0000f80367c1;bf967aa5-0de6-11d0-a285-00aa003049e2;$SID)"`,
-        `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;CIIO;RPWP;f30e3bbf-9ff0-11d1-b603-0000f80367c1;bf967aa5-0de6-11d0-a285-00aa003049e2;$SID)"`,
-        `# 7. ${this.$t("guide.cmd_create_ou")}`,
-        `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;;CC;bf967aa5-0de6-11d0-a285-00aa003049e2;;$SID)"`,
-        `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;CIIO;CC;bf967aa5-0de6-11d0-a285-00aa003049e2;bf967aa5-0de6-11d0-a285-00aa003049e2;$SID)"`,
-      ].join("\n");
+        {
+          text: this.$t("guide.cmd_create"),
+          commands: [
+            `${run} -it samba-dc samba-tool user create ${u}`,
+            `${run} samba-dc samba-tool user setexpiry ${u} --noexpiry`,
+          ],
+        },
+        {
+          text: this.$t("guide.cmd_group"),
+          commands: [
+            `${run} samba-dc samba-tool group addmembers "Group Policy Creator Owners" ${u}`,
+          ],
+        },
+        {
+          text: this.$t("guide.cmd_sid"),
+          commands: [
+            `SID=$(${run} samba-dc samba-tool user show ${u} --attributes=objectSid | sed -n 's/^objectSid: //p')`,
+          ],
+        },
+        {
+          text: this.$t("guide.cmd_gpo"),
+          commands: [
+            acl(
+              `CN=Policies,CN=System,${dn}`,
+              "(OA;;CC;f30e3bc2-9ff0-11d1-b603-0000f80367c1;;$SID)"
+            ),
+          ],
+        },
+        {
+          text: this.$t("guide.cmd_link"),
+          commands: [
+            acl(dn, `(OA;;RPWP;${GPLINK};;$SID)`),
+            acl(dn, `(OA;;RPWP;${GPOPT};;$SID)`),
+          ],
+        },
+        {
+          text: this.$t("guide.cmd_link_ous"),
+          commands: [
+            acl(dn, `(OA;CIIO;RPWP;${GPLINK};${OU};$SID)`),
+            acl(dn, `(OA;CIIO;RPWP;${GPOPT};${OU};$SID)`),
+          ],
+        },
+        {
+          text: this.$t("guide.cmd_create_ou"),
+          commands: [
+            acl(dn, `(OA;;CC;${OU};;$SID)`),
+            acl(dn, `(OA;CIIO;CC;${OU};${OU};$SID)`),
+          ],
+        },
+      ];
     },
     checkCommands() {
       return [
@@ -265,6 +306,19 @@ h4 {
 }
 .sub.first {
   margin-top: $spacing-03;
+}
+.manual-steps {
+  list-style: decimal;
+  margin: 0 0 $spacing-05 $spacing-06;
+  li {
+    margin-bottom: $spacing-05;
+  }
+  .step-text {
+    margin-bottom: $spacing-03;
+  }
+  .code {
+    margin-bottom: 0;
+  }
 }
 .code {
   font-family: "IBM Plex Mono", monospace;
