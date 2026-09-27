@@ -109,7 +109,9 @@ try {{
         Write-Output "no result after $TimeoutMinutes minutes, stopping winget and the installer"
         $tree = @($p.Id)
         for ($i = 0; $i -lt $tree.Count; $i++) {{
-            $tree += @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($tree[$i])" | ForEach-Object {{ $_.ProcessId }})
+            # started after winget: a reused process id is not a child
+            $tree += @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($tree[$i])" |
+                Where-Object {{ $_.CreationDate -ge $p.StartTime }} | ForEach-Object {{ $_.ProcessId }})
         }}
         [array]::Reverse($tree)
         foreach ($id in $tree) {{
