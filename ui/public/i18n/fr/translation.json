@@ -104,7 +104,10 @@
         "auto_see_guide": "Ce dont le compte a besoin et comment le configurer manuellement :",
         "right_can_link_ous": "Lier des GPO aux unités d'organisation",
         "right_can_create_ou": "Créer des unités d'organisation",
-        "optional": "facultatif"
+        "optional": "facultatif",
+        "right_can_manage_gpos": "Modifier les GPO existantes du module",
+        "foreign_gpos": "Un déploiement a une GPO que ce compte ne peut pas modifier (créée par un ancien compte de service). Solution : relancer la configuration automatique dans Paramètres, elle confie les GPO au groupe {group}. | {n} déploiements ont des GPO que ce compte ne peut pas modifier (créées par un ancien compte de service). Solution : relancer la configuration automatique dans Paramètres, elle confie les GPO au groupe {group}.",
+        "not_in_group": "Le compte n'est pas membre du groupe {group} : un futur compte de service ne pourra pas reprendre les GPO qu'il crée."
     },
     "deployments": {
         "title": "Déploiements",
@@ -224,8 +227,8 @@
         "how_4": "À l'heure planifiée suivante, la tâche exécute winget sur l'ordinateur : il installe ou met à jour le paquet depuis le téléchargement de l'éditeur, vérifié avec le hachage du dépôt. Une heure de début déjà passée n'est pas rattrapée.",
         "how_5": "« Exécuter maintenant » ajoute une tâche unique : chaque ordinateur exécute les paquets une fois lors de la prochaine actualisation des stratégies, indépendamment de la planification.",
         "account_title": "1. Compte de service",
-        "account_help": "Le module écrit les GPO avec son propre compte de service. Il ne doit pas être administrateur du domaine ; il lui faut exactement ces droits :",
-        "right_group": "Membre de Group Policy Creator Owners (écriture dans le dossier Policies de SYSVOL)",
+        "account_help": "Le module écrit les GPO avec son propre compte de service. Il ne doit pas être administrateur du domaine. Les droits vont au groupe windeploy-admins dont le compte est membre ; un autre compte peut ainsi prendre le relais plus tard :",
+        "right_group": "Groupe windeploy-admins, lui-même membre de Group Policy Creator Owners : écriture dans le dossier Policies de SYSVOL ; chaque GPO du module lui donne le contrôle total",
         "right_create": "Droit délégué de créer des objets GPO dans CN=Policies (Samba ne l'accorde pas au groupe ci-dessus)",
         "right_link": "Droit délégué d'écrire gPLink et gPOptions là où les GPO sont liées (racine du domaine ou unités d'organisation)",
         "account_ok_title": "Compte de service prêt",
@@ -244,8 +247,8 @@
         "manual_help": "Sur le nœud du contrôleur de domaine (les valeurs du domaine sélectionné sont déjà renseignées) :",
         "manual_ou": "L'étape 6 couvre toutes les unités d'organisation du domaine, y compris celles créées plus tard. Saisissez ensuite le compte et son mot de passe dans {settings}.",
         "cmd_create": "Créer le compte (demande le mot de passe) et désactiver l'expiration du mot de passe.",
-        "cmd_group": "Donner l'accès en écriture à SYSVOL.",
-        "cmd_sid": "Obtenir le SID du compte (pour les commandes suivantes).",
+        "cmd_group": "Créer le groupe, y ajouter le compte et donner au groupe l'accès en écriture à SYSVOL.",
+        "cmd_sid": "Obtenir le SID du groupe (pour les commandes suivantes).",
         "clients_title": "2. Prérequis sur les ordinateurs",
         "clients_1": "Windows 10 ou 11 joint au domaine",
         "clients_2": "Programme d'installation d'application (winget) du Microsoft Store ; la version 1.21 de certaines images d'installation est trop ancienne : mettez-la à jour ou installez-la depuis github.com/microsoft/winget-cli.",
@@ -277,6 +280,8 @@
         "link_heading": "3.2 Liaison",
         "mode_heading": "3.3 Action par paquet",
         "cmd_link_ous": "Donner le droit de lier des GPO aux unités d'organisation (hérité, valable aussi pour celles créées plus tard).",
-        "cmd_create_ou": "Facultatif : donner le droit de créer des unités d'organisation vides (lors de la liaison d'une nouvelle unité)."
+        "cmd_create_ou": "Facultatif : donner le droit de créer des unités d'organisation vides (lors de la liaison d'une nouvelle unité).",
+        "switch_heading": "1.3 Changer de compte de service",
+        "switch_help": "Un autre compte prend le relais dès qu'il est membre de windeploy-admins : le saisir dans Paramètres, la vérification des droits indique s'il peut modifier les GPO existantes. La configuration automatique fait les deux et confie aussi les GPO créées par un ancien compte sans le groupe. L'ancien compte reste ; s'il ne sert plus, le retirer du groupe ou le supprimer."
     }
 }

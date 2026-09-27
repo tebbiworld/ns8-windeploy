@@ -15,6 +15,7 @@
       <ul class="rights">
         <li v-for="key in keys" :key="key">
           <CheckmarkFilled16 v-if="rights[key]" class="ok" />
+          <Information16 v-else-if="rights[key] === undefined" class="info" />
           <WarningFilled16 v-else class="bad" />
           {{ $t("settings.right_" + key) }}
         </li>
@@ -24,6 +25,17 @@
           {{ $t("settings.right_" + key) }} ({{ $t("settings.optional") }})
         </li>
       </ul>
+      <p v-if="rights.can_manage_gpos === false" class="foreign">
+        {{
+          $tc("settings.foreign_gpos", rights.foreign_gpos.length, {
+            n: rights.foreign_gpos.length,
+            group: rights.group,
+          })
+        }}
+      </p>
+      <p v-else-if="rights.group && !rights.in_group" class="muted">
+        {{ $t("settings.not_in_group", { group: rights.group }) }}
+      </p>
     </template>
   </div>
 </template>
@@ -38,13 +50,22 @@ export const RIGHT_KEYS = [
   "can_link_domain",
   "can_link_ous",
   "sysvol",
+  "can_manage_gpos",
 ];
+
+// checked since 0.1: missing in an older result means "not checked yet"
+const NEWER_KEYS = ["can_manage_gpos"];
 
 // shown, but not needed for deployments
 export const OPTIONAL_KEYS = ["can_create_ou"];
 
 export function rightsComplete(rights) {
-  return !!rights && RIGHT_KEYS.every((k) => rights[k]);
+  return (
+    !!rights &&
+    RIGHT_KEYS.every(
+      (k) => rights[k] || (NEWER_KEYS.includes(k) && rights[k] === undefined)
+    )
+  );
 }
 
 export default {
@@ -68,6 +89,10 @@ export default {
 }
 .muted {
   color: $text-02;
+}
+.foreign,
+.muted {
+  margin-top: $spacing-03;
 }
 .rights {
   li {

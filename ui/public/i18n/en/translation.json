@@ -67,7 +67,10 @@
         "auto_see_guide": "What the account needs and how to set it up by hand:",
         "right_can_link_ous": "Link GPOs to organizational units",
         "right_can_create_ou": "Create organizational units",
-        "optional": "optional"
+        "optional": "optional",
+        "right_can_manage_gpos": "Change the existing GPOs of the module",
+        "foreign_gpos": "One deployment has a GPO this account may not change (an earlier service account created it). To fix it, run the automatic setup under Settings again: it hands the GPOs over to the group {group}. | {n} deployments have GPOs this account may not change (an earlier service account created them). To fix it, run the automatic setup under Settings again: it hands the GPOs over to the group {group}.",
+        "not_in_group": "The account is not a member of the group {group}: a later service account cannot take over the GPOs it creates."
     },
     "about": {
         "title": "About"
@@ -224,8 +227,8 @@
         "how_4": "At the next scheduled time the task runs winget on the computer: it installs or updates the package from the vendor's download, checked against the hash in the repository. A start time that already passed is not caught up.",
         "how_5": "\"Run now\" adds a one-time task: every computer runs the packages once at its next policy refresh, independent of the schedule.",
         "account_title": "1. Service account",
-        "account_help": "The module writes GPOs with a service account of its own. It must not be a domain admin; it needs exactly these rights:",
-        "right_group": "Member of Group Policy Creator Owners (write access to the Policies folder in SYSVOL)",
+        "account_help": "The module writes GPOs with a service account of its own. It must not be a domain admin. The rights go to the group windeploy-admins and the account is its member, so another account can take over later:",
+        "right_group": "Group windeploy-admins, itself a member of Group Policy Creator Owners: write access to the Policies folder in SYSVOL; every GPO of the module gives it full control",
         "right_create": "Delegated right to create GPO objects in CN=Policies (Samba does not give it to the group above)",
         "right_link": "Delegated right to write gPLink and gPOptions where GPOs are linked (domain root or organizational units)",
         "account_ok_title": "Service account ready",
@@ -244,8 +247,8 @@
         "manual_help": "On the node of the domain controller (the values of the selected domain are filled in):",
         "manual_ou": "Step 6 covers all organizational units of the domain, also ones created later. Then enter the account and its password under {settings}.",
         "cmd_create": "Create the account (asks for the password) and keep the password from expiring.",
-        "cmd_group": "Give write access to SYSVOL.",
-        "cmd_sid": "Get the SID of the account (for the following commands).",
+        "cmd_group": "Create the group, add the account and give the group write access to SYSVOL.",
+        "cmd_sid": "Get the SID of the group (for the following commands).",
         "clients_title": "2. Requirements on the computers",
         "clients_1": "Windows 10 or 11 joined to the domain",
         "clients_2": "App Installer (winget) from the Microsoft Store; version 1.21 as shipped with some images is too old: update it or install it from github.com/microsoft/winget-cli.",
@@ -277,6 +280,8 @@
         "link_heading": "3.2 Link",
         "mode_heading": "3.3 Action per package",
         "cmd_link_ous": "Give the right to link GPOs to organizational units (inherited, also for OUs created later).",
-        "cmd_create_ou": "Optional: give the right to create empty organizational units (when linking a new OU)."
+        "cmd_create_ou": "Optional: give the right to create empty organizational units (when linking a new OU).",
+        "switch_heading": "1.3 Change the service account",
+        "switch_help": "Another account takes over as soon as it is a member of windeploy-admins: enter it under Settings, the rights check shows whether it may change the existing GPOs. The automatic setup does both and also hands over GPOs an earlier account created without the group. The old account stays; when it is no longer needed, remove it from the group or delete it."
     }
 }

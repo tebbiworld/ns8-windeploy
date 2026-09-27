@@ -51,6 +51,9 @@
               }}</cv-link>
             </template>
           </i18n>
+
+          <h5 class="sub">{{ $t("guide.switch_heading") }}</h5>
+          <p class="help">{{ $t("guide.switch_help") }}</p>
         </cv-tile>
 
         <cv-tile light class="tile">
@@ -163,6 +166,7 @@ export default {
       const m = this.domainInfo.module;
       const dn = this.domainInfo.dn;
       const u = this.setup.username || "svc-windeploy";
+      const g = "windeploy-admins";
       const run = `runagent -m ${m} podman exec`;
       const acl = (objdn, ace) =>
         `${run} samba-dc samba-tool dsacl set --objectdn="${objdn}" --sddl="${ace}"`;
@@ -180,13 +184,15 @@ export default {
         {
           text: this.$t("guide.cmd_group"),
           commands: [
-            `${run} samba-dc samba-tool group addmembers "Group Policy Creator Owners" ${u}`,
+            `${run} samba-dc samba-tool group add ${g}`,
+            `${run} samba-dc samba-tool group addmembers ${g} ${u}`,
+            `${run} samba-dc samba-tool group addmembers "Group Policy Creator Owners" ${g}`,
           ],
         },
         {
           text: this.$t("guide.cmd_sid"),
           commands: [
-            `SID=$(${run} samba-dc samba-tool user show ${u} --attributes=objectSid | sed -n 's/^objectSid: //p')`,
+            `SID=$(${run} samba-dc samba-tool group show ${g} --attributes=objectSid | sed -n 's/^objectSid: //p')`,
           ],
         },
         {
