@@ -79,7 +79,13 @@
                 <td class="name">{{ d.name }}</td>
                 <td>
                   <div v-for="p in d.packages" :key="p.id" class="pkg">
-                    <code>{{ p.id }}</code>
+                    <a
+                      :href="manifestUrl(p.id)"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      :title="$t('deployments.package_link')"
+                      ><code>{{ p.id }}</code></a
+                    >
                     <span class="mode">{{ $t("mode." + p.mode) }}</span>
                   </div>
                 </td>
@@ -211,6 +217,15 @@
                   <div class="result-name">{{ r.name }}</div>
                   <code class="muted">{{ r.id }}</code>
                   <span class="muted"> · {{ r.latest_version }}</span>
+                  <a
+                    :href="manifestUrl(r.id)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="pkg-link"
+                    :title="$t('deployments.package_link')"
+                    @click.stop
+                    ><Launch16 /> {{ $t("deployments.package_link") }}</a
+                  >
                 </div>
                 <NsButton
                   kind="ghost"
@@ -414,6 +429,7 @@ import Edit20 from "@carbon/icons-vue/es/edit/20";
 import Renew20 from "@carbon/icons-vue/es/renew/20";
 import TrashCan20 from "@carbon/icons-vue/es/trash-can/20";
 import Play20 from "@carbon/icons-vue/es/play/20";
+import Launch16 from "@carbon/icons-vue/es/launch/16";
 import {
   QueryParamService,
   UtilService,
@@ -439,6 +455,7 @@ function today() {
 
 export default {
   name: "Deployments",
+  components: { Launch16 },
   mixins: [
     moduleTask,
     IconService,
@@ -523,6 +540,16 @@ export default {
         delivery: this.defaultDelivery || "sysvol",
         link_targets: [],
       };
+    },
+    manifestUrl(id) {
+      // package folder in the official winget-pkgs repository
+      const parts = id.split(".").map(encodeURIComponent).join("/");
+      return (
+        "https://github.com/microsoft/winget-pkgs/tree/master/manifests/" +
+        id.charAt(0).toLowerCase() +
+        "/" +
+        parts
+      );
     },
     formatDate(iso) {
       if (!iso) return "-";
@@ -858,6 +885,15 @@ table.deployments {
   }
   .result-name {
     font-weight: 600;
+  }
+}
+.pkg-link {
+  margin-left: $spacing-04;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  svg {
+    vertical-align: middle;
+    fill: currentColor;
   }
 }
 .details {
