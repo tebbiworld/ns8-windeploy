@@ -268,6 +268,12 @@
                     .join(", ")
                 }}
               </div>
+              <div v-if="details.data.scope === 'machine'" class="muted small">
+                {{ $t("deployments.scope_machine") }}
+              </div>
+              <div v-else-if="details.data.scope === 'user'" class="bad small">
+                {{ $t("deployments.scope_user") }}
+              </div>
               <div class="muted small">
                 <a
                   v-if="details.data.homepage"

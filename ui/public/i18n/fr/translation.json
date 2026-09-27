@@ -190,7 +190,10 @@
         "ou_creating": "Création de l'unité d'organisation {dn}",
         "error_ou_create_not_allowed": "Le compte de service ne peut pas créer d'unités d'organisation. Relancez la configuration automatique dans Paramètres ou créez l'unité avec un outil AD.",
         "error_ou_parent_missing": "L'unité d'organisation parente de {dn} n'existe pas.",
-        "error_ou_create_failed": "Impossible de créer l'unité d'organisation {dn}, voir le journal du module."
+        "error_ou_create_failed": "Impossible de créer l'unité d'organisation {dn}, voir le journal du module.",
+        "error_user_scope_only": "{value} ne s'installe que par utilisateur et ne peut pas être déployé en tant que SYSTEM",
+        "scope_machine": "Programme d'installation pour l'ordinateur disponible : le déploiement le demande (--scope machine).",
+        "scope_user": "Installation par utilisateur uniquement : non déployable en tant que SYSTEM, le module refuse le paquet à l'enregistrement."
     },
     "mode": {
         "upgrade": "Mettre à jour si installé",
@@ -270,7 +273,7 @@
         "link_computers": "Les nouveaux ordinateurs sont placés dans le conteneur Computers, qui n'est pas une unité d'organisation : ils ne reçoivent que les déploiements liés au domaine entier tant qu'ils ne sont pas déplacés dans une unité d'organisation. Lors de la liaison, le module peut créer vide une unité manquante ; les ordinateurs y sont déplacés avec un outil AD (par ex. RSAT ou LDAP Admin).",
         "mode_upgrade": "Met à jour le paquet sur les ordinateurs où il est installé ; sur les autres, rien ne se passe.",
         "mode_install": "Installe le paquet là où il manque et le met à jour là où il est installé.",
-        "mode_msi": "Préférez les paquets MSI (par ex. Google.Chrome plutôt que Google.Chrome.EXE) : certains programmes d'installation EXE attendent un bureau lorsqu'ils s'exécutent en tant que SYSTEM et restent bloqués jusqu'à l'interruption de l'exécution après deux heures.",
+        "mode_msi": "Préférez les paquets MSI (par ex. Google.Chrome plutôt que Google.Chrome.EXE) : certains programmes d'installation EXE attendent un bureau lorsqu'ils s'exécutent en tant que SYSTEM. Le script arrête winget et le programme d'installation après 30 minutes sans résultat (dans le journal : code de sortie 1460) ; la tâche elle-même est interrompue après deux heures.",
         "how_6": "Ce serveur lit seulement l'index et écrit la GPO ; les ordinateurs téléchargent eux-mêmes les logiciels.",
         "auto_heading": "1.1 Configuration automatique",
         "cmd_gpo": "Donner le droit de créer des GPO.",
@@ -282,6 +285,7 @@
         "cmd_link_ous": "Donner le droit de lier des GPO aux unités d'organisation (hérité, valable aussi pour celles créées plus tard).",
         "cmd_create_ou": "Facultatif : donner le droit de créer des unités d'organisation vides (lors de la liaison d'une nouvelle unité).",
         "switch_heading": "1.3 Changer de compte de service",
-        "switch_help": "Un autre compte prend le relais dès qu'il est membre de windeploy-admins : le saisir dans Paramètres, la vérification des droits indique s'il peut modifier les GPO existantes. La configuration automatique fait les deux et confie aussi les GPO créées par un ancien compte sans le groupe. L'ancien compte reste ; s'il ne sert plus, le retirer du groupe ou le supprimer."
+        "switch_help": "Un autre compte prend le relais dès qu'il est membre de windeploy-admins : le saisir dans Paramètres, la vérification des droits indique s'il peut modifier les GPO existantes. La configuration automatique fait les deux et confie aussi les GPO créées par un ancien compte sans le groupe. L'ancien compte reste ; s'il ne sert plus, le retirer du groupe ou le supprimer.",
+        "mode_scope": "Si un paquet a un programme d'installation pour l'ordinateur, le script le demande (--scope machine), par ex. le MSI de Nextcloud.Talk ; sinon winget prend volontiers, même en tant que SYSTEM, celui par utilisateur, qui reste alors bloqué. Les paquets qui ne s'installent que par utilisateur ne peuvent pas être déployés ainsi : le module les refuse à l'enregistrement."
     }
 }

@@ -97,6 +97,7 @@
             <dt>{{ $t("mode.install") }}</dt>
             <dd>{{ $t("guide.mode_install") }}</dd>
           </dl>
+          <p class="help">{{ $t("guide.mode_scope") }}</p>
           <p class="help">{{ $t("guide.mode_msi") }}</p>
         </cv-tile>
 

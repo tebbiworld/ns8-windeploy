@@ -190,7 +190,10 @@
         "ou_creating": "OU {dn} wird angelegt",
         "error_ou_create_not_allowed": "Das Dienstkonto darf keine OUs anlegen. Die automatische Einrichtung unter Einstellungen erneut ausführen oder die OU mit einem AD-Werkzeug anlegen.",
         "error_ou_parent_missing": "Die übergeordnete OU von {dn} gibt es nicht.",
-        "error_ou_create_failed": "Die OU {dn} konnte nicht angelegt werden, siehe Modulprotokoll."
+        "error_ou_create_failed": "Die OU {dn} konnte nicht angelegt werden, siehe Modulprotokoll.",
+        "error_user_scope_only": "{value} installiert sich nur pro Benutzer und lässt sich nicht als SYSTEM verteilen",
+        "scope_machine": "Maschinenweiter Installer vorhanden: die Verteilung verlangt ihn (--scope machine).",
+        "scope_user": "Nur Installation pro Benutzer: als SYSTEM nicht verteilbar, das Modul lehnt das Paket beim Speichern ab."
     },
     "mode": {
         "upgrade": "Aktualisieren, wenn installiert",
@@ -270,7 +273,7 @@
         "link_computers": "Neue Rechner landen im Container Computers, der keine Organisationseinheit ist: Sie erhalten nur Verteilungen, die mit der ganzen Domäne verknüpft sind, bis sie in eine Organisationseinheit verschoben werden. Das Modul kann beim Verknüpfen eine fehlende OU leer anlegen; die Rechner verschiebt man mit einem AD-Werkzeug hinein (z. B. RSAT oder LDAP Admin).",
         "mode_upgrade": "Aktualisiert das Paket auf Rechnern, auf denen es installiert ist; auf den anderen passiert nichts.",
         "mode_install": "Installiert das Paket, wo es fehlt, und aktualisiert es, wo es installiert ist.",
-        "mode_msi": "MSI-Pakete bevorzugen (z. B. Google.Chrome statt Google.Chrome.EXE): Manche EXE-Installer warten als SYSTEM auf einen Desktop und hängen, bis der Lauf nach zwei Stunden abgebrochen wird.",
+        "mode_msi": "MSI-Pakete bevorzugen (z. B. Google.Chrome statt Google.Chrome.EXE): Manche EXE-Installer warten als SYSTEM auf einen Desktop. Das Skript beendet winget und den Installer nach 30 Minuten ohne Ergebnis (im Protokoll: Exitcode 1460); die Aufgabe selbst bricht nach zwei Stunden ab.",
         "how_6": "Dieser Server liest nur den Index und schreibt das GPO; die Software laden die Rechner selbst.",
         "auto_heading": "1.1 Automatisch einrichten",
         "cmd_gpo": "Recht geben, GPOs anzulegen.",
@@ -282,6 +285,7 @@
         "cmd_link_ous": "Recht geben, GPOs mit Organisationseinheiten zu verknüpfen (vererbt, gilt auch für später angelegte OUs).",
         "cmd_create_ou": "Optional: Recht geben, leere Organisationseinheiten anzulegen (beim Verknüpfen einer neuen OU).",
         "switch_heading": "1.3 Dienstkonto wechseln",
-        "switch_help": "Ein anderes Konto übernimmt, sobald es Mitglied von windeploy-admins ist: unter Einstellungen eintragen, die Rechteprüfung zeigt, ob es die vorhandenen GPOs ändern darf. Die automatische Einrichtung erledigt beides und übergibt dabei auch GPOs, die ein früheres Konto ohne die Gruppe angelegt hat. Das alte Konto bleibt bestehen; wird es nicht mehr gebraucht, aus der Gruppe nehmen oder löschen."
+        "switch_help": "Ein anderes Konto übernimmt, sobald es Mitglied von windeploy-admins ist: unter Einstellungen eintragen, die Rechteprüfung zeigt, ob es die vorhandenen GPOs ändern darf. Die automatische Einrichtung erledigt beides und übergibt dabei auch GPOs, die ein früheres Konto ohne die Gruppe angelegt hat. Das alte Konto bleibt bestehen; wird es nicht mehr gebraucht, aus der Gruppe nehmen oder löschen.",
+        "mode_scope": "Hat ein Paket einen maschinenweiten Installer, verlangt ihn das Skript (--scope machine), z. B. das MSI von Nextcloud.Talk; ohne das nimmt winget auch als SYSTEM gern den Installer pro Benutzer, der dann hängt. Pakete, die sich nur pro Benutzer installieren, lassen sich so nicht verteilen: Das Modul lehnt sie beim Speichern ab."
     }
 }
