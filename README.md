@@ -1,100 +1,56 @@
-# ns8-kickstart
+# ns8-windeploy
 
-This is a template module for [NethServer 8](https://github.com/NethServer/ns8-core).
-To start a new module from it:
+**GPO based Software Deployment for Windows** — a NethServer 8 module that
+searches the [winget community repository](https://github.com/microsoft/winget-pkgs)
+and rolls out Windows software through Group Policy scheduled tasks in a
+Samba (or Windows) Active Directory.
 
-1. Click on [Use this template](https://github.com/NethServer/ns8-kickstart/generate).
-   Name your repo with `ns8-` prefix (e.g. `ns8-mymodule`). 
-   Do not end your module name with a number, like ~~`ns8-baaad2`~~!
+> Status: internal development version, not published in a catalog.
 
-1. Clone the repository, enter the cloned directory and
-   [configure your GIT identity](https://git-scm.com/book/en/v2/Getting-Started-First-Time-Git-Setup#_your_identity)
+## How it works
 
-1. Rename some references inside the repo:
-   ```
-   modulename=$(basename $(pwd) | sed 's/^ns8-//')
-   git mv imageroot/systemd/user/kickstart.service imageroot/systemd/user/${modulename}.service
-   git mv tests/kickstart.robot tests/${modulename}.robot
-   sed -i "s/kickstart/${modulename}/g" $(find .github/ .devcontainer/ * -type f)
-   git commit -a -m "Repository initialization"
-   ```
+- The module downloads the pre-indexed winget source (`source2.msix` from the
+  winget CDN) and searches it with SQLite; package details are verified along
+  the SHA-256 chain of the index. No Windows machine and no GitHub API needed.
+- A *deployment* is one GPO with one scheduled task per package, running
+  `winget install|upgrade` as `NT AUTHORITY\System` on a weekly or daily
+  schedule, optionally "run now" (run-once immediate task).
+- The GPO is written by a delegated service account (not a domain admin)
+  over LDAP (sign and seal) and SMB, from a separate Samba runtime image
+  (`tool/`). The account can be created from the UI with domain admin
+  credentials that are used once and not stored.
+- The GPO is linked to the domain root or to organizational units; missing
+  OUs can be created (empty) from the deployment editor.
 
-1. Edit this `README.md` file, by replacing this section with your module
-   description
+Tested end to end with Windows 11 25H2 clients in a Samba 4.19 domain
+(NS8 samba module): GPO → scheduled task as SYSTEM → winget installs.
 
-1. Adjust `.github/workflows` to your needs. `clean-registry.yml` might
-   need the proper list of image names to work correctly. Unused workflows
-   can be disabled from the GitHub Actions interface.
+## Layout
 
-1. Commit and push your local changes
+| Path | What |
+|---|---|
+| `imageroot/pypkg/wingetindex.py` | winget index download, search, package details |
+| `imageroot/pypkg/gpogen.py` | generator: PowerShell script, ScheduledTasks.xml, GPT.INI, versions (pure, unit tested) |
+| `imageroot/pypkg/wdcommon.py` | shared helpers of the actions (domains, deployments, runtime) |
+| `tool/gpowrite.py`, `tool/Containerfile` | Samba runtime: create/fill/link/delete GPOs, service account setup |
+| `imageroot/actions/` | NS8 actions |
+| `ui/` | Vue 2 UI: Status, Guide, Settings, Deployments (en, de, it, fr) |
+| `tests/unit/` | offline tests of the generator against a working reference GPO |
 
-## Install
+## Build and install
 
-Instantiate the module with:
+```
+bash build-images.sh
+buildah push ghcr.io/tebbiworld/windeploy-samba docker://ghcr.io/tebbiworld/windeploy-samba:<tag>
+buildah push ghcr.io/tebbiworld/windeploy docker://ghcr.io/tebbiworld/windeploy:<tag>
+add-module ghcr.io/tebbiworld/windeploy:<tag> 1
+```
 
-    add-module ghcr.io/nethserver/kickstart:latest 1
+The module image pins `windeploy-samba` with the same tag. Unit tests:
+`python3 -m unittest tests/unit/test_gpogen.py`.
 
-The output of the command will return the instance name.
-Output example:
+## Requirements on the clients
 
-    {"module_id": "kickstart1", "image_name": "kickstart", "image_url": "ghcr.io/nethserver/kickstart:latest"}
-
-## Configure
-
-Let's assume that the kickstart instance is named `kickstart1`.
-
-Launch `configure-module`, by setting the following parameters:
-- `<MODULE_PARAM1_NAME>`: <MODULE_PARAM1_DESCRIPTION>
-- `<MODULE_PARAM2_NAME>`: <MODULE_PARAM2_DESCRIPTION>
-- ...
-
-Example:
-
-    api-cli run module/kickstart1/configure-module --data '{}'
-
-The above command will:
-- start and configure the kickstart instance
-- (describe configuration process)
-- ...
-
-Send a test HTTP request to the kickstart backend service:
-
-    curl http://127.0.0.1/kickstart/
-
-## Smarthost setting discovery
-
-Some configuration settings, like the smarthost setup, are not part of the
-`configure-module` action input: they are discovered by looking at some
-Redis keys.  To ensure the module is always up-to-date with the
-centralized [smarthost
-setup](https://nethserver.github.io/ns8-core/core/smarthost/) every time
-kickstart starts, the command `bin/discover-smarthost` runs and refreshes
-the `state/smarthost.env` file with fresh values from Redis.
-
-Furthermore if smarthost setup is changed when kickstart is already
-running, the event handler `events/smarthost-changed/10reload_services`
-restarts the main module service.
-
-See also the `systemd/user/kickstart.service` file.
-
-This setting discovery is just an example to understand how the module is
-expected to work: it can be rewritten or discarded completely.
-
-## Uninstall
-
-To uninstall the instance:
-
-    remove-module --no-preserve kickstart1
-
-## Running tests locally
-
-This module uses the NS8 standard testing infrastructure. For instructions on how to run the test suite locally, refer to the [Running tests locally](https://github.com/NethServer/ns8-github-actions/blob/v1/README.md#running-tests-locally) section of the ns8-github-actions README.
-
-## UI translation
-
-Translated with [Weblate](https://hosted.weblate.org/projects/ns8/).
-
-To setup the translation process:
-
-- add [GitHub Weblate app](https://docs.weblate.org/en/latest/admin/continuous.html#github-setup) to your repository
-- add your repository to [hosted.weblate.org]((https://hosted.weblate.org) or ask a NethServer developer to add it to ns8 Weblate project
+Windows 10/11 in the domain with App Installer (winget) 1.2x or newer from
+the Microsoft Store or github.com/microsoft/winget-cli, internet access to
+the vendor downloads. See the Guide page of the module for the details.
