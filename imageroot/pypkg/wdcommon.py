@@ -189,6 +189,11 @@ def read_deployments():
         return {"deployments": []}
 
 
+def gpo_guids():
+    """GUIDs of the GPOs this module instance made."""
+    return [d["gpo_guid"] for d in read_deployments()["deployments"] if d.get("gpo_guid")]
+
+
 def new_id():
     return uuid.uuid4().hex[:12]
 

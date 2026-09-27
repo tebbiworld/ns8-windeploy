@@ -35,7 +35,7 @@ if not modsecrets.get("GPO_PASSWORD"):
     sys.exit(3)
 
 try:
-    result = wdcommon.run_tool({"op": "check"}, settings=settings, timeout=120)
+    result = wdcommon.run_tool({"op": "check", "guids": wdcommon.gpo_guids()}, settings=settings, timeout=120)
 except wdcommon.ToolError as ex:
     msg = str(ex)
     print(agent.SD_ERR + "check failed: " + msg, file=sys.stderr)
@@ -48,6 +48,6 @@ except wdcommon.ToolError as ex:
 
 with open("rights.json", "w") as f:
     json.dump(result, f)
-for key in ("can_create_gpo", "can_link_domain", "sysvol"):
+for key in ("can_create_gpo", "can_link_domain", "sysvol", "can_manage_gpos"):
     if not result.get(key):
         print(agent.SD_WARNING + f"service account lacks {key}", file=sys.stderr)

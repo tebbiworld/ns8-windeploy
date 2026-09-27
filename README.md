@@ -19,6 +19,10 @@ Samba (or Windows) Active Directory.
   over LDAP (sign and seal) and SMB, from a separate Samba runtime image
   (`tool/`). The account can be created from the UI with domain admin
   credentials that are used once and not stored.
+- The rights belong to the group `windeploy-admins`, the account is its
+  member: every GPO of the module gives the group full control, so another
+  member can take over when the service account is replaced. The setup from
+  the UI also hands GPOs of an earlier account over to the group.
 - The GPO is linked to the domain root or to organizational units; missing
   OUs can be created (empty) from the deployment editor.
 

@@ -20,9 +20,13 @@ Connection data comes from the environment:
                 a command line)
   GPO_DC_IP     IP address of the domain controller: Kerberos is pointed
                 at it directly (no DNS lookup of the KDC)
+  GPO_GROUP     group that holds the delegated rights and full control of
+                the module's GPOs (default windeploy-admins): the service
+                account can be replaced by any other member
 
 Requests (field "op"):
-  check                   bind, report the rights the account has
+  check   {guids}         bind, report the rights the account has, also
+                          on the given (existing) GPOs of the module
   list    {guids}         attributes of the given GPOs
   create  {display_name}  new empty GPO, returns its GUID
   apply   {guid, files, add_cse, backup_dir}
@@ -37,9 +41,13 @@ Requests (field "op"):
                           or an existing OU (optional delegated right)
   provision {admin_user, admin_password, username, password, link_targets}
                           one-time setup with domain admin credentials (not
-                          stored): create or reset the service account, add
-                          it to Group Policy Creator Owners and delegate GPO
-                          creation and linking to it
+  provision {admin_user, admin_password, username, password, link_targets, guids}
+                          one-time setup with domain admin credentials (not
+                          stored): create or reset the service account, put
+                          it into the module group, make the group a member
+                          of Group Policy Creator Owners, delegate GPO
+                          creation and linking to the group and give it the
+                          existing GPOs of the module (guids)
 """
 
 import base64
@@ -71,6 +79,10 @@ SCHEMA_GPC = "f30e3bc2-9ff0-11d1-b603-0000f80367c1"      # groupPolicyContainer
 ATTR_GPLINK = "f30e3bbe-9ff0-11d1-b603-0000f80367c1"
 ATTR_GPOPTIONS = "f30e3bbf-9ff0-11d1-b603-0000f80367c1"
 CLASS_OU = "bf967aa5-0de6-11d0-a285-00aa003049e2"            # organizationalUnit
+DEFAULT_GROUP = "windeploy-admins"
+# Full control on a directory object (what "Full Control" sets in ADUC)
+DS_FULL = "RPWPCCDCLCLORCWOWDSDDTSW"
+FILE_FULL = 0x1f01ff
 
 
 def log(msg):
@@ -155,6 +167,36 @@ class Session:
             raise GpoError("service account not found")
         return str(ndr_unpack(security.dom_sid, res[0]["objectSid"][0]))
 
+    @property
+    def group_name(self):
+        name = os.environ.get("GPO_GROUP") or DEFAULT_GROUP
+        if not re.fullmatch(r"[A-Za-z0-9._ -]{1,64}", name):
+            raise GpoError("invalid group name")
+        return name
+
+    def group_sid(self):
+        """SID of the module group, None while it does not exist (set up by
+        hand without the group, or before provision ran)."""
+        res = self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
+                                expression=f"(&(objectClass=group)(sAMAccountName={ldb.binary_encode(self.group_name)}))",
+                                attrs=["objectSid"])
+        if len(res) != 1:
+            return None
+        return str(ndr_unpack(security.dom_sid, res[0]["objectSid"][0]))
+
+    def sysvol_sd(self, owner, extra_sids, directory=True, inherited=False):
+        """ACL of a GPO folder (or of an entry below it): what the Group
+        Policy editor sets, plus full control for extra_sids."""
+        flags = "OICI" if directory else ""
+        if inherited:
+            flags += "ID"
+        aces = [f"(A;{flags};FA;;;{t})" for t in ["DA", "EA", "BA"] + list(extra_sids) + ["SY"]]
+        aces += [f"(A;{flags};0x1200a9;;;AU)", f"(A;{flags};0x1200a9;;;ED)"]
+        if directory:
+            aces.insert(3, "(A;OICIIO{};FA;;;CO)".format("ID" if inherited else ""))
+        dacl = ("D:" if inherited else "D:P") + "".join(aces)
+        return security.descriptor.from_sddl(f"O:{owner}G:DU{dacl}", self.domain_sid)
+
     # ---- SMB helpers ---------------------------------------------------------
     def mkdirs(self, path):
         cur = ""
@@ -189,7 +231,7 @@ class Session:
         self.smb.rmdir(path)
 
     # ---- operations ----------------------------------------------------------
-    def check(self):
+    def check(self, guids=None):
         sid = self.account_sid()
         res = {"domain_dn": self.domain_dn, "realm": self.realm, "account_sid": sid}
         policies = self.samdb.search(f"CN=Policies,CN=System,{self.domain_dn}", scope=ldb.SCOPE_BASE,
@@ -205,7 +247,32 @@ class Session:
         res["can_link_ous"] = _grants_inherited(rsddl, "WP", ATTR_GPLINK, CLASS_OU, groups)
         res["can_create_ou"] = _grants(rsddl, "CC", CLASS_OU, groups)
         res["sysvol"] = bool(self.smb.chkpath(f"{self.dns_domain}\\Policies"))
+        gsid = self.group_sid()
+        res["group"] = self.group_name
+        res["in_group"] = bool(gsid and gsid in groups)
+        # GPOs of the module this account cannot change (another service
+        # account made them): provision hands them over to the group.
+        res["foreign_gpos"] = [g for g in (guids or []) if not self._can_manage(g, groups)]
+        res["can_manage_gpos"] = not res["foreign_gpos"]
         return res
+
+    def _can_manage(self, guid, sids):
+        _check_guid(guid)
+        try:
+            m = self.samdb.search(self.gpo_dn(guid), scope=ldb.SCOPE_BASE, attrs=["nTSecurityDescriptor"],
+                                  controls=["sd_flags:1:4"])[0]
+        except ldb.LdbError as ex:
+            if ex.args[0] == ldb.ERR_NO_SUCH_OBJECT:
+                return True  # nothing to manage, save-deployment recreates it
+            raise
+        sddl = ndr_unpack(security.descriptor, m["nTSecurityDescriptor"][0]).as_sddl(self.domain_sid)
+        if not _grants(sddl, "WP", "", sids):
+            return False
+        path = self.share_path(guid)
+        if not self.smb.chkpath(path):
+            return True
+        fsddl = self.smb.get_acl(path, security.SECINFO_DACL).as_sddl(self.domain_sid)
+        return _grants(fsddl, "FA", "", sids)
 
     def _token_sids(self):
         res = self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
@@ -250,6 +317,10 @@ class Session:
         guid = "{" + str(uuid.uuid4()).upper() + "}"
         dn = self.gpo_dn(guid)
         sid = self.account_sid()
+        # Full control for the module group, not only for this account (the
+        # owner): another member can take over when the account is replaced.
+        # Samba lets only admins make a group the owner; provision does it.
+        gsid = self.group_sid()
         created_ldap = created_dir = False
         try:
             # All attributes in the add itself: no GPO object without a name.
@@ -263,16 +334,16 @@ class Session:
                 "gPCFunctionalityVersion": "2",
             })
             created_ldap = True
+            if gsid:
+                self._add_ace(dn, f"(A;CI;{DS_FULL};;;{gsid})")
             for sub in ("User", "Machine"):
                 self.samdb.add({"dn": f"CN={sub},{dn}", "objectClass": "container"})
             path = self.share_path(guid)
             self.smb.mkdir(path)
             created_dir = True
             # Same rights as a GPO made by the Group Policy editor, plus the
-            # service account (owner) with full control.
-            sddl = (f"O:{sid}G:DUD:P(A;OICI;FA;;;DA)(A;OICI;FA;;;EA)(A;OICI;FA;;;BA)(A;OICIIO;FA;;;CO)"
-                    f"(A;OICI;FA;;;{sid})(A;OICI;FA;;;SY)(A;OICI;0x1200a9;;;AU)(A;OICI;0x1200a9;;;ED)")
-            sd = security.descriptor.from_sddl(sddl, self.domain_sid)
+            # module group and the service account with full control.
+            sd = self.sysvol_sd(sid, [x for x in (gsid, sid) if x])
             self.smb.set_acl(path, sd, security.SECINFO_DACL | security.SECINFO_PROTECTED_DACL)
             self.smb.mkdir(path + "\\Machine")
             self.smb.mkdir(path + "\\User")
@@ -394,7 +465,7 @@ class Session:
             out.append({"dn": str(r.dn), "name": str(r.get("name", [b""])[0]), "kind": "ou"})
         return out
 
-    def provision(self, username, password, link_targets):
+    def provision(self, username, password, link_targets, guids=None):
         """Runs bound as a domain admin."""
         if not re.fullmatch(r"[A-Za-z0-9._-]{1,20}", username):
             raise GpoError("invalid service account name")
@@ -409,31 +480,105 @@ class Session:
                                description="Service account of the NethServer module windeploy (GPO software deployment)")
             steps.append("account_created")
         self.samdb.setexpiry(f"(sAMAccountName={ldb.binary_encode(username)})", 0, no_expiry_req=True)
-        group = self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
-                                  expression="(objectSid=%s-520)" % self._domain_sid_str(), attrs=["sAMAccountName", "member"])[0]
         user_dn = str(self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
                                         expression=f"(sAMAccountName={ldb.binary_encode(username)})", attrs=["dn"])[0].dn)
-        if user_dn.lower() not in [str(m).lower() for m in group.get("member", [])]:
-            self.samdb.add_remove_group_members(str(group["sAMAccountName"][0]), [username], add_members_operation=True)
-            steps.append("group_added")
         sid = str(ndr_unpack(security.dom_sid, self.samdb.search(user_dn, scope=ldb.SCOPE_BASE, attrs=["objectSid"])[0]["objectSid"][0]))
-        aces = [(f"CN=Policies,CN=System,{self.domain_dn}", f"(OA;;CC;{SCHEMA_GPC};;{sid})")]
+        # The rights go to a group, the account is only its member: a new
+        # account (or a second admin tool) just needs the membership.
+        group = self.group_name
+        if self.group_sid() is None:
+            self.samdb.newgroup(group, description="NethServer module windeploy: members manage its GPOs")
+            steps.append("group_created")
+        gsid = self.group_sid()
+        pa = str(self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
+                                   expression="(objectSid=%s-520)" % self._domain_sid_str(),
+                                   attrs=["sAMAccountName"])[0]["sAMAccountName"][0])
+        for grp, member in ((group, username), (pa, group)):
+            if self._add_member(grp, member):
+                steps.append(f"member:{member}>{grp}")
+        aces = [(f"CN=Policies,CN=System,{self.domain_dn}", f"(OA;;CC;{SCHEMA_GPC};;{gsid})")]
         for dn in (link_targets or [self.domain_dn]):
-            aces.append((dn, f"(OA;;RPWP;{ATTR_GPLINK};;{sid})"))
-            aces.append((dn, f"(OA;;RPWP;{ATTR_GPOPTIONS};;{sid})"))
+            aces.append((dn, f"(OA;;RPWP;{ATTR_GPLINK};;{gsid})"))
+            aces.append((dn, f"(OA;;RPWP;{ATTR_GPOPTIONS};;{gsid})"))
         # Linking to organizational units, also ones created later: inherited
         # to OU objects only (what the "manage Group Policy links" delegation
         # of the Windows tools sets).
-        aces.append((self.domain_dn, f"(OA;CIIO;RPWP;{ATTR_GPLINK};{CLASS_OU};{sid})"))
-        aces.append((self.domain_dn, f"(OA;CIIO;RPWP;{ATTR_GPOPTIONS};{CLASS_OU};{sid})"))
+        aces.append((self.domain_dn, f"(OA;CIIO;RPWP;{ATTR_GPLINK};{CLASS_OU};{gsid})"))
+        aces.append((self.domain_dn, f"(OA;CIIO;RPWP;{ATTR_GPOPTIONS};{CLASS_OU};{gsid})"))
         # Create organizational units (only that object class) below the
         # domain root and inside OUs, for "add OU" in the deployment editor.
-        aces.append((self.domain_dn, f"(OA;;CC;{CLASS_OU};;{sid})"))
-        aces.append((self.domain_dn, f"(OA;CIIO;CC;{CLASS_OU};{CLASS_OU};{sid})"))
+        aces.append((self.domain_dn, f"(OA;;CC;{CLASS_OU};;{gsid})"))
+        aces.append((self.domain_dn, f"(OA;CIIO;CC;{CLASS_OU};{CLASS_OU};{gsid})"))
         for dn, ace in aces:
             if self._add_ace(dn, ace):
                 steps.append(f"ace:{dn}")
+        # GPOs created before (by an earlier service account, or before the
+        # group existed): hand them over to the group.
+        for guid in guids or []:
+            if self.adopt(guid, gsid):
+                steps.append(f"adopted:{guid}")
         return {"username": username, "sid": sid, "steps": steps}
+
+    def _add_member(self, group, member):
+        gdn = self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
+                                expression=f"(sAMAccountName={ldb.binary_encode(group)})", attrs=["member"])[0]
+        mdn = str(self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
+                                    expression=f"(sAMAccountName={ldb.binary_encode(member)})", attrs=["dn"])[0].dn)
+        if mdn.lower() in [str(m).lower() for m in gdn.get("member", [])]:
+            return False
+        self.samdb.add_remove_group_members(group, [member], add_members_operation=True)
+        return True
+
+    def adopt(self, guid, gsid):
+        """Give the group ownership and full control of an existing GPO,
+        in LDAP and in SYSVOL (every entry: SMB does not propagate)."""
+        _check_guid(guid)
+        dn = self.gpo_dn(guid)
+        try:
+            self.samdb.search(dn, scope=ldb.SCOPE_BASE, attrs=["dn"])
+        except ldb.LdbError as ex:
+            if ex.args[0] == ldb.ERR_NO_SUCH_OBJECT:
+                log(f"adopt: {guid} does not exist, skipped")
+                return False
+            raise
+        changed = self._set_owner_and_ace(dn, gsid, f"(A;CI;{DS_FULL};;;{gsid})")
+        path = self.share_path(guid)
+        if self.smb.chkpath(path):
+            top = self.smb.get_acl(path, security.SECINFO_OWNER | security.SECINFO_DACL)
+            if str(top.owner_sid) != gsid or gsid.lower() not in top.as_sddl(self.domain_sid).lower():
+                self._sysvol_acl_tree(path, gsid)
+                changed = True
+        return changed
+
+    def _sysvol_acl_tree(self, path, gsid):
+        info = security.SECINFO_OWNER | security.SECINFO_DACL
+        self.smb.set_acl(path, self.sysvol_sd(gsid, [gsid]), info | security.SECINFO_PROTECTED_DACL)
+        self._sysvol_acl_children(path, gsid)
+
+    def _sysvol_acl_children(self, path, gsid):
+        info = security.SECINFO_OWNER | security.SECINFO_DACL | security.SECINFO_UNPROTECTED_DACL
+        for entry in self.smb.list(path):
+            child = path + "\\" + entry["name"]
+            is_dir = bool(entry["attrib"] & 0x10)  # FILE_ATTRIBUTE_DIRECTORY
+            self.smb.set_acl(child, self.sysvol_sd(gsid, [gsid], directory=is_dir, inherited=True), info)
+            if is_dir:
+                self._sysvol_acl_children(child, gsid)
+
+    def _set_owner_and_ace(self, dn, owner_sid, ace):
+        changed = self._add_ace(dn, ace)
+        res = self.samdb.search(dn, scope=ldb.SCOPE_BASE, attrs=["nTSecurityDescriptor"], controls=["sd_flags:1:1"])
+        desc = ndr_unpack(security.descriptor, res[0]["nTSecurityDescriptor"][0])
+        if str(desc.owner_sid) == owner_sid:
+            return changed
+        try:
+            desc.owner_sid = security.dom_sid(owner_sid)
+            msg = ldb.Message(ldb.Dn(self.samdb, dn))
+            msg["nTSecurityDescriptor"] = ldb.MessageElement(ndr_pack(desc), ldb.FLAG_MOD_REPLACE, "nTSecurityDescriptor")
+            self.samdb.modify(msg, controls=["sd_flags:1:1"])
+            return True
+        except ldb.LdbError as ex:
+            log(f"owner of {dn} not changed: {ex}")
+            return changed
 
     def _domain_sid_str(self):
         return str(self.domain_sid)
@@ -442,9 +587,10 @@ class Session:
         """Add an ACE to the DACL of dn unless it is already there."""
         res = self.samdb.search(dn, scope=ldb.SCOPE_BASE, attrs=["nTSecurityDescriptor"], controls=["sd_flags:1:4"])
         desc = ndr_unpack(security.descriptor, res[0]["nTSecurityDescriptor"][0])
-        if ace.lower() in desc.as_sddl(self.domain_sid).lower():
-            return False
         new = security.descriptor.from_sddl("D:" + ace, self.domain_sid)
+        # compare in Samba's spelling (order of the rights, SID aliases)
+        if new.as_sddl(self.domain_sid)[2:].lower() in desc.as_sddl(self.domain_sid).lower():
+            return False
         for a in new.dacl.aces:
             desc.dacl_add(a)
         msg = ldb.Message(ldb.Dn(self.samdb, dn))
@@ -571,12 +717,13 @@ def main():
     try:
         if op == "provision":
             admin = Session(user=request["admin_user"], password=request["admin_password"])
-            result = admin.provision(request["username"], request["password"], request.get("link_targets"))
+            result = admin.provision(request["username"], request["password"], request.get("link_targets"),
+                                     request.get("guids"))
             json.dump({"ok": True, "result": result}, sys.stdout)
             return
         s = Session()
         if op == "check":
-            result = s.check()
+            result = s.check(request.get("guids"))
         elif op == "list":
             result = s.list(request.get("guids", []))
         elif op == "create":
