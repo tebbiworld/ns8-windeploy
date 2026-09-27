@@ -303,6 +303,19 @@ def _verified(url, expected_sha256, limit, session=None):
     return body
 
 
+def install_scope(installers):
+    """How the package can be installed as SYSTEM: "machine" when a
+    machine-wide installer exists (winget is asked for it), "user" when
+    every installer names the user scope (a per-user install, nothing to
+    deploy to a computer), "" when the manifest does not say."""
+    scopes = {i.get("scope", "").lower() for i in installers}
+    if "machine" in scopes:
+        return "machine"
+    if scopes == {"user"}:
+        return "user"
+    return ""
+
+
 def details(state_dir, package_id, session=None):
     """Versions and metadata of one package, verified along the hash chain."""
     import yaml
@@ -337,5 +350,6 @@ def details(state_dir, package_id, session=None):
         "license": str(manifest.get("License", "")),
         "homepage": str(manifest.get("PackageUrl", manifest.get("PublisherUrl", ""))),
         "installers": installers,
+        "scope": install_scope(installers),
         "versions": [str(v.get("v", "")) for v in versions][:50],
     }

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-"""build_files of wdcommon: run-now tasks."""
+"""build_files of wdcommon: run-now tasks and installer scope."""
 
 import os
 import sys
@@ -59,6 +59,15 @@ class RunNow(unittest.TestCase):
         d = deployment()
         d["run_now_id"] = "{33333333-3333-3333-3333-333333333333}"
         self.assertEqual(immediate(wdcommon.build_files(d, SETTINGS)), [])
+
+
+class Scope(unittest.TestCase):
+    def test_scope_in_script(self):
+        files = wdcommon.build_files(deployment(a={"scope": "machine"}), SETTINGS)
+        talk = base64.b64decode(files["Machine/Scripts/windeploy/Nextcloud.Talk.ps1"]).decode("utf-8-sig")
+        desktop = base64.b64decode(files["Machine/Scripts/windeploy/Nextcloud.NextcloudDesktop.ps1"]).decode("utf-8-sig")
+        self.assertIn("$Scope = 'machine'", talk)
+        self.assertIn("$Scope = ''", desktop)
 
 
 if __name__ == "__main__":

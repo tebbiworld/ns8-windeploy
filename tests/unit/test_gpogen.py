@@ -139,6 +139,31 @@ class Script(unittest.TestCase):
         self.assertNotIn("# ", gpogen.compact_script(s))
         self.assertLess(len(gpogen.task_arguments("embedded", script_text=s)), 8000)
 
+    def test_scope_machine(self):
+        s = gpogen.build_script("Nextcloud.Talk", mode="install", scope="machine")
+        self.assertIn("$Scope = 'machine'", s)
+        self.assertIn("'--scope', 'machine'", s)
+        self.assertIn("$Scope = ''", gpogen.build_script("Nextcloud.Talk"))
+        with self.assertRaises(gpogen.GenError):
+            gpogen.build_script("Nextcloud.Talk", scope="user")
+
+    def test_install_timeout(self):
+        self.assertIn("$TimeoutMinutes = 30", gpogen.build_script("7zip.7zip"))
+        self.assertIn("$TimeoutMinutes = 5", gpogen.build_script("7zip.7zip", timeout_minutes=5))
+        for bad in (0, 4, 111, "30; Remove-Item x"):
+            with self.assertRaises(gpogen.GenError):
+                gpogen.build_script("7zip.7zip", timeout_minutes=bad)
+
+
+class InstallScope(unittest.TestCase):
+    def test_scopes(self):
+        import wingetindex
+        f = wingetindex.install_scope
+        self.assertEqual(f([{"scope": "machine"}, {"scope": "user"}]), "machine")  # Nextcloud.Talk
+        self.assertEqual(f([{"scope": "user"}, {"scope": "user"}]), "user")
+        self.assertEqual(f([{"scope": ""}, {"scope": "user"}]), "")
+        self.assertEqual(f([]), "")
+
 
 if __name__ == "__main__":
     unittest.main()

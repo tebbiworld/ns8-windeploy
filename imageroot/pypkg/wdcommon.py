@@ -27,6 +27,7 @@ import uuid
 import agent
 import gpogen
 import modsecrets
+import wingetindex
 
 DEPLOYMENTS = "deployments.json"
 BACKUP_DIR = "gpo-backups"
@@ -194,6 +195,19 @@ def gpo_guids():
     return [d["gpo_guid"] for d in read_deployments()["deployments"] if d.get("gpo_guid")]
 
 
+def update_scopes(deployment):
+    """Installer scope of every package from its current manifest (kept
+    as it was when the index cannot be read). The tasks run as SYSTEM, so
+    "machine" makes the script ask winget for the machine-wide installer.
+    Returns the ids of packages that only install per user."""
+    for pkg in deployment["packages"]:
+        try:
+            pkg["scope"] = wingetindex.details(state_dir(), pkg["id"])["scope"]
+        except Exception as ex:
+            log(f"installer scope of {pkg['id']} unknown, kept {pkg.get('scope', '')!r}: {ex}", agent.SD_WARNING)
+    return [p["id"] for p in deployment["packages"] if p.get("scope") == "user"]
+
+
 def new_id():
     return uuid.uuid4().hex[:12]
 
@@ -210,7 +224,8 @@ def build_files(deployment, settings):
     for pkg in deployment["packages"]:
         rel = f"Machine/Scripts/windeploy/{gpogen.safe_file_part(pkg['id'])}.ps1"
         keep.add(rel)
-        script = gpogen.build_script(pkg["id"], mode=pkg.get("mode", "upgrade"))
+        script = gpogen.build_script(pkg["id"], mode=pkg.get("mode", "upgrade"),
+                                     scope="machine" if pkg.get("scope") == "machine" else "")
         delivery = deployment.get("delivery", "sysvol")
         if delivery == "sysvol":
             files[rel] = base64.b64encode(gpogen.script_bytes(script)).decode()

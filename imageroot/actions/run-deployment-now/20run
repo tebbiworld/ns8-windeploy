@@ -30,6 +30,8 @@ deployment = copy.deepcopy(old)
 deployment.pop("run_now_id", None)  # one id per deployment: before 0.1
 for pkg in deployment["packages"]:
     pkg["now_run_id"] = gpogen.new_uid()
+for pid in wdcommon.update_scopes(deployment):
+    print(agent.SD_WARNING + f"{pid} installs per user only, it will not work as SYSTEM", file=sys.stderr)
 settings = wdcommon.connection_settings()
 try:
     files = wdcommon.build_files(deployment, settings)

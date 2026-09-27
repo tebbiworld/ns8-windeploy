@@ -88,10 +88,13 @@ deployment["packages"] = []
 for p in request["packages"]:
     entry = {"id": p["id"], "mode": p.get("mode", "upgrade")}
     # same tasks on the clients; a pending "run now" stays as it is
-    for key in ("task_uid", "now_uid", "now_run_id"):
+    for key in ("task_uid", "now_uid", "now_run_id", "scope"):
         if old_packages.get(p["id"], {}).get(key):
             entry[key] = old_packages[p["id"]][key]
     deployment["packages"].append(entry)
+# The tasks run as SYSTEM: refuse packages that only install per user.
+for pid in wdcommon.update_scopes(deployment):
+    fail("packages", pid, "user_scope_only")
 
 # Generate once offline: bad input fails here, before AD is touched.
 probe = copy.deepcopy(deployment)
