@@ -236,13 +236,16 @@ def build_files(deployment, settings):
         for rel in keep:
             files[rel] = None
     immediate = []
-    if deployment.get("run_now_id"):
-        # "Run now": one run-once immediate task per package; a new
-        # run_now_id makes every computer run it once more.
-        for pkg, task in zip(deployment["packages"], tasks):
-            pkg.setdefault("now_uid", gpogen.new_uid())
-            immediate.append(dict(task, name=("windeploy now " + pkg["id"])[:100], uid=pkg["now_uid"],
-                                  run_once_id=deployment["run_now_id"]))
+    # "Run now": one run-once immediate task per package that was in the
+    # deployment when it was triggered. Each needs its own run-once id:
+    # Windows remembers the id after the first item and skips any later
+    # item with the same id. A new id makes every computer run it again.
+    for pkg, task in zip(deployment["packages"], tasks):
+        if not pkg.get("now_run_id"):
+            continue
+        pkg.setdefault("now_uid", gpogen.new_uid())
+        immediate.append(dict(task, name=("windeploy now " + pkg["id"])[:100], uid=pkg["now_uid"],
+                              run_once_id=pkg["now_run_id"]))
     xml = gpogen.build_scheduled_tasks_xml(tasks, immediate)
     files["Machine/Preferences/ScheduledTasks/ScheduledTasks.xml"] = base64.b64encode(xml.encode("utf-8")).decode()
     return files

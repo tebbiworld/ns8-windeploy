@@ -27,7 +27,9 @@ if old is None or not old.get("gpo_guid"):
     sys.exit(3)
 
 deployment = copy.deepcopy(old)
-deployment["run_now_id"] = gpogen.new_uid()
+deployment.pop("run_now_id", None)  # one id per deployment: before 0.1
+for pkg in deployment["packages"]:
+    pkg["now_run_id"] = gpogen.new_uid()
 settings = wdcommon.connection_settings()
 try:
     files = wdcommon.build_files(deployment, settings)
