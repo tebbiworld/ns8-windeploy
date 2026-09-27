@@ -101,7 +101,10 @@
         "error_dc_not_resolved": "Aucun contrôleur de domaine connu pour ce domaine",
         "rights_account": "Compte de service : {user}",
         "delegation_short": "Exécutez une fois ces commandes sur un contrôleur de domaine (ou utilisez la configuration automatique ci-dessous), puis enregistrez à nouveau les paramètres :",
-        "auto_see_guide": "Ce dont le compte a besoin et comment le configurer manuellement :"
+        "auto_see_guide": "Ce dont le compte a besoin et comment le configurer manuellement :",
+        "right_can_link_ous": "Lier des GPO aux unités d'organisation",
+        "right_can_create_ou": "Créer des unités d'organisation",
+        "optional": "facultatif"
     },
     "deployments": {
         "title": "Déploiements",
@@ -173,9 +176,18 @@
         "run_now_at": "exécution immédiate demandée le {date}",
         "package_link": "Page du paquet",
         "ou_input": "Unité d'organisation (DN)",
-        "ou_helper": "Saisissez une unité d'organisation absente de la liste ; elle est vérifiée à l'enregistrement.",
-        "ou_invalid": "Saisissez une unité d'organisation de ce domaine, par ex. OU=Laptops,{dn}",
-        "error_link_target_not_found": "{value} n'existe pas dans Active Directory (ou n'est pas une unité d'organisation autorisée)"
+        "ou_helper": "Une unité d'organisation absente de la liste : le module la vérifie et propose de la créer.",
+        "ou_invalid": "Saisissez le DN d'une unité d'organisation de ce domaine, par ex. OU=<Nom>,{dn}",
+        "error_link_target_not_found": "{value} n'existe pas dans Active Directory (ou n'est pas une unité d'organisation autorisée). Créez d'abord l'unité d'organisation ou choisissez-en une existante.",
+        "ou_create_title": "Créer l'unité d'organisation ?",
+        "ou_create_desc": "L'unité d'organisation {dn} n'existe pas encore. Le module doit-il la créer maintenant ?",
+        "ou_create_note": "Seule l'unité vide est créée. Les ordinateurs y sont déplacés avec un outil AD (par ex. RSAT ou LDAP Admin).",
+        "ou_create_yes": "Créer",
+        "ou_create_no": "Abandonner",
+        "ou_creating": "Création de l'unité d'organisation {dn}",
+        "error_ou_create_not_allowed": "Le compte de service ne peut pas créer d'unités d'organisation. Relancez la configuration automatique dans Paramètres ou créez l'unité avec un outil AD.",
+        "error_ou_parent_missing": "L'unité d'organisation parente de {dn} n'existe pas.",
+        "error_ou_create_failed": "Impossible de créer l'unité d'organisation {dn}, voir le journal du module."
     },
     "mode": {
         "upgrade": "Mettre à jour si installé",
@@ -230,7 +242,7 @@
         "auto_done_desc": "{user} a été configuré et enregistré dans les paramètres.",
         "manual_title": "1.2 Configuration manuelle",
         "manual_help": "Sur le nœud du contrôleur de domaine (les valeurs du domaine sélectionné sont déjà renseignées) :",
-        "manual_ou": "Pour lier aussi les GPO à une unité d'organisation, répétez les deux commandes de l'étape 5 avec son DN comme --objectdn. Saisissez ensuite le compte et son mot de passe dans {settings}.",
+        "manual_ou": "L'étape 6 couvre toutes les unités d'organisation du domaine, y compris celles créées plus tard. Saisissez ensuite le compte et son mot de passe dans {settings}.",
         "cmd_create": "créer le compte (demande le mot de passe) et désactiver l'expiration du mot de passe",
         "cmd_group": "écriture dans SYSVOL",
         "cmd_sid": "obtenir le SID du compte",
@@ -252,7 +264,7 @@
         "link_domain": "La GPO s'applique à chaque ordinateur du domaine.",
         "link_ou_title": "Unité d'organisation",
         "link_ou": "La GPO ne s'applique qu'aux ordinateurs de cette unité d'organisation et de celles situées en dessous. L'unité Domain Controllers n'est pas proposée : sous NS8, les contrôleurs de domaine sont des serveurs Samba, pas des ordinateurs Windows.",
-        "link_computers": "Les nouveaux ordinateurs sont placés dans le conteneur Computers, qui n'est pas une unité d'organisation : ils ne reçoivent que les déploiements liés au domaine entier tant qu'ils ne sont pas déplacés dans une unité d'organisation.",
+        "link_computers": "Les nouveaux ordinateurs sont placés dans le conteneur Computers, qui n'est pas une unité d'organisation : ils ne reçoivent que les déploiements liés au domaine entier tant qu'ils ne sont pas déplacés dans une unité d'organisation. Lors de la liaison, le module peut créer vide une unité manquante ; les ordinateurs y sont déplacés avec un outil AD (par ex. RSAT ou LDAP Admin).",
         "mode_upgrade": "Met à jour le paquet sur les ordinateurs où il est installé ; sur les autres, rien ne se passe.",
         "mode_install": "Installe le paquet là où il manque et le met à jour là où il est installé.",
         "mode_msi": "Préférez les paquets MSI (par ex. Google.Chrome plutôt que Google.Chrome.EXE) : certains programmes d'installation EXE attendent un bureau lorsqu'ils s'exécutent en tant que SYSTEM et restent bloqués jusqu'à l'interruption de l'exécution après deux heures.",
@@ -263,6 +275,8 @@
         "clients_4": "Aucun Visual C++ Redistributable n'est nécessaire : le script ajoute lui-même le runtime de winget au chemin de recherche.",
         "delivery_heading": "3.1 Livraison du script",
         "link_heading": "3.2 Liaison",
-        "mode_heading": "3.3 Action par paquet"
+        "mode_heading": "3.3 Action par paquet",
+        "cmd_link_ous": "droit de lier des GPO aux unités d'organisation (hérité, valable aussi pour celles créées plus tard)",
+        "cmd_create_ou": "facultatif : droit de créer des unités d'organisation vides (lors de la liaison d'une nouvelle unité)"
     }
 }

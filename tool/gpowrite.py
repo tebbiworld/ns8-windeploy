@@ -33,6 +33,8 @@ Requests (field "op"):
   delete  {guid}          remove links are the caller's job; removes the
                           GPO object and its SYSVOL folder
   targets                 domain root and organizational units (link targets)
+  create_ou {dn}          create an organizational unit below the domain root
+                          or an existing OU (optional delegated right)
   provision {admin_user, admin_password, username, password, link_targets}
                           one-time setup with domain admin credentials (not
                           stored): create or reset the service account, add
@@ -200,6 +202,8 @@ class Session:
                                  controls=["sd_flags:1:4"])[0]
         rsddl = ndr_unpack(security.descriptor, root["nTSecurityDescriptor"][0]).as_sddl(self.domain_sid)
         res["can_link_domain"] = _grants(rsddl, "WP", ATTR_GPLINK, groups)
+        res["can_link_ous"] = _grants_inherited(rsddl, "WP", ATTR_GPLINK, CLASS_OU, groups)
+        res["can_create_ou"] = _grants(rsddl, "CC", CLASS_OU, groups)
         res["sysvol"] = bool(self.smb.chkpath(f"{self.dns_domain}\\Policies"))
         return res
 
@@ -422,6 +426,10 @@ class Session:
         # of the Windows tools sets).
         aces.append((self.domain_dn, f"(OA;CIIO;RPWP;{ATTR_GPLINK};{CLASS_OU};{sid})"))
         aces.append((self.domain_dn, f"(OA;CIIO;RPWP;{ATTR_GPOPTIONS};{CLASS_OU};{sid})"))
+        # Create organizational units (only that object class) below the
+        # domain root and inside OUs, for "add OU" in the deployment editor.
+        aces.append((self.domain_dn, f"(OA;;CC;{CLASS_OU};;{sid})"))
+        aces.append((self.domain_dn, f"(OA;CIIO;CC;{CLASS_OU};{CLASS_OU};{sid})"))
         for dn, ace in aces:
             if self._add_ace(dn, ace):
                 steps.append(f"ace:{dn}")
@@ -443,6 +451,25 @@ class Session:
         msg["nTSecurityDescriptor"] = ldb.MessageElement(ndr_pack(desc), ldb.FLAG_MOD_REPLACE, "nTSecurityDescriptor")
         self.samdb.modify(msg, controls=["sd_flags:1:4"])
         return True
+
+    def create_ou(self, dn):
+        m = re.fullmatch(r"OU=([^,=+\\\"<>;#]{1,64})((?:,OU=[^,=+\\\"<>;#]{1,64})*),(DC=.+)", dn, re.I)
+        if not m or m.group(3).lower() != self.domain_dn.lower():
+            raise GpoError(f"not an OU DN of this domain: {dn}")
+        parent = dn.split(",", 1)[1]
+        try:
+            self.samdb.search(parent, scope=ldb.SCOPE_BASE, attrs=["dn"])
+        except ldb.LdbError:
+            raise GpoError(f"the parent {parent} does not exist")
+        try:
+            self.samdb.search(dn, scope=ldb.SCOPE_BASE, attrs=["dn"])
+            return {"dn": dn, "created": False}
+        except ldb.LdbError:
+            pass
+        self.samdb.add({"dn": dn, "objectClass": "organizationalUnit",
+                        "description": "Created by the NethServer module windeploy"})
+        log(f"created {dn}")
+        return {"dn": dn, "created": True}
 
     def delete(self, guid):
         _check_guid(guid)
@@ -475,6 +502,20 @@ def _grants(sddl, right, object_guid, sids):
         if "IO" in f[1]:
             continue
         if (right in rights or "GA" in rights) and (not obj or obj == object_guid):
+            return True
+    return False
+
+
+def _grants_inherited(sddl, right, object_guid, inherited_class, sids):
+    """Allow ACE that is inherited to objects of inherited_class (e.g. OUs)
+    and grants right on object_guid to one of sids."""
+    for ace in re.findall(r"\(([^)]*)\)", sddl.split("S:")[0]):
+        f = ace.split(";")
+        if len(f) < 6 or f[0] != "OA" or "CI" not in f[1]:
+            continue
+        if _alias_sid(f[5], sids) not in sids:
+            continue
+        if right in f[2] and f[3].lower() == object_guid and f[4].lower() == inherited_class:
             return True
     return False
 
@@ -547,6 +588,8 @@ def main():
             result = s.link(request["guid"], request["target_dn"])
         elif op == "unlink":
             result = s.unlink(request["guid"], request["target_dn"])
+        elif op == "create_ou":
+            result = s.create_ou(request["dn"])
         elif op == "targets":
             result = s.targets()
         elif op == "delete":

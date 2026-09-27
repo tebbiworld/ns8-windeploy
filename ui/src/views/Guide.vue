@@ -172,6 +172,12 @@ export default {
         `# 5. ${this.$t("guide.cmd_link")}`,
         `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;;RPWP;f30e3bbe-9ff0-11d1-b603-0000f80367c1;;$SID)"`,
         `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;;RPWP;f30e3bbf-9ff0-11d1-b603-0000f80367c1;;$SID)"`,
+        `# 6. ${this.$t("guide.cmd_link_ous")}`,
+        `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;CIIO;RPWP;f30e3bbe-9ff0-11d1-b603-0000f80367c1;bf967aa5-0de6-11d0-a285-00aa003049e2;$SID)"`,
+        `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;CIIO;RPWP;f30e3bbf-9ff0-11d1-b603-0000f80367c1;bf967aa5-0de6-11d0-a285-00aa003049e2;$SID)"`,
+        `# 7. ${this.$t("guide.cmd_create_ou")}`,
+        `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;;CC;bf967aa5-0de6-11d0-a285-00aa003049e2;;$SID)"`,
+        `${run} samba-dc samba-tool dsacl set --objectdn="${dn}" --sddl="(OA;CIIO;CC;bf967aa5-0de6-11d0-a285-00aa003049e2;bf967aa5-0de6-11d0-a285-00aa003049e2;$SID)"`,
       ].join("\n");
     },
     checkCommands() {

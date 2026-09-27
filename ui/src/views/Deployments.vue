@@ -404,6 +404,29 @@
       }}</template>
     </NsModal>
 
+    <!-- create OU? -->
+    <NsModal
+      :visible="ouCreate.visible"
+      :primary-button-disabled="loading.createOu"
+      @modal-hidden="dropOu"
+      @secondary-click="dropOu"
+      @primary-click="confirmCreateOu"
+    >
+      <template slot="title">{{ $t("deployments.ou_create_title") }}</template>
+      <template slot="content">
+        <p>{{ $t("deployments.ou_create_desc", { dn: ouCreate.dn }) }}</p>
+        <p class="muted small">{{ $t("deployments.ou_create_note") }}</p>
+      </template>
+      <template slot="secondary-button">{{
+        $t("deployments.ou_create_no")
+      }}</template>
+      <template slot="primary-button">{{
+        loading.createOu
+          ? $t("common.processing")
+          : $t("deployments.ou_create_yes")
+      }}</template>
+    </NsModal>
+
     <!-- remove -->
     <NsModal
       kind="danger"
@@ -496,7 +519,7 @@ export default {
       runNow: { id: "", message: "", failed: false },
       weekdays: WEEKDAYS,
       ouInput: "",
-      customTargets: [],
+      ouCreate: { visible: false, dn: "" },
       deployments: [],
       targets: [],
       index: {},
@@ -512,7 +535,13 @@ export default {
       },
       details: { loading: false, data: null },
       remove: { visible: false, id: "", name: "", deleteGpo: true },
-      loading: { list: false, save: false, remove: false, targets: false },
+      loading: {
+        list: false,
+        save: false,
+        remove: false,
+        targets: false,
+        createOu: false,
+      },
       error: {
         list: "",
         save: "",
@@ -532,7 +561,7 @@ export default {
     allTargets() {
       // targets read from AD plus OUs entered by hand (checked on save)
       const known = new Set(this.targets.map((t) => t.dn.toLowerCase()));
-      const extra = [...this.customTargets, ...this.editor.link_targets]
+      const extra = [...this.editor.link_targets]
         .filter((dn, i, a) => a.indexOf(dn) === i)
         .filter((dn) => !known.has(dn.toLowerCase()))
         .map((dn) => ({ dn, name: dn, kind: "ou" }));
@@ -543,7 +572,7 @@ export default {
       return d ? d.dn : "DC=example,DC=com";
     },
     ouPlaceholder() {
-      return "OU=Laptops," + this.domainDn;
+      return "OU=<Name>," + this.domainDn;
     },
   },
   beforeRouteEnter(to, from, next) {
@@ -703,7 +732,7 @@ export default {
         this.details.loading = false;
       }
     },
-    addOu() {
+    async addOu() {
       this.error.ou = "";
       const dn = this.ouInput;
       if (!dn) return;
@@ -716,9 +745,50 @@ export default {
         });
         return;
       }
-      if (!this.customTargets.includes(dn)) this.customTargets.push(dn);
-      if (!this.editor.link_targets.includes(dn))
-        this.editor.link_targets.push(dn);
+      // check against AD right away (the list may be older than the dialog)
+      await this.loadTargets();
+      const found = this.targets.find(
+        (t) => t.dn.toLowerCase() === dn.toLowerCase()
+      );
+      if (!found) {
+        // ask whether to create it; "no" drops the entry
+        this.ouCreate = { visible: true, dn };
+        return;
+      }
+      if (!this.editor.link_targets.includes(found.dn))
+        this.editor.link_targets.push(found.dn);
+      this.ouInput = "";
+    },
+    async confirmCreateOu() {
+      const dn = this.ouCreate.dn;
+      this.loading.createOu = true;
+      this.error.ou = "";
+      try {
+        await this.runModuleTask(
+          "create-ou",
+          { dn },
+          { title: this.$t("deployments.ou_creating", { dn }), hidden: false }
+        );
+        await this.loadTargets();
+        const found = this.targets.find(
+          (t) => t.dn.toLowerCase() === dn.toLowerCase()
+        );
+        if (found && !this.editor.link_targets.includes(found.dn))
+          this.editor.link_targets.push(found.dn);
+        this.ouInput = "";
+      } catch (e) {
+        const v = e.validation && e.validation[0];
+        this.error.ou = this.$t(
+          "deployments.error_" + (v ? v.error : "ou_create_failed"),
+          { dn }
+        );
+      } finally {
+        this.loading.createOu = false;
+        this.ouCreate = { visible: false, dn: "" };
+      }
+    },
+    dropOu() {
+      this.ouCreate = { visible: false, dn: "" };
       this.ouInput = "";
     },
     isSelected(id) {

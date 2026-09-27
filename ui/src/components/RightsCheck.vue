@@ -18,6 +18,11 @@
           <WarningFilled16 v-else class="bad" />
           {{ $t("settings.right_" + key) }}
         </li>
+        <li v-for="key in optionalKeys" :key="key">
+          <CheckmarkFilled16 v-if="rights[key]" class="ok" />
+          <Information16 v-else class="info" />
+          {{ $t("settings.right_" + key) }} ({{ $t("settings.optional") }})
+        </li>
       </ul>
     </template>
   </div>
@@ -26,8 +31,17 @@
 <script>
 import CheckmarkFilled16 from "@carbon/icons-vue/es/checkmark--filled/16";
 import WarningFilled16 from "@carbon/icons-vue/es/warning--filled/16";
+import Information16 from "@carbon/icons-vue/es/information/16";
 
-export const RIGHT_KEYS = ["can_create_gpo", "can_link_domain", "sysvol"];
+export const RIGHT_KEYS = [
+  "can_create_gpo",
+  "can_link_domain",
+  "can_link_ous",
+  "sysvol",
+];
+
+// shown, but not needed for deployments
+export const OPTIONAL_KEYS = ["can_create_ou"];
 
 export function rightsComplete(rights) {
   return !!rights && RIGHT_KEYS.every((k) => rights[k]);
@@ -35,14 +49,14 @@ export function rightsComplete(rights) {
 
 export default {
   name: "RightsCheck",
-  components: { CheckmarkFilled16, WarningFilled16 },
+  components: { CheckmarkFilled16, WarningFilled16, Information16 },
   props: {
     rights: { type: Object, default: null },
     username: { type: String, default: "" },
     loading: { type: Boolean, default: false },
   },
   data() {
-    return { keys: RIGHT_KEYS };
+    return { keys: RIGHT_KEYS, optionalKeys: OPTIONAL_KEYS };
   },
 };
 </script>
@@ -67,6 +81,9 @@ export default {
   }
   .bad {
     fill: $support-03;
+  }
+  .info {
+    fill: $support-04;
   }
 }
 </style>

@@ -1,0 +1,10 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "create-ou input",
+    "$id": "http://schema.nethserver.org/windeploy/create-ou-input.json",
+    "description": "Create an empty organizational unit to link deployments to; moving computers into it is left to the AD tools",
+    "examples": [{"dn": "OU=Laptops,DC=ad,DC=example,DC=com"}],
+    "type": "object",
+    "required": ["dn"],
+    "properties": {"dn": {"type": "string", "minLength": 8, "maxLength": 512, "pattern": "^OU=[^,]+(,OU=[^,]+)*,DC=.+$"}}
+}

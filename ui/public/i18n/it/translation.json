@@ -64,7 +64,10 @@
         "error_dc_not_resolved": "Nessun domain controller noto per questo dominio",
         "rights_account": "Account di servizio: {user}",
         "delegation_short": "Esegui una volta questi comandi su un domain controller (oppure usa la configurazione automatica qui sotto), poi salva di nuovo le impostazioni:",
-        "auto_see_guide": "Di cosa ha bisogno l'account e come configurarlo a mano:"
+        "auto_see_guide": "Di cosa ha bisogno l'account e come configurarlo a mano:",
+        "right_can_link_ous": "Collegare GPO a unità organizzative",
+        "right_can_create_ou": "Creare unità organizzative",
+        "optional": "facoltativo"
     },
     "error": {
         "error": "Errore",
@@ -173,9 +176,18 @@
         "run_now_at": "esecuzione immediata richiesta il {date}",
         "package_link": "Pagina del pacchetto",
         "ou_input": "Unità organizzativa (DN)",
-        "ou_helper": "Inserisci un'unità organizzativa che non è nell'elenco; viene verificata al salvataggio.",
-        "ou_invalid": "Inserisci un'unità organizzativa di questo dominio, ad es. OU=Laptops,{dn}",
-        "error_link_target_not_found": "{value} non esiste in Active Directory (o non è un'unità organizzativa consentita)"
+        "ou_helper": "Un'unità organizzativa non presente nell'elenco: il modulo la verifica e propone di crearla.",
+        "ou_invalid": "Inserisci il DN di un'unità organizzativa di questo dominio, ad es. OU=<Nome>,{dn}",
+        "error_link_target_not_found": "{value} non esiste in Active Directory (o non è un'unità organizzativa consentita). Crea prima l'unità organizzativa o scegline una esistente.",
+        "ou_create_title": "Creare l'unità organizzativa?",
+        "ou_create_desc": "L'unità organizzativa {dn} non esiste ancora. Il modulo deve crearla ora?",
+        "ou_create_note": "Viene creata solo l'unità vuota. I computer vi si spostano con uno strumento AD (ad es. RSAT o LDAP Admin).",
+        "ou_create_yes": "Crea",
+        "ou_create_no": "Scarta",
+        "ou_creating": "Creazione dell'unità organizzativa {dn}",
+        "error_ou_create_not_allowed": "L'account di servizio non può creare unità organizzative. Esegui di nuovo la configurazione automatica in Impostazioni o crea l'unità con uno strumento AD.",
+        "error_ou_parent_missing": "L'unità organizzativa superiore di {dn} non esiste.",
+        "error_ou_create_failed": "Impossibile creare l'unità organizzativa {dn}, vedi il log del modulo."
     },
     "mode": {
         "upgrade": "Aggiorna se installato",
@@ -230,7 +242,7 @@
         "auto_done_desc": "{user} è stato configurato e salvato nelle impostazioni.",
         "manual_title": "1.2 Configurazione manuale",
         "manual_help": "Sul nodo del domain controller (i valori del dominio selezionato sono già inseriti):",
-        "manual_ou": "Per collegare i GPO anche a un'unità organizzativa, ripeti i due comandi del passo 5 con il suo DN come --objectdn. Poi inserisci l'account e la password in {settings}.",
+        "manual_ou": "Il passo 6 vale per tutte le unità organizzative del dominio, anche per quelle create in seguito. Poi inserisci l'account e la password in {settings}.",
         "cmd_create": "crea l'account (chiede la password) e disattiva la scadenza della password",
         "cmd_group": "scrittura in SYSVOL",
         "cmd_sid": "ottieni il SID dell'account",
@@ -252,7 +264,7 @@
         "link_domain": "Il GPO si applica a ogni computer del dominio.",
         "link_ou_title": "Unità organizzativa",
         "link_ou": "Il GPO si applica solo ai computer di questa unità organizzativa e di quelle sottostanti. L'unità Domain Controllers non viene proposta: in NS8 i domain controller sono server Samba, non computer Windows.",
-        "link_computers": "I nuovi computer finiscono nel contenitore Computers, che non è un'unità organizzativa: ricevono solo le distribuzioni collegate all'intero dominio finché non vengono spostati in un'unità organizzativa.",
+        "link_computers": "I nuovi computer finiscono nel contenitore Computers, che non è un'unità organizzativa: ricevono solo le distribuzioni collegate all'intero dominio finché non vengono spostati in un'unità organizzativa. Al collegamento il modulo può creare vuota un'unità mancante; i computer vi si spostano con uno strumento AD (ad es. RSAT o LDAP Admin).",
         "mode_upgrade": "Aggiorna il pacchetto sui computer dove è installato; sugli altri non succede nulla.",
         "mode_install": "Installa il pacchetto dove manca e lo aggiorna dove è installato.",
         "mode_msi": "Preferisci i pacchetti MSI (ad es. Google.Chrome invece di Google.Chrome.EXE): alcuni programmi di installazione EXE attendono un desktop quando vengono eseguiti come SYSTEM e restano bloccati finché l'esecuzione non viene interrotta dopo due ore.",
@@ -263,6 +275,8 @@
         "clients_4": "Non serve il Visual C++ Redistributable: lo script aggiunge da solo il runtime di winget al percorso di ricerca.",
         "delivery_heading": "3.1 Consegna dello script",
         "link_heading": "3.2 Collegamento",
-        "mode_heading": "3.3 Azione per pacchetto"
+        "mode_heading": "3.3 Azione per pacchetto",
+        "cmd_link_ous": "diritto di collegare GPO a unità organizzative (ereditato, vale anche per quelle create in seguito)",
+        "cmd_create_ou": "facoltativo: diritto di creare unità organizzative vuote (quando si collega una nuova unità)"
     }
 }

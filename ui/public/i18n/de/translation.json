@@ -53,7 +53,10 @@
         "error_dc_not_resolved": "Für diese Domäne ist kein Domänencontroller bekannt",
         "rights_account": "Dienstkonto: {user}",
         "delegation_short": "Diese Befehle einmal auf einem Domänencontroller ausführen (oder unten automatisch einrichten), danach die Einstellungen erneut speichern:",
-        "auto_see_guide": "Was das Konto braucht und wie man es von Hand einrichtet:"
+        "auto_see_guide": "Was das Konto braucht und wie man es von Hand einrichtet:",
+        "right_can_link_ous": "GPOs mit Organisationseinheiten verknüpfen",
+        "right_can_create_ou": "Organisationseinheiten anlegen",
+        "optional": "optional"
     },
     "common": {
         "required": "Erforderlich",
@@ -173,9 +176,18 @@
         "run_now_at": "sofort ausgelöst {date}",
         "package_link": "Paketseite",
         "ou_input": "Organisationseinheit (DN)",
-        "ou_helper": "Eine OU, die nicht in der Liste steht, von Hand eintragen; sie wird beim Speichern geprüft.",
-        "ou_invalid": "Eine OU dieser Domäne angeben, z. B. OU=Laptops,{dn}",
-        "error_link_target_not_found": "{value} gibt es im Active Directory nicht (oder es ist keine erlaubte Organisationseinheit)"
+        "ou_helper": "Eine OU, die nicht in der Liste steht: Das Modul prüft sie und bietet an, sie anzulegen.",
+        "ou_invalid": "Den DN einer OU dieser Domäne angeben, z. B. OU=<Name>,{dn}",
+        "error_link_target_not_found": "{value} gibt es im Active Directory nicht (oder es ist keine erlaubte Organisationseinheit). Die OU zuerst anlegen oder eine vorhandene auswählen.",
+        "ou_create_title": "Organisationseinheit anlegen?",
+        "ou_create_desc": "Die OU {dn} gibt es noch nicht. Soll das Modul sie jetzt anlegen?",
+        "ou_create_note": "Angelegt wird nur die leere OU. Rechner verschiebt man mit einem AD-Werkzeug hinein (z. B. RSAT oder LDAP Admin).",
+        "ou_create_yes": "Anlegen",
+        "ou_create_no": "Verwerfen",
+        "ou_creating": "OU {dn} wird angelegt",
+        "error_ou_create_not_allowed": "Das Dienstkonto darf keine OUs anlegen. Die automatische Einrichtung unter Einstellungen erneut ausführen oder die OU mit einem AD-Werkzeug anlegen.",
+        "error_ou_parent_missing": "Die übergeordnete OU von {dn} gibt es nicht.",
+        "error_ou_create_failed": "Die OU {dn} konnte nicht angelegt werden, siehe Modulprotokoll."
     },
     "mode": {
         "upgrade": "Aktualisieren, wenn installiert",
@@ -230,7 +242,7 @@
         "auto_done_desc": "{user} wurde eingerichtet und in den Einstellungen hinterlegt.",
         "manual_title": "1.2 Von Hand einrichten",
         "manual_help": "Auf dem Knoten des Domänencontrollers (die Werte der gewählten Domäne sind eingesetzt):",
-        "manual_ou": "Sollen GPOs auch mit einer Organisationseinheit verknüpft werden, die beiden Befehle aus Schritt 5 mit deren DN als --objectdn wiederholen. Danach Konto und Kennwort unter {settings} eintragen.",
+        "manual_ou": "Schritt 6 gilt für alle Organisationseinheiten der Domäne, auch für später angelegte. Danach Konto und Kennwort unter {settings} eintragen.",
         "cmd_create": "Konto anlegen (fragt nach dem Kennwort) und Ablauf des Kennworts abschalten",
         "cmd_group": "Schreibrecht im SYSVOL",
         "cmd_sid": "SID des Kontos ermitteln",
@@ -252,7 +264,7 @@
         "link_domain": "Das GPO gilt für jeden Rechner der Domäne.",
         "link_ou_title": "Organisationseinheit",
         "link_ou": "Das GPO gilt nur für Rechner in dieser Organisationseinheit und den darunterliegenden. Die Einheit Domain Controllers wird nicht angeboten: Unter NS8 sind die Domänencontroller Samba-Server, keine Windows-Rechner.",
-        "link_computers": "Neue Rechner landen im Container Computers, der keine Organisationseinheit ist: Sie erhalten nur Verteilungen, die mit der ganzen Domäne verknüpft sind, bis sie in eine Organisationseinheit verschoben werden.",
+        "link_computers": "Neue Rechner landen im Container Computers, der keine Organisationseinheit ist: Sie erhalten nur Verteilungen, die mit der ganzen Domäne verknüpft sind, bis sie in eine Organisationseinheit verschoben werden. Das Modul kann beim Verknüpfen eine fehlende OU leer anlegen; die Rechner verschiebt man mit einem AD-Werkzeug hinein (z. B. RSAT oder LDAP Admin).",
         "mode_upgrade": "Aktualisiert das Paket auf Rechnern, auf denen es installiert ist; auf den anderen passiert nichts.",
         "mode_install": "Installiert das Paket, wo es fehlt, und aktualisiert es, wo es installiert ist.",
         "mode_msi": "MSI-Pakete bevorzugen (z. B. Google.Chrome statt Google.Chrome.EXE): Manche EXE-Installer warten als SYSTEM auf einen Desktop und hängen, bis der Lauf nach zwei Stunden abgebrochen wird.",
@@ -263,6 +275,8 @@
         "clients_4": "Kein VC++-Redistributable nötig: Das Skript nimmt die Laufzeit von winget selbst in den Suchpfad.",
         "delivery_heading": "3.1 Auslieferung des Skripts",
         "link_heading": "3.2 Verknüpfung",
-        "mode_heading": "3.3 Aktion pro Paket"
+        "mode_heading": "3.3 Aktion pro Paket",
+        "cmd_link_ous": "Recht, GPOs mit Organisationseinheiten zu verknüpfen (vererbt, gilt auch für später angelegte OUs)",
+        "cmd_create_ou": "optional: Recht, leere Organisationseinheiten anzulegen (beim Verknüpfen einer neuen OU)"
     }
 }
