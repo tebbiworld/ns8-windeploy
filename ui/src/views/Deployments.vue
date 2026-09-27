@@ -163,7 +163,8 @@
         editor.id ? $t("deployments.edit_title") : $t("deployments.new_title")
       }}</template>
       <template slot="content">
-        <cv-form @submit.prevent="saveDeployment">
+        <!-- saving only through the Save button: Enter or inner buttons must not save -->
+        <cv-form @submit.prevent>
           <NsTextInput
             :label="$t('deployments.name')"
             v-model.trim="editor.name"
@@ -186,6 +187,7 @@
               }}</cv-dropdown-item>
             </cv-dropdown>
             <NsButton
+              type="button"
               kind="ghost"
               size="small"
               :icon="TrashCan20"
@@ -228,6 +230,7 @@
                   >
                 </div>
                 <NsButton
+                  type="button"
                   kind="ghost"
                   size="small"
                   :icon="Add20"
@@ -381,6 +384,7 @@
               @keydown.enter.prevent="addOu"
             />
             <NsButton
+              type="button"
               kind="tertiary"
               size="field"
               :icon="Add20"
