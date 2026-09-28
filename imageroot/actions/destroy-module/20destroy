@@ -5,11 +5,18 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-# Removing the module does not touch AD: the GPOs of the deployments stay
-# linked and keep running on the clients. They are listed in the log so
-# the admin can remove them (or remove the deployments first).
+# Removing the module deletes its GPOs: a rule exists only as long as the
+# module that manages it. The tasks carry removePolicy, so the computers
+# delete them at their next policy refresh; installed software stays.
+#
+# Not when the module moves to another node: clone-module with "replace"
+# gives the new instance the same MODULE_UUID and removes this one only
+# afterwards. The new instance keeps managing the GPOs.
+#
+# A DC that cannot be reached must not block the removal: the GPOs that
+# could not be deleted are listed in the log.
 
-import json
+import os
 import subprocess
 import sys
 
@@ -17,7 +24,29 @@ import agent
 import wdcommon
 
 subprocess.run(["systemctl", "--user", "disable", "--now", "windeploy-index.timer"], check=False)
-for d in wdcommon.read_deployments()["deployments"]:
-    if d.get("gpo_guid"):
-        print(agent.SD_WARNING + f"GPO {d['gpo_guid']} ({d['name']}) stays in AD, linked to {', '.join(d.get('link_targets', [])) or 'nothing'}",
-              file=sys.stderr)
+
+
+def moved():
+    """True if another module has this module's UUID (move in progress)."""
+    uuid = os.environ.get("MODULE_UUID")
+    if not uuid:
+        return False
+    rdb = agent.redis_connect()
+    return any(mid != os.environ["MODULE_ID"] and value == uuid
+               for mid, value in rdb.hgetall("cluster/module_uuid").items())
+
+
+deployments = [d for d in wdcommon.read_deployments()["deployments"] if d.get("gpo_guid")]
+if not deployments:
+    sys.exit(0)
+if moved():
+    print(agent.SD_NOTICE + "module moved: its GPOs stay for the new instance", file=sys.stderr)
+    sys.exit(0)
+
+for d in deployments:
+    try:
+        wdcommon.delete_gpo(d["gpo_guid"], d.get("link_targets", []))
+        print(agent.SD_NOTICE + f"GPO {d['gpo_guid']} ({d['name']}) deleted", file=sys.stderr)
+    except Exception as ex:
+        print(agent.SD_WARNING + f"GPO {d['gpo_guid']} ({d['name']}) could not be deleted and stays in AD, "
+              f"linked to {', '.join(d.get('link_targets', [])) or 'nothing'}: {ex}", file=sys.stderr)
