@@ -7,6 +7,8 @@
 
 # Re-apply the restored settings with every field configure-module
 # accepts (the password is already in passwords.env: empty keeps it).
+# Without the bind test: the DC may not be reachable yet while a module
+# is restored after a failure. The rights are checked at the next save.
 
 import os
 import sys
@@ -27,6 +29,7 @@ data = {
     "username": env["GPO_USER"],
     "password": "",
     "default_delivery": env.get("DEFAULT_DELIVERY", "sysvol"),
+    "skip_check": True,
 }
 response = agent.tasks.run(agent_id=env["AGENT_ID"], action="configure-module", data=data)
 agent.assert_exp(response["exit_code"] == 0, "The configure-module subtask failed!")

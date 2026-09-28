@@ -66,6 +66,10 @@
             "description": "How new deployments hand the script to the task: from SYSVOL or embedded as -EncodedCommand",
             "type": "string",
             "enum": ["sysvol", "embedded"]
+        },
+        "skip_check": {
+            "description": "Store the settings without the bind test (restore-module: the DC may not be reachable yet)",
+            "type": "boolean"
         }
     }
 }
