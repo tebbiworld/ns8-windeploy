@@ -154,12 +154,33 @@ def run_tool(request, settings=None, timeout=300):
     except json.JSONDecodeError:
         response = {}
     if not response.get("ok"):
-        raise ToolError(response.get("error") or f"gpowrite exited with {proc.returncode}")
+        raise ToolError(response.get("error") or f"gpowrite exited with {proc.returncode}",
+                        ldap_code=response.get("ldap_code"), ntstatus=response.get("ntstatus"))
     return response["result"]
 
 
+# LDAP result codes and NTSTATUS values gpowrite reports
+LDAP_INVALID_CREDENTIALS = 49
+LDAP_INSUFFICIENT_ACCESS = 50
+NT_STATUS_ACCESS_DENIED = 0xC0000022
+NT_STATUS_WRONG_PASSWORD = 0xC000006A
+NT_STATUS_LOGON_FAILURE = 0xC000006D
+
+
 class ToolError(Exception):
-    pass
+    def __init__(self, message, ldap_code=None, ntstatus=None):
+        super().__init__(message)
+        self.ldap_code = ldap_code
+        self.ntstatus = ntstatus
+
+    @property
+    def bad_credentials(self):
+        return (self.ldap_code == LDAP_INVALID_CREDENTIALS
+                or self.ntstatus in (NT_STATUS_WRONG_PASSWORD, NT_STATUS_LOGON_FAILURE))
+
+    @property
+    def access_denied(self):
+        return self.ldap_code == LDAP_INSUFFICIENT_ACCESS or self.ntstatus == NT_STATUS_ACCESS_DENIED
 
 
 # ---------------------------------------------------------- deployments ---

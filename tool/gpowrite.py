@@ -746,12 +746,23 @@ def main():
         json.dump({"ok": True, "result": result}, sys.stdout)
     except (GpoError, ldb.LdbError) as ex:
         log(traceback.format_exc())
-        json.dump({"ok": False, "error": str(ex)}, sys.stdout)
+        json.dump({"ok": False, "error": str(ex), **_error_code(ex)}, sys.stdout)
         sys.exit(2)
     except Exception as ex:  # SMB errors come as RuntimeError/NTSTATUSError
         log(traceback.format_exc())
-        json.dump({"ok": False, "error": f"{type(ex).__name__}: {ex}"}, sys.stdout)
+        json.dump({"ok": False, "error": f"{type(ex).__name__}: {ex}", **_error_code(ex)}, sys.stdout)
         sys.exit(2)
+
+
+def _error_code(ex):
+    """Result code of a failed request, for the caller to tell a bad
+    password from an unreachable DC without parsing the message: the LDAP
+    result code of an LdbError, the NTSTATUS of an SMB error."""
+    if isinstance(ex, ldb.LdbError) and ex.args and isinstance(ex.args[0], int):
+        return {"ldap_code": ex.args[0]}
+    if type(ex).__name__ == "NTSTATUSError" and ex.args and isinstance(ex.args[0], int):
+        return {"ntstatus": ex.args[0] & 0xFFFFFFFF}
+    return {}
 
 
 if __name__ == "__main__":

@@ -59,9 +59,9 @@ except wdcommon.ToolError as ex:
     msg = str(ex)
     print(agent.SD_ERR + "service account setup failed: " + msg, file=sys.stderr)
     agent.set_status("validation-failed")
-    if "49" in msg or "LOGON_FAILURE" in msg or "credentials" in msg.lower():
+    if ex.bad_credentials:
         error, field = "admin_bind_failed", "admin_password"
-    elif "INSUFFICIENT_ACCESS" in msg or "50" in msg:
+    elif ex.access_denied:
         error, field = "admin_not_allowed", "admin_user"
     else:
         error, field = "setup_failed", "admin_user"
