@@ -226,6 +226,16 @@ def remove_backups(guid):
     shutil.rmtree(os.path.join(state_dir(), BACKUP_DIR, guid), ignore_errors=True)
 
 
+def delete_gpo(guid, link_targets, settings=None):
+    """Unlink and delete a GPO of this module and drop its backups. Links
+    the module does not know about (set by hand) are removed as well:
+    gpowrite refuses to delete a GPO that is still linked."""
+    for dn in link_targets:
+        run_tool({"op": "unlink", "guid": guid, "target_dn": dn}, settings=settings)
+    run_tool({"op": "delete", "guid": guid, "unlink_all": True}, settings=settings)
+    remove_backups(guid)
+
+
 def read_deployments():
     try:
         with open(os.path.join(state_dir(), DEPLOYMENTS)) as f:

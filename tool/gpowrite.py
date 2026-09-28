@@ -617,9 +617,14 @@ class Session:
         log(f"created {dn}")
         return {"dn": dn, "created": True}
 
-    def delete(self, guid):
+    def delete(self, guid, unlink_all=False):
         _check_guid(guid)
         links = self._links_of(guid)
+        if unlink_all:
+            # links an admin added by hand, next to the module's own
+            for dn in links:
+                self.unlink(guid, dn)
+            links = self._links_of(guid)
         if links:
             raise GpoError(f"GPO {guid} is still linked to: {', '.join(links)}")
         path = self.share_path(guid)
@@ -740,7 +745,7 @@ def main():
         elif op == "targets":
             result = s.targets()
         elif op == "delete":
-            result = s.delete(request["guid"])
+            result = s.delete(request["guid"], unlink_all=request.get("unlink_all", False))
         else:
             raise GpoError(f"unknown op {op!r}")
         json.dump({"ok": True, "result": result}, sys.stdout)
