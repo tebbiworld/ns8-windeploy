@@ -73,7 +73,7 @@ import gpogen  # noqa: E402
 
 GUID_RE = re.compile(r"^\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}$")
 # Relative paths the module may write below a GPO folder
-ALLOWED_FILE_RE = re.compile(r"^Machine/(Preferences/ScheduledTasks/ScheduledTasks\.xml|Scripts/windeploy/[A-Za-z0-9._-]{1,120}\.ps1)$")
+ALLOWED_FILE_RE = re.compile(r"^(windeploy\.json|Machine/(Preferences/ScheduledTasks/ScheduledTasks\.xml|Scripts/windeploy/[A-Za-z0-9._-]{1,120}\.ps1))$")
 
 SCHEMA_GPC = "f30e3bc2-9ff0-11d1-b603-0000f80367c1"      # groupPolicyContainer
 ATTR_GPLINK = "f30e3bbe-9ff0-11d1-b603-0000f80367c1"

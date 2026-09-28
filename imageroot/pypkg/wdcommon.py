@@ -317,4 +317,22 @@ def build_files(deployment, settings):
                               run_once_id=pkg["now_run_id"]))
     xml = gpogen.build_scheduled_tasks_xml(tasks, immediate)
     files["Machine/Preferences/ScheduledTasks/ScheduledTasks.xml"] = base64.b64encode(xml.encode("utf-8")).decode()
+    files[DESCRIPTION_FILE] = base64.b64encode(describe(deployment).encode("utf-8")).decode()
     return files
+
+
+# Next to GPT.INI: marks the GPO as made by windeploy and describes the
+# deployment, so that it can be recognised (and taken over) without the
+# module's state. Windows ignores the file.
+DESCRIPTION_FILE = "windeploy.json"
+
+
+def describe(deployment):
+    return json.dumps({
+        "generator": "NethServer module windeploy",
+        "module_uuid": os.environ.get("MODULE_UUID", ""),
+        "name": deployment["name"],
+        "delivery": deployment.get("delivery", "sysvol"),
+        "schedule": deployment["schedule"],
+        "packages": [{"id": p["id"], "mode": p.get("mode", "upgrade")} for p in deployment["packages"]],
+    }, indent=1) + "\n"
