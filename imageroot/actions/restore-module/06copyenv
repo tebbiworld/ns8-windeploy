@@ -15,11 +15,7 @@ import sys
 import agent
 
 request = json.load(sys.stdin)
-if "environment" in request:
-    env = request["environment"]
-else:
-    # clone-module: the source environment is left here by the core
-    env = agent.read_envfile("environment.clone-module")
+env = request["environment"]
 
 KEEP = ["GPO_DOMAIN", "GPO_DC_HOST", "GPO_DC_IP", "GPO_REALM", "GPO_WORKGROUP", "GPO_USER", "DEFAULT_DELIVERY"]
 agent.mset_env({k: env[k] for k in KEEP if k in env})

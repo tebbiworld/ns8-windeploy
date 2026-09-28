@@ -1,1 +1,36 @@
-../restore-module/06copyenv
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Copy the connection settings of the original instance; the password
+# comes with state/passwords.env.
+#
+# A move ("replace": the original is removed afterwards) keeps the
+# deployments: the new instance manages the same GPOs. A copy starts
+# without deployments, otherwise two instances would manage the same GPOs
+# and removing a deployment in one would break the other.
+
+import json
+import os
+import shutil
+import sys
+
+import agent
+import wdcommon
+
+request = json.load(sys.stdin)
+env = agent.read_envfile("environment.clone-module")
+KEEP = ["GPO_DOMAIN", "GPO_DC_HOST", "GPO_DC_IP", "GPO_REALM", "GPO_WORKGROUP", "GPO_USER", "DEFAULT_DELIVERY"]
+agent.mset_env({k: env[k] for k in KEEP if k in env})
+
+if not request.get("replace"):
+    for name in (wdcommon.DEPLOYMENTS, "rights.json"):
+        try:
+            os.remove(name)
+        except FileNotFoundError:
+            pass
+    shutil.rmtree(wdcommon.BACKUP_DIR, ignore_errors=True)
+    print(agent.SD_NOTICE + "clone starts without deployments", file=sys.stderr)
