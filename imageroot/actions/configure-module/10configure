@@ -5,27 +5,72 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-# Store the connection settings (state/environment) and the service
-# account password (state/passwords.env, never in the environment: that is
-# mirrored to Redis in plain text).
+# Check the new settings with a bind of the service account, then store
+# them: the connection settings in state/environment, the password in
+# state/passwords.env (never in the environment: that is mirrored to Redis
+# in plain text). A failed bind changes nothing, so a mistyped password
+# does not replace the working one.
+#
+# A failed bind is a validation error on the password field; missing
+# delegations are only reported (get-configuration shows them), the admin
+# may add them later.
+#
+# restore-module passes "skip_check": the DC may not be reachable yet
+# while a module is restored. The rights are checked at the next save.
 
 import json
 import sys
 
 import agent
 import modsecrets
+import wdcommon
 
 request = json.load(sys.stdin)
-
-agent.mset_env({
+env = {
     "GPO_DOMAIN": request.get("domain", ""),
     "GPO_DC_HOST": request.get("dc_host", ""),
     "GPO_DC_IP": request.get("dc_ip", ""),
     "GPO_REALM": request.get("realm", "").upper(),
     "GPO_WORKGROUP": request.get("workgroup", "").upper(),
     "GPO_USER": request["username"],
-})
+}
+password = request.get("password") or modsecrets.get("GPO_PASSWORD")
+
+
+def fail(field, value, error):
+    agent.set_status("validation-failed")
+    json.dump([{"field": field, "parameter": field, "value": value, "error": error}], fp=sys.stdout)
+    sys.exit(3)
+
+
+result = None
+if not request.get("skip_check"):
+    settings = wdcommon.connection_settings(env)
+    try:
+        wdcommon.validate_connection(settings)
+    except ValueError as ex:
+        print(agent.SD_ERR + str(ex), file=sys.stderr)
+        fail("domain", request.get("domain", ""), "dc_not_resolved")
+    if not password:
+        fail("password", "", "password_required")
+    try:
+        result = wdcommon.run_tool({"op": "check", "guids": wdcommon.gpo_guids()},
+                                   settings=settings, timeout=120, password=password)
+    except wdcommon.ToolError as ex:
+        print(agent.SD_ERR + "check failed: " + str(ex), file=sys.stderr)
+        if ex.bad_credentials:
+            fail("password", "", "bind_failed")
+        fail("dc_ip", "", "dc_unreachable")
+
+agent.mset_env(env)
 if request.get("default_delivery"):
     agent.set_env("DEFAULT_DELIVERY", request["default_delivery"])
 if request.get("password"):
     modsecrets.write({"GPO_PASSWORD": request["password"]})
+
+if result is not None:
+    with open("rights.json", "w") as f:
+        json.dump(result, f)
+    for key in ("can_create_gpo", "can_link_domain", "sysvol", "can_manage_gpos"):
+        if not result.get(key):
+            print(agent.SD_WARNING + f"service account lacks {key}", file=sys.stderr)

@@ -111,14 +111,16 @@ def validate_connection(s):
 
 # -------------------------------------------------------- samba runner ---
 
-def run_tool(request, settings=None, timeout=300):
+def run_tool(request, settings=None, timeout=300, password=None):
     """Run one gpowrite request in the windeploy-samba image. The provision
-    request carries its own (admin) credentials in the request body."""
+    request carries its own (admin) credentials in the request body.
+    password replaces the stored one (a new password is tested before it
+    is stored)."""
     s = settings or connection_settings()
     if request.get("op") == "provision":
         s = dict(s, user=s.get("user") or "none")
     validate_connection(s)
-    password = modsecrets.get("GPO_PASSWORD")
+    password = password or modsecrets.get("GPO_PASSWORD")
     if request.get("op") == "provision":
         password = password or "unused"
     if not password:
