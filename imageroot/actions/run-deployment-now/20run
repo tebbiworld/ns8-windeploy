@@ -19,30 +19,33 @@ import gpogen
 import wdcommon
 
 request = json.load(sys.stdin)
-current = wdcommon.read_deployments()["deployments"]
-old = next((d for d in current if d["id"] == request["id"]), None)
-if old is None or not old.get("gpo_guid"):
-    agent.set_status("validation-failed")
-    json.dump([{"field": "id", "parameter": "id", "value": request["id"], "error": "deployment_not_found"}], fp=sys.stdout)
-    sys.exit(3)
-
-deployment = copy.deepcopy(old)
-deployment.pop("run_now_id", None)  # one id per deployment: before 0.1
-for pkg in deployment["packages"]:
-    pkg["now_run_id"] = gpogen.new_uid()
-for pid in wdcommon.update_scopes(deployment):
-    print(agent.SD_WARNING + f"{pid} installs per user only, it will not work as SYSTEM", file=sys.stderr)
 settings = wdcommon.connection_settings()
-try:
-    files = wdcommon.build_files(deployment, settings)
-    res = wdcommon.run_tool({"op": "apply", "guid": deployment["gpo_guid"], "files": files,
-                             "backup_dir": "/backup"}, settings=settings)
-except (wdcommon.ToolError, ValueError, gpogen.GenError) as ex:
-    print(agent.SD_ERR + "run now failed: " + str(ex), file=sys.stderr)
-    sys.exit(1)
 
-deployment["version"] = res["version"]
-deployment["run_now_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+# Read, write the GPO and store under the lock of deployments.json: a
+# save at the same time waits instead of being overwritten.
 with wdcommon.deployments_locked() as data:
+    old = next((d for d in data["deployments"] if d["id"] == request["id"]), None)
+    if old is None or not old.get("gpo_guid"):
+        agent.set_status("validation-failed")
+        json.dump([{"field": "id", "parameter": "id", "value": request["id"], "error": "deployment_not_found"}], fp=sys.stdout)
+        sys.exit(3)
+
+    deployment = copy.deepcopy(old)
+    deployment.pop("run_now_id", None)  # one id per deployment: before 0.1
+    for pkg in deployment["packages"]:
+        pkg["now_run_id"] = gpogen.new_uid()
+    for pid in wdcommon.update_scopes(deployment):
+        print(agent.SD_WARNING + f"{pid} installs per user only, it will not work as SYSTEM", file=sys.stderr)
+    try:
+        files = wdcommon.build_files(deployment, settings)
+        res = wdcommon.run_tool({"op": "apply", "guid": deployment["gpo_guid"], "files": files,
+                                 "backup_dir": "/backup"}, settings=settings)
+    except (wdcommon.ToolError, ValueError, gpogen.GenError) as ex:
+        print(agent.SD_ERR + "run now failed: " + str(ex), file=sys.stderr)
+        sys.exit(1)
+    wdcommon.prune_backups(deployment["gpo_guid"])
+
+    deployment["version"] = res["version"]
+    deployment["run_now_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     data["deployments"] = [d for d in data["deployments"] if d["id"] != deployment["id"]] + [deployment]
 json.dump({"id": deployment["id"], "version": deployment["version"], "run_now_at": deployment["run_now_at"]}, fp=sys.stdout)

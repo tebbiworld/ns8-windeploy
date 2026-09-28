@@ -68,78 +68,93 @@ if request["link_targets"]:
         if dn.lower() not in valid:
             fail("link_targets", dn, "link_target_not_found")
 
-current = wdcommon.read_deployments()["deployments"]
-old = None
-if request.get("id"):
-    old = next((d for d in current if d["id"] == request["id"]), None)
-    if old is None:
-        fail("id", request["id"], "deployment_not_found")
-for d in current:
-    if d["name"].lower() == request["name"].lower() and d["id"] != request.get("id"):
-        fail("name", request["name"], "name_in_use")
-
-deployment = copy.deepcopy(old) if old else {"id": wdcommon.new_id(), "gpo_guid": "", "link_targets": [], "_scripts": []}
-old_packages = {p["id"]: p for p in (old or {}).get("packages", [])}
-deployment["name"] = request["name"]
-deployment["schedule"] = {k: v for k, v in schedule.items() if k in ("frequency", "days", "time", "start_date", "random_delay_minutes")}
-deployment["delivery"] = request.get("delivery") or os.environ.get("DEFAULT_DELIVERY", "sysvol")
-deployment.pop("run_now_id", None)  # one id per deployment: before 0.1
-deployment["packages"] = []
-for p in request["packages"]:
-    entry = {"id": p["id"], "mode": p.get("mode", "upgrade")}
-    # same tasks on the clients; a pending "run now" stays as it is
-    for key in ("task_uid", "now_uid", "now_run_id", "scope"):
-        if old_packages.get(p["id"], {}).get(key):
-            entry[key] = old_packages[p["id"]][key]
-    deployment["packages"].append(entry)
-# The tasks run as SYSTEM: refuse packages that only install per user.
-for pid in wdcommon.update_scopes(deployment):
-    fail("packages", pid, "user_scope_only")
-
-# Generate once offline: bad input fails here, before AD is touched.
-probe = copy.deepcopy(deployment)
-probe["gpo_guid"] = probe["gpo_guid"] or "{00000000-0000-0000-0000-000000000001}"
-try:
-    wdcommon.build_files(probe, settings)
-except gpogen.GenError as ex:
-    print(agent.SD_ERR + str(ex), file=sys.stderr)
-    fail("packages", ids, "generation_failed")
-
-# --- AD --------------------------------------------------------------------
-created = False
-try:
-    agent.set_progress(10)
-    if not deployment["gpo_guid"]:
-        res = wdcommon.run_tool({"op": "create", "display_name": "windeploy: " + deployment["name"]}, settings=settings)
-        deployment["gpo_guid"] = res["guid"]
-        created = True
-    agent.set_progress(40)
-    files = wdcommon.build_files(deployment, settings)
-    res = wdcommon.run_tool({"op": "apply", "guid": deployment["gpo_guid"], "files": files,
-                             "backup_dir": "/backup"}, settings=settings)
-    deployment["version"] = res["version"]
-    agent.set_progress(70)
-    wanted = list(dict.fromkeys(request["link_targets"]))
-    for dn in wanted:
-        if dn not in deployment["link_targets"]:
-            wdcommon.run_tool({"op": "link", "guid": deployment["gpo_guid"], "target_dn": dn}, settings=settings)
-    for dn in deployment["link_targets"]:
-        if dn not in wanted:
-            wdcommon.run_tool({"op": "unlink", "guid": deployment["gpo_guid"], "target_dn": dn}, settings=settings)
-    deployment["link_targets"] = wanted
-except (wdcommon.ToolError, ValueError) as ex:
-    print(agent.SD_ERR + "saving the deployment failed: " + str(ex), file=sys.stderr)
-    if created:
-        try:
-            for dn in request["link_targets"]:
-                wdcommon.run_tool({"op": "unlink", "guid": deployment["gpo_guid"], "target_dn": dn}, settings=settings)
-            wdcommon.run_tool({"op": "delete", "guid": deployment["gpo_guid"]}, settings=settings)
-        except Exception as cleanup:
-            print(agent.SD_ERR + f"could not remove the new GPO {deployment['gpo_guid']}: {cleanup}", file=sys.stderr)
-    sys.exit(1)
-
+# The whole read-modify-write runs under the lock of deployments.json:
+# a save or "run now" at the same time waits instead of being overwritten.
+# An exit in the block (validation error, AD failure) leaves the file as
+# it was.
 with wdcommon.deployments_locked() as data:
-    data["deployments"] = [d for d in data["deployments"] if d["id"] != deployment["id"]] + [deployment]
+    current = data["deployments"]
+    old = None
+    if request.get("id"):
+        old = next((d for d in current if d["id"] == request["id"]), None)
+        if old is None:
+            fail("id", request["id"], "deployment_not_found")
+    for d in current:
+        if d["name"].lower() == request["name"].lower() and d["id"] != request.get("id"):
+            fail("name", request["name"], "name_in_use")
+
+    deployment = copy.deepcopy(old) if old else {"id": wdcommon.new_id(), "gpo_guid": "", "link_targets": [], "_scripts": []}
+    old_packages = {p["id"]: p for p in (old or {}).get("packages", [])}
+    deployment["name"] = request["name"]
+    deployment["schedule"] = {k: v for k, v in schedule.items() if k in ("frequency", "days", "time", "start_date", "random_delay_minutes")}
+    deployment["delivery"] = request.get("delivery") or os.environ.get("DEFAULT_DELIVERY", "sysvol")
+    deployment.pop("run_now_id", None)  # one id per deployment: before 0.1
+    deployment["packages"] = []
+    for p in request["packages"]:
+        entry = {"id": p["id"], "mode": p.get("mode", "upgrade")}
+        # same tasks on the clients; a pending "run now" stays as it is
+        for key in ("task_uid", "now_uid", "now_run_id", "scope"):
+            if old_packages.get(p["id"], {}).get(key):
+                entry[key] = old_packages[p["id"]][key]
+        deployment["packages"].append(entry)
+    # The tasks run as SYSTEM: refuse packages that only install per user.
+    for pid in wdcommon.update_scopes(deployment):
+        fail("packages", pid, "user_scope_only")
+
+    # Generate once offline: bad input fails here, before AD is touched.
+    probe = copy.deepcopy(deployment)
+    probe["gpo_guid"] = probe["gpo_guid"] or "{00000000-0000-0000-0000-000000000001}"
+    try:
+        wdcommon.build_files(probe, settings)
+    except gpogen.GenError as ex:
+        print(agent.SD_ERR + str(ex), file=sys.stderr)
+        fail("packages", ids, "generation_failed")
+
+    # --- AD ----------------------------------------------------------------
+    # DNs are compared without case, like AD does: a DN that only changes
+    # its case is the same link target.
+    wanted = list({dn.lower(): dn for dn in request["link_targets"]}.values())
+    wanted_keys = {dn.lower() for dn in wanted}
+    linked_keys = {dn.lower() for dn in deployment["link_targets"]}
+    created = False
+    try:
+        agent.set_progress(10)
+        if not deployment["gpo_guid"]:
+            res = wdcommon.run_tool({"op": "create", "display_name": "windeploy: " + deployment["name"]}, settings=settings)
+            deployment["gpo_guid"] = res["guid"]
+            created = True
+        agent.set_progress(40)
+        files = wdcommon.build_files(deployment, settings)
+        res = wdcommon.run_tool({"op": "apply", "guid": deployment["gpo_guid"], "files": files,
+                                 "backup_dir": "/backup"}, settings=settings)
+        deployment["version"] = res["version"]
+        wdcommon.prune_backups(deployment["gpo_guid"])
+        agent.set_progress(70)
+        for dn in wanted:
+            if dn.lower() not in linked_keys:
+                wdcommon.run_tool({"op": "link", "guid": deployment["gpo_guid"], "target_dn": dn}, settings=settings)
+        for dn in deployment["link_targets"]:
+            if dn.lower() not in wanted_keys:
+                wdcommon.run_tool({"op": "unlink", "guid": deployment["gpo_guid"], "target_dn": dn}, settings=settings)
+        deployment["link_targets"] = wanted
+    except Exception as ex:
+        # Any failure (also a timeout of podman): a GPO created in this run
+        # is removed again, it would never show in the UI otherwise.
+        print(agent.SD_ERR + f"saving the deployment failed: {type(ex).__name__}: {ex}", file=sys.stderr)
+        if created:
+            try:
+                for dn in wanted:
+                    wdcommon.run_tool({"op": "unlink", "guid": deployment["gpo_guid"], "target_dn": dn}, settings=settings)
+                wdcommon.run_tool({"op": "delete", "guid": deployment["gpo_guid"]}, settings=settings)
+                wdcommon.remove_backups(deployment["gpo_guid"])
+            except Exception as cleanup:
+                print(agent.SD_ERR + f"could not remove the new GPO {deployment['gpo_guid']}: {cleanup}", file=sys.stderr)
+        if isinstance(ex, (wdcommon.ToolError, ValueError)):
+            sys.exit(1)
+        raise
+
+    data["deployments"] = [d for d in current if d["id"] != deployment["id"]] + [deployment]
+
 agent.set_progress(100)
 print(agent.SD_INFO + f"deployment {deployment['name']!r} saved in GPO {deployment['gpo_guid']} version {deployment.get('version')}", file=sys.stderr)
 json.dump({"id": deployment["id"], "gpo_guid": deployment["gpo_guid"], "version": deployment.get("version")}, fp=sys.stdout)

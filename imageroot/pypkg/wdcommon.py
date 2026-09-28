@@ -19,6 +19,7 @@ import ipaddress
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -203,6 +204,26 @@ def deployments_locked():
     finally:
         fcntl.flock(lock, fcntl.LOCK_UN)
         os.close(lock)
+
+
+BACKUPS_KEPT = 10
+
+
+def prune_backups(guid, keep=BACKUPS_KEPT):
+    """Keep the newest copies of a GPO's previous files (gpowrite writes
+    one per change into gpo-backups/<GUID>/<timestamp>)."""
+    folder = os.path.join(state_dir(), BACKUP_DIR, guid)
+    try:
+        stamps = sorted(os.listdir(folder))
+    except FileNotFoundError:
+        return
+    for stamp in stamps[:-keep] if keep else stamps:
+        shutil.rmtree(os.path.join(folder, stamp), ignore_errors=True)
+
+
+def remove_backups(guid):
+    """Drop the copies of a deleted GPO."""
+    shutil.rmtree(os.path.join(state_dir(), BACKUP_DIR, guid), ignore_errors=True)
 
 
 def read_deployments():
