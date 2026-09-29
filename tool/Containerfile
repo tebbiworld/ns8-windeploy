@@ -15,8 +15,8 @@ RUN apt-get update \
     && useradd --system --uid 1001 --home-dir /app --shell /usr/sbin/nologin gpo \
     && printf '[global]\n  client signing = required\n  client min protocol = SMB2_10\n' > /etc/samba/smb.conf
 
-COPY gpowrite.py /app/gpowrite.py
-COPY gpogen.py wingetindex.py /app/
+COPY gpowrite.py dnswrite.py /app/
+COPY gpogen.py wingetindex.py dnsrules.py /app/
 
 USER gpo
 WORKDIR /app

@@ -1,0 +1,20 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# The internal DNS zones of the domain, whether the module may change
+# them, and the last changes made through the module.
+
+import json
+import sys
+
+import wdcommon
+
+try:
+    zones = wdcommon.run_tool({"op": "dns_zones"}, timeout=120)
+except (wdcommon.ToolError, ValueError) as ex:
+    wdcommon.dns_failed(ex, "zone")
+json.dump({"zones": zones, "log": wdcommon.read_dns_log()}, fp=sys.stdout)

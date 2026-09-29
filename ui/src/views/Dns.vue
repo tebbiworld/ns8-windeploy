@@ -1,0 +1,791 @@
+<!--
+  Copyright (C) 2026 tebbi
+  SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<template>
+  <cv-grid fullWidth>
+    <cv-row>
+      <cv-column class="page-title">
+        <h2>{{ $t("dns.title") }}</h2>
+      </cv-column>
+    </cv-row>
+    <cv-row>
+      <cv-column>
+        <p class="page-help">{{ $t("dns.help") }}</p>
+      </cv-column>
+    </cv-row>
+    <cv-row v-if="error.zones">
+      <cv-column>
+        <NsInlineNotification
+          kind="error"
+          :title="$t('action.list-dns-zones')"
+          :description="error.zones"
+          :showCloseButton="false"
+        />
+      </cv-column>
+    </cv-row>
+
+    <!-- zones -->
+    <cv-row>
+      <cv-column>
+        <cv-tile light class="zones">
+          <h4>{{ $t("dns.zones") }}</h4>
+          <cv-skeleton-text
+            v-if="loading.zones && !zones.length"
+            :paragraph="true"
+            :line-count="3"
+          />
+          <table v-else class="list">
+            <tbody>
+              <tr
+                v-for="z in zones"
+                :key="z.name"
+                :class="{ selected: z.name === zone }"
+              >
+                <td class="name">
+                  <cv-link @click="selectZone(z.name)">{{ z.name }}</cv-link>
+                </td>
+                <td>
+                  <span v-if="z.reverse" class="tag">{{
+                    $t("dns.reverse")
+                  }}</span>
+                </td>
+                <td>
+                  <span v-if="z.ad_zone" class="muted">{{
+                    $t("dns.zone_ad")
+                  }}</span>
+                  <span v-else-if="z.writable">{{
+                    $t("dns.zone_writable")
+                  }}</span>
+                  <span v-else class="warn">{{
+                    $t("dns.zone_read_only")
+                  }}</span>
+                </td>
+                <td class="actions">
+                  <NsButton
+                    v-if="!z.ad_zone"
+                    kind="ghost"
+                    size="small"
+                    :icon="z.writable ? Locked20 : Unlocked20"
+                    @click="askGrant(z)"
+                    >{{
+                      z.writable ? $t("dns.revoke") : $t("dns.grant")
+                    }}</NsButton
+                  >
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </cv-tile>
+      </cv-column>
+    </cv-row>
+
+    <!-- records -->
+    <cv-row v-if="zone">
+      <cv-column>
+        <cv-tile light>
+          <h4>{{ $t("dns.records_of", { zone }) }}</h4>
+          <NsInlineNotification
+            v-if="error.records"
+            kind="error"
+            :title="$t('action.list-dns-records')"
+            :description="error.records"
+            :showCloseButton="false"
+          />
+          <div class="toolbar">
+            <NsButton
+              kind="primary"
+              :icon="Add20"
+              :disabled="!currentZone.writable"
+              @click="openEditor(null)"
+              >{{ $t("dns.new") }}</NsButton
+            >
+            <NsButton
+              kind="ghost"
+              :icon="Renew20"
+              :loading="loading.records"
+              :disabled="loading.records"
+              @click="listRecords"
+              >{{ $t("deployments.reload") }}</NsButton
+            >
+            <NsTextInput
+              :label="$t('dns.search')"
+              v-model.trim="filter.text"
+              class="search"
+              :placeholder="$t('dns.search_placeholder')"
+            />
+            <cv-checkbox
+              value="own"
+              :label="$t('dns.only_changeable')"
+              v-model="filter.own"
+              class="own"
+            />
+          </div>
+          <cv-skeleton-text
+            v-if="loading.records && !records.length"
+            :paragraph="true"
+            :line-count="5"
+          />
+          <NsEmptyState v-else-if="!shown.length" :title="$t('dns.empty')" />
+          <table v-else class="list records">
+            <thead>
+              <tr>
+                <th>{{ $t("dns.name") }}</th>
+                <th>{{ $t("dns.type") }}</th>
+                <th>{{ $t("dns.data") }}</th>
+                <th>{{ $t("dns.ttl") }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in shown" :key="r.name + r.type + r.data">
+                <td class="name">{{ r.name }}</td>
+                <td>{{ r.type }}</td>
+                <td class="data">{{ r.data }}</td>
+                <td class="nowrap">{{ r.ttl }}</td>
+                <td class="actions">
+                  <span v-if="r.locked" class="muted small">{{
+                    $t("dns.locked_" + r.locked)
+                  }}</span>
+                  <template v-else-if="currentZone.writable">
+                    <NsButton
+                      kind="ghost"
+                      size="small"
+                      :icon="Edit20"
+                      @click="openEditor(r)"
+                      >{{ $t("deployments.edit") }}</NsButton
+                    >
+                    <NsButton
+                      kind="ghost"
+                      size="small"
+                      :icon="TrashCan20"
+                      @click="askRemove(r)"
+                      >{{ $t("deployments.remove") }}</NsButton
+                    >
+                  </template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="muted small count">
+            {{ $t("dns.count", { shown: shown.length, all: records.length }) }}
+          </p>
+        </cv-tile>
+      </cv-column>
+    </cv-row>
+
+    <!-- changes -->
+    <cv-row v-if="log.length">
+      <cv-column>
+        <cv-tile light>
+          <h4>{{ $t("policies.log_title") }}</h4>
+          <table class="list">
+            <thead>
+              <tr>
+                <th>{{ $t("policies.log_time") }}</th>
+                <th>{{ $t("dns.zone") }}</th>
+                <th>{{ $t("policies.log_change") }}</th>
+                <th>{{ $t("dns.record") }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(l, i) in log" :key="i">
+                <td class="nowrap">{{ formatDate(l.time) }}</td>
+                <td>{{ l.zone }}</td>
+                <td>{{ $t("dns.change_" + l.change) }}</td>
+                <td class="data">
+                  <div v-if="l.before" :class="{ struck: l.after }">
+                    {{ recordText(l.before) }}
+                  </div>
+                  <div v-if="l.after">{{ recordText(l.after) }}</div>
+                  <div v-if="l.pointer" class="muted small">
+                    {{ $t("dns.pointer_" + l.pointer) }}
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </cv-tile>
+      </cv-column>
+    </cv-row>
+
+    <!-- editor -->
+    <NsModal
+      :visible="editor.visible"
+      :primary-button-disabled="loading.save"
+      @modal-hidden="editor.visible = false"
+      @primary-click="saveRecord"
+    >
+      <template slot="title">{{
+        editor.replaces ? $t("dns.edit_title") : $t("dns.new_title")
+      }}</template>
+      <template slot="content">
+        <cv-form @submit.prevent>
+          <NsTextInput
+            :label="$t('dns.name')"
+            v-model.trim="editor.name"
+            :helper-text="$t('dns.name_help', { zone })"
+            :invalid-message="error.name"
+            :disabled="!!editor.replaces"
+          />
+          <cv-select
+            :label="$t('dns.type')"
+            v-model="editor.type"
+            :disabled="!!editor.replaces"
+          >
+            <cv-select-option v-for="t in editorTypes" :key="t" :value="t">{{
+              t + " – " + $t("dns.type_" + t)
+            }}</cv-select-option>
+          </cv-select>
+          <NsTextInput
+            :label="$t('dns.data_' + editor.type)"
+            v-model.trim="editor.value"
+            :invalid-message="error.value"
+          />
+          <div v-if="editor.type === 'MX'" class="fields">
+            <NsTextInput
+              :label="$t('dns.preference')"
+              type="number"
+              v-model="editor.preference"
+              class="field"
+            />
+          </div>
+          <div v-if="editor.type === 'SRV'" class="fields">
+            <NsTextInput
+              :label="$t('dns.port')"
+              type="number"
+              v-model="editor.port"
+              class="field"
+            />
+            <NsTextInput
+              :label="$t('dns.priority')"
+              type="number"
+              v-model="editor.priority"
+              class="field"
+            />
+            <NsTextInput
+              :label="$t('dns.weight')"
+              type="number"
+              v-model="editor.weight"
+              class="field"
+            />
+          </div>
+          <NsTextInput
+            :label="$t('dns.ttl_seconds')"
+            type="number"
+            v-model="editor.ttl"
+            :helper-text="$t('policies.range', { min: ttl.min, max: ttl.max })"
+            :invalid-message="error.ttl"
+            class="field"
+          />
+          <cv-checkbox
+            v-if="editor.type === 'A' || editor.type === 'AAAA'"
+            value="pointer"
+            :label="$t('dns.pointer')"
+            v-model="editor.pointer"
+          />
+          <NsInlineNotification
+            v-if="error.save"
+            kind="error"
+            :title="$t('action.save-dns-record')"
+            :description="error.save"
+            :showCloseButton="false"
+          />
+        </cv-form>
+      </template>
+      <template slot="secondary-button">{{ $t("common.cancel") }}</template>
+      <template slot="primary-button">{{
+        loading.save ? $t("common.processing") : $t("deployments.save")
+      }}</template>
+    </NsModal>
+
+    <!-- remove -->
+    <NsModal
+      kind="danger"
+      :visible="remove.visible"
+      :primary-button-disabled="loading.remove"
+      @modal-hidden="remove.visible = false"
+      @primary-click="removeRecord"
+    >
+      <template slot="title">{{ $t("dns.remove_title") }}</template>
+      <template slot="content">
+        <cv-form @submit.prevent>
+          <p>{{ $t("dns.remove_desc") }}</p>
+          <p class="data record">
+            {{ remove.record ? recordText(remove.record) : "" }}
+          </p>
+          <cv-checkbox
+            v-if="
+              remove.record &&
+              (remove.record.type === 'A' || remove.record.type === 'AAAA')
+            "
+            value="pointer"
+            :label="$t('dns.pointer_remove')"
+            v-model="remove.pointer"
+          />
+          <NsInlineNotification
+            v-if="error.remove"
+            kind="error"
+            :title="$t('action.remove-dns-record')"
+            :description="error.remove"
+            :showCloseButton="false"
+          />
+        </cv-form>
+      </template>
+      <template slot="secondary-button">{{ $t("common.cancel") }}</template>
+      <template slot="primary-button">{{ $t("deployments.remove") }}</template>
+    </NsModal>
+
+    <!-- rights on a zone -->
+    <NsModal
+      :visible="grant.visible"
+      :primary-button-disabled="loading.grant"
+      @modal-hidden="closeGrant"
+      @primary-click="grantZone"
+    >
+      <template slot="title">{{
+        grant.give ? $t("dns.grant_title") : $t("dns.revoke_title")
+      }}</template>
+      <template slot="content">
+        <cv-form @submit.prevent>
+          <p>
+            {{
+              $t(grant.give ? "dns.grant_desc" : "dns.revoke_desc", {
+                zone: grant.zone,
+              })
+            }}
+          </p>
+          <p class="muted small">{{ $t("dns.grant_admin_help") }}</p>
+          <NsTextInput
+            :label="$t('dns.admin_user')"
+            v-model.trim="grant.user"
+            autocomplete="off"
+          />
+          <NsTextInput
+            :label="$t('dns.admin_password')"
+            type="password"
+            v-model="grant.password"
+            autocomplete="off"
+            :invalid-message="error.grant"
+          />
+        </cv-form>
+      </template>
+      <template slot="secondary-button">{{ $t("common.cancel") }}</template>
+      <template slot="primary-button">{{
+        grant.give ? $t("dns.grant") : $t("dns.revoke")
+      }}</template>
+    </NsModal>
+  </cv-grid>
+</template>
+
+<script>
+import { mapState } from "vuex";
+import Add20 from "@carbon/icons-vue/es/add/20";
+import Edit20 from "@carbon/icons-vue/es/edit/20";
+import Renew20 from "@carbon/icons-vue/es/renew/20";
+import TrashCan20 from "@carbon/icons-vue/es/trash-can/20";
+import Locked20 from "@carbon/icons-vue/es/locked/20";
+import Unlocked20 from "@carbon/icons-vue/es/unlocked/20";
+import {
+  QueryParamService,
+  UtilService,
+  IconService,
+  PageTitleService,
+} from "@nethserver/ns8-ui-lib";
+import moduleTask from "@/mixins/moduleTask";
+
+const TYPES = ["A", "AAAA", "CNAME", "MX", "PTR", "SRV", "TXT"];
+
+export default {
+  name: "Dns",
+  mixins: [
+    moduleTask,
+    IconService,
+    UtilService,
+    QueryParamService,
+    PageTitleService,
+  ],
+  pageTitle() {
+    return this.$t("dns.title") + " - " + this.appName;
+  },
+  data() {
+    return {
+      q: { page: "dns" },
+      urlCheckInterval: null,
+      Add20,
+      Edit20,
+      Renew20,
+      TrashCan20,
+      Locked20,
+      Unlocked20,
+      zones: [],
+      zone: "",
+      records: [],
+      log: [],
+      ttl: { min: 60, max: 604800, default: 3600 },
+      filter: { text: "", own: false },
+      editor: this.emptyEditor(),
+      remove: { visible: false, record: null, pointer: true },
+      grant: { visible: false, zone: "", give: true, user: "", password: "" },
+      loading: {
+        zones: false,
+        records: false,
+        save: false,
+        remove: false,
+        grant: false,
+      },
+      error: {
+        zones: "",
+        records: "",
+        save: "",
+        name: "",
+        value: "",
+        ttl: "",
+        remove: "",
+        grant: "",
+      },
+    };
+  },
+  computed: {
+    ...mapState(["instanceName", "core", "appName"]),
+    currentZone() {
+      return this.zones.find((z) => z.name === this.zone) || {};
+    },
+    editorTypes() {
+      // a reverse zone holds pointers, a forward zone everything else
+      return this.currentZone.reverse
+        ? ["PTR", "CNAME", "TXT"]
+        : TYPES.filter((t) => t !== "PTR");
+    },
+    shown() {
+      const text = this.filter.text.toLowerCase();
+      return this.records.filter(
+        (r) =>
+          (!this.filter.own || !r.locked) &&
+          (!text ||
+            r.name.includes(text) ||
+            r.data.toLowerCase().includes(text) ||
+            r.type.toLowerCase() === text)
+      );
+    },
+  },
+  beforeRouteEnter(to, from, next) {
+    next((vm) => {
+      vm.watchQueryData(vm);
+      vm.urlCheckInterval = vm.initUrlBindingForApp(vm, vm.q.page);
+    });
+  },
+  beforeRouteLeave(to, from, next) {
+    clearInterval(this.urlCheckInterval);
+    next();
+  },
+  created() {
+    this.listZones();
+  },
+  methods: {
+    emptyEditor() {
+      return {
+        visible: false,
+        replaces: null,
+        name: "",
+        type: "A",
+        value: "",
+        preference: 10,
+        port: "",
+        priority: 0,
+        weight: 100,
+        ttl: 3600,
+        pointer: true,
+      };
+    },
+    formatDate(iso) {
+      if (!iso) return "-";
+      const d = new Date(iso);
+      return isNaN(d) ? iso : d.toLocaleString();
+    },
+    recordText(r) {
+      return [r.name, r.type, r.data].filter(Boolean).join("  ");
+    },
+    errorText(err, fallback) {
+      if (err.validation) {
+        const code = err.validation[0].error;
+        const key = "dns.error_" + code;
+        return this.$te(key) ? this.$t(key) : code;
+      }
+      return this.$t(fallback);
+    },
+    async listZones() {
+      this.loading.zones = true;
+      this.error.zones = "";
+      try {
+        const res = await this.runModuleTask("list-dns-zones");
+        this.zones = res.zones;
+        this.log = res.log;
+        if (!this.zones.some((z) => z.name === this.zone)) {
+          const first = this.zones.find((z) => !z.ad_zone) || this.zones[0];
+          this.zone = first ? first.name : "";
+        }
+        if (this.zone) this.listRecords();
+      } catch (e) {
+        this.error.zones = this.errorText(e, "dns.zones_failed");
+      } finally {
+        this.loading.zones = false;
+      }
+    },
+    selectZone(name) {
+      this.zone = name;
+      this.records = [];
+      this.listRecords();
+    },
+    async listRecords() {
+      this.loading.records = true;
+      this.error.records = "";
+      try {
+        const res = await this.runModuleTask("list-dns-records", {
+          zone: this.zone,
+        });
+        this.records = res.records;
+        this.ttl = res.ttl;
+      } catch (e) {
+        this.error.records = this.errorText(e, "dns.records_failed");
+      } finally {
+        this.loading.records = false;
+      }
+    },
+    openEditor(r) {
+      this.error.save = this.error.name = this.error.value = "";
+      this.error.ttl = "";
+      const e = this.emptyEditor();
+      e.type = this.editorTypes[0];
+      e.ttl = this.ttl.default;
+      if (r) {
+        e.replaces = { type: r.type, data: r.data };
+        e.name = r.name;
+        e.type = r.type;
+        e.ttl = r.ttl;
+        const parts = r.data.split(" ");
+        if (r.type === "MX") {
+          e.value = parts[0];
+          e.preference = parts[1];
+        } else if (r.type === "SRV") {
+          [e.value, e.port, e.priority, e.weight] = parts;
+        } else {
+          e.value = r.data;
+        }
+      }
+      e.visible = true;
+      this.editor = e;
+    },
+    editorData() {
+      const e = this.editor;
+      if (e.type === "MX") return `${e.value} ${e.preference}`;
+      if (e.type === "SRV")
+        return `${e.value} ${e.port} ${e.priority} ${e.weight}`;
+      return e.value;
+    },
+    async saveRecord() {
+      const e = this.editor;
+      this.error.save = this.error.name = this.error.value = "";
+      this.error.ttl = "";
+      const ttl = Number(e.ttl);
+      if (!e.name) this.error.name = this.$t("common.required");
+      if (!e.value) this.error.value = this.$t("common.required");
+      if (!Number.isInteger(ttl) || ttl < this.ttl.min || ttl > this.ttl.max)
+        this.error.ttl = this.$t("dns.error_invalid_ttl");
+      if (this.error.name || this.error.value || this.error.ttl) return;
+      const data = {
+        zone: this.zone,
+        name: e.name,
+        type: e.type,
+        data: this.editorData(),
+        ttl,
+        pointer: !!e.pointer && (e.type === "A" || e.type === "AAAA"),
+      };
+      if (e.replaces) data.replaces = e.replaces;
+      this.loading.save = true;
+      try {
+        await this.runModuleTask("save-dns-record", data, {
+          title: this.$t("dns.saving", { name: e.name }),
+          hidden: false,
+        });
+        this.editor.visible = false;
+        this.listZones();
+      } catch (err) {
+        this.error.save = this.errorText(err, "deployments.save_failed");
+      } finally {
+        this.loading.save = false;
+      }
+    },
+    askRemove(r) {
+      this.error.remove = "";
+      this.remove = { visible: true, record: r, pointer: true };
+    },
+    async removeRecord() {
+      const r = this.remove.record;
+      this.error.remove = "";
+      this.loading.remove = true;
+      try {
+        await this.runModuleTask(
+          "remove-dns-record",
+          {
+            zone: this.zone,
+            name: r.name,
+            type: r.type,
+            data: r.data,
+            pointer:
+              !!this.remove.pointer && (r.type === "A" || r.type === "AAAA"),
+          },
+          { title: this.$t("dns.removing", { name: r.name }), hidden: false }
+        );
+        this.remove.visible = false;
+        this.listZones();
+      } catch (err) {
+        this.error.remove = this.errorText(err, "deployments.remove_failed");
+      } finally {
+        this.loading.remove = false;
+      }
+    },
+    askGrant(z) {
+      this.error.grant = "";
+      this.grant = {
+        visible: true,
+        zone: z.name,
+        give: !z.writable,
+        user: "administrator",
+        password: "",
+      };
+    },
+    closeGrant() {
+      // the admin password does not stay in the page
+      this.grant.visible = false;
+      this.grant.password = "";
+    },
+    async grantZone() {
+      this.error.grant = "";
+      if (!this.grant.user || !this.grant.password) {
+        this.error.grant = this.$t("common.required");
+        return;
+      }
+      this.loading.grant = true;
+      try {
+        await this.runModuleTask(
+          "grant-dns-zone",
+          {
+            zone: this.grant.zone,
+            grant: this.grant.give,
+            admin_user: this.grant.user,
+            admin_password: this.grant.password,
+          },
+          {
+            title: this.$t("dns.granting", { zone: this.grant.zone }),
+            hidden: false,
+          }
+        );
+        this.closeGrant();
+        this.listZones();
+      } catch (err) {
+        this.error.grant = this.errorText(err, "dns.grant_failed");
+        this.grant.password = "";
+      } finally {
+        this.loading.grant = false;
+      }
+    },
+  },
+};
+</script>
+
+<style scoped lang="scss">
+@import "../styles/carbon-utils";
+.page-help {
+  margin-bottom: $spacing-06;
+}
+.zones {
+  margin-bottom: $spacing-05;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: $spacing-05;
+  margin: $spacing-05 0;
+  .search {
+    min-width: 14rem;
+    max-width: 24rem;
+    flex: 1;
+  }
+  .own {
+    flex: 0 0 auto;
+    margin-bottom: $spacing-03;
+  }
+}
+table.list {
+  width: 100%;
+  border-collapse: collapse;
+  th,
+  td {
+    text-align: left;
+    vertical-align: top;
+    padding: $spacing-03 $spacing-05;
+    border-bottom: 1px solid $ui-03;
+  }
+  .name {
+    font-weight: 600;
+    overflow-wrap: break-word;
+  }
+  .actions {
+    white-space: nowrap;
+    text-align: right;
+  }
+  tr.selected td {
+    background: $ui-01;
+  }
+}
+table.records {
+  .name {
+    min-width: 12rem;
+    max-width: 24rem;
+  }
+}
+.data {
+  font-family: monospace;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+.record {
+  margin: $spacing-04 0;
+}
+.struck {
+  text-decoration: line-through;
+  color: $text-02;
+}
+.nowrap {
+  white-space: nowrap;
+}
+.muted {
+  color: $text-02;
+}
+.small {
+  font-size: 0.75rem;
+}
+.warn {
+  color: #8e6a00;
+}
+.count {
+  margin-top: $spacing-04;
+}
+.tag {
+  display: inline-block;
+  padding: 0 $spacing-03;
+  border: 1px solid $ui-04;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+}
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-05;
+}
+.field {
+  max-width: 12rem;
+}
+</style>

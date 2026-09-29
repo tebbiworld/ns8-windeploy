@@ -34,6 +34,7 @@ import wingetindex
 DEPLOYMENTS = "deployments.json"
 POLICIES = "policies.json"
 POLICY_LOG = "policy-log.jsonl"
+DNS_LOG = "dns-log.jsonl"
 BACKUP_DIR = "gpo-backups"
 SAMBA_IMAGE_ENV = "WINDEPLOY_SAMBA_IMAGE"
 
@@ -121,11 +122,12 @@ def run_tool(request, settings=None, timeout=300, password=None):
     password replaces the stored one (a new password is tested before it
     is stored)."""
     s = settings or connection_settings()
-    if request.get("op") == "provision":
+    admin = request.get("op") in ADMIN_OPS
+    if admin:
         s = dict(s, user=s.get("user") or "none")
     validate_connection(s)
     password = password or modsecrets.get("GPO_PASSWORD")
-    if request.get("op") == "provision":
+    if admin:
         password = password or "unused"
     if not password:
         raise ValueError("the service account password is not set")
@@ -161,7 +163,8 @@ def run_tool(request, settings=None, timeout=300, password=None):
         response = {}
     if not response.get("ok"):
         raise ToolError(response.get("error") or f"gpowrite exited with {proc.returncode}",
-                        ldap_code=response.get("ldap_code"), ntstatus=response.get("ntstatus"))
+                        ldap_code=response.get("ldap_code"), ntstatus=response.get("ntstatus"),
+                        code=response.get("code"))
     return response["result"]
 
 
@@ -173,11 +176,17 @@ NT_STATUS_WRONG_PASSWORD = 0xC000006A
 NT_STATUS_LOGON_FAILURE = 0xC000006D
 
 
+# requests that carry the credentials of a domain admin in their body
+ADMIN_OPS = ("provision", "dns_delegate")
+
+
 class ToolError(Exception):
-    def __init__(self, message, ldap_code=None, ntstatus=None):
+    def __init__(self, message, ldap_code=None, ntstatus=None, code=None):
         super().__init__(message)
         self.ldap_code = ldap_code
         self.ntstatus = ntstatus
+        # a key of the UI translations, for errors the admin can act on
+        self.code = code
 
     @property
     def bad_credentials(self):
@@ -245,6 +254,39 @@ def read_policy_log(limit=50):
     except FileNotFoundError:
         return []
     return [json.loads(line) for line in reversed(lines) if line.strip()]
+
+
+def log_dns_change(change, zone, before, after, pointer=""):
+    """One line per change of a DNS record, with the record before and
+    after. Shown on the DNS page."""
+    entry = {
+        "time": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        "change": change, "zone": zone, "before": before, "after": after, "pointer": pointer,
+    }
+    with open(os.path.join(state_dir(), DNS_LOG), "a") as f:
+        f.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
+def read_dns_log(limit=50):
+    try:
+        with open(os.path.join(state_dir(), DNS_LOG)) as f:
+            lines = f.readlines()[-limit:]
+    except FileNotFoundError:
+        return []
+    return [json.loads(line) for line in reversed(lines) if line.strip()]
+
+
+def dns_failed(ex, field="data"):
+    """End an action after a failed DNS request: errors the admin can act
+    on become a validation error with their code, others fail the task."""
+    import agent as _agent
+    print(_agent.SD_ERR + "DNS request failed: " + str(ex), file=sys.stderr)
+    code = getattr(ex, "code", None)
+    if code or getattr(ex, "bad_credentials", False):
+        _agent.set_status("validation-failed")
+        json.dump([{"field": field, "parameter": field, "value": "", "error": code or "admin_bind_failed"}], fp=sys.stdout)
+        sys.exit(3)
+    sys.exit(1)
 
 
 def build_policy_files(profile):

@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Add a record, or change one ("replaces"). The rules are checked here
+# for an early answer and enforced by the samba runtime.
+
+import json
+import sys
+
+import agent
+import dnsrules
+import wdcommon
+
+request = json.load(sys.stdin)
+replaces = request.get("replaces")
+try:
+    dnsrules.check_zone(request["zone"])
+    dnsrules.check_name(request["name"])
+    dnsrules.normalize(request["type"], request["data"])
+    dnsrules.check_ttl(request.get("ttl", dnsrules.TTL_DEFAULT))
+    if replaces:
+        dnsrules.normalize(replaces["type"], replaces["data"])
+    result = wdcommon.run_tool({
+        "op": "dns_save", "zone": request["zone"], "name": request["name"], "type": request["type"],
+        "data": request["data"], "ttl": request.get("ttl", dnsrules.TTL_DEFAULT),
+        "replaces": replaces, "pointer": bool(request.get("pointer")),
+    }, timeout=120)
+except (wdcommon.ToolError, ValueError) as ex:
+    wdcommon.dns_failed(ex)
+
+after = {k: result[k] for k in ("name", "type", "data", "ttl")}
+before = dict(replaces, name=result["name"]) if replaces else None
+wdcommon.log_dns_change("changed" if replaces else "added", result["zone"], before, after, result["pointer"])
+print(agent.SD_INFO + f"DNS {result['zone']}: {result['name']} {result['type']} {result['data']} saved", file=sys.stderr)
+json.dump(result, fp=sys.stdout)

@@ -1,0 +1,68 @@
+======windeploy======
+GPO based Software Deployment for Windows: a NethServer 8 module that rolls out Windows software, security settings and internal DNS records from the cluster admin UI, through Group Policy in a Samba or Windows Active Directory.
+
+====Announcement and talks====
+TBA
+
+windeploy is a community application from the [[ns8:tebbiworld_repository|tebbiworld]] repository. Documentation and source can be found on [[https://github.com/tebbiworld/ns8-windeploy|Github]]
+
+**Status: alpha.** Pre-releases are published as testing versions. Not for production yet.
+
+=====What it does=====
+  * **Software deployment** — search the [[https://github.com/microsoft/winget-pkgs|winget community repository]] and roll packages out to the computers of the domain or of organizational units. A deployment is one GPO with one scheduled task per package; the task runs winget as SYSTEM, daily or weekly, or once with "run now".
+  * **Policies** — security settings for the computers as GPOs: lock idle sessions, logon notice, removable media, BitLocker recovery keys into the directory, time source, Defender, firewall, print spooler, NTLMv2, auditing, event log sizes, PowerShell logging. 20 settings in six groups.
+  * **DNS** (from 0.1.0-alpha.4) — show the internal DNS zones of the domain and add, change and delete records: A, AAAA, CNAME, MX, SRV, TXT, and PTR in reverse zones.
+  * No Windows machine is needed to manage any of this, and no domain admin account is stored.
+
+=====How it works=====
+  * The module downloads the pre-indexed winget source and searches it locally; package details are verified along the SHA-256 chain of the index.
+  * GPOs are written by a delegated service account over LDAP (sign and seal) and SMB, from a separate Samba runtime image. The rights belong to the group ''windeploy-admins''; the account is its member.
+  * The account and its rights can be set up from the UI with domain admin credentials that are used once and not stored.
+  * One instance serves one domain. The module runs rootless and needs no route and no port.
+
+=====First steps=====
+  - Install the module from the Software Center (enable testing versions for the repository) and open its **Settings**.
+  - Pick the domain and let the module set up the service account, or follow the numbered steps on the **Guide** page to do it by hand.
+  - Check that every line of the rights check is green.
+  - Create a deployment on the **Deployments** page: search a package, choose a schedule and link it to the domain or to an organizational unit.
+  - On a client run ''gpupdate'' or wait for the next policy refresh.
+
+=====Requirements on the clients=====
+Windows 10 or 11 in the domain, with App Installer (winget) 1.2x or newer, and internet access to the downloads of the software vendors. Packages that only install per user are refused, because the tasks run as SYSTEM.
+
+=====Lifecycle of the GPOs=====
+A rule applies exactly as long as it exists.
+  * A computer deletes the task of a package at its next policy refresh when the package leaves the deployment, the GPO is removed, or the computer moves to an organizational unit the GPO does not apply to. Installed software is never uninstalled.
+  * A computer that was switched off at the scheduled time catches up after its next start.
+  * Removing a deployment deletes its GPO. Removing the module deletes the GPOs of all its deployments and policy profiles. Moving the module to another node keeps them.
+  * Policy settings that stay on the computers when a GPO is gone (audit settings, NTLMv2) are reset to the Windows defaults first; the profile is deleted in a second step.
+
+=====DNS rights=====
+Reading the zones works with the service account as it is. For writing, a domain admin gives the group ''windeploy-admins'' rights on a zone, once, from the DNS page. Records that Active Directory needs (the zone itself, ''_msdcs'', ''_sites'', the AD services below ''_tcp'' and ''_udp'', the domain controllers) and records the computers register themselves are shown, not changed.
+
+=====Backup=====
+The module backup holds the settings, the service account password, the deployments and policy profiles with the GUIDs of their GPOs, the lists of changes and the last 10 versions of each GPO's files. The GPOs and DNS records themselves live in the directory and are part of the backup of the domain.
+
+=====Not included (by design)=====
+  * uninstalling software
+  * user side policy settings (wallpaper, screen saver), switching BitLocker on, Windows LAPS
+  * creating and deleting DNS zones
+
+=====Tested with=====
+Windows 11 25H2 clients in a Samba 4.19 domain (NS8 samba module). Not tested: Windows 10, Windows Pro, a Windows domain controller.
+
+=====Licences=====
+  * The module (ns8-windeploy) is GPL-3.0-or-later.
+  * The software is downloaded by winget on the clients from the vendors; the licence terms of each package apply.
+
+=====Links=====
+  * [[https://github.com/tebbiworld/ns8-windeploy|Module source and issues]]
+  * [[https://github.com/tebbiworld/ns8-windeploy/releases|Releases]]
+  * [[https://learn.microsoft.com/windows/package-manager/winget/|winget documentation]]
+
+{{tag>application}}
+{{tag>category:Sysadmin}}
+{{tag>status:Alpha}}
+{{tag>certlevel:1}}
+{{tag>repo:tebbiworld}}
+{{tag>description:"Windows software deployment with winget, security policies and internal DNS records through Group Policy in a Samba or Windows Active Directory"}}
