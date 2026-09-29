@@ -1,0 +1,97 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "save-dns-record input",
+    "$id": "http://schema.nethserver.org/windeploy/save-dns-record-input.json",
+    "description": "Add a record to an internal DNS zone or change one",
+    "examples": [
+        {
+            "zone": "ad.example.com",
+            "name": "printer",
+            "type": "A",
+            "data": "192.168.1.20",
+            "ttl": 3600,
+            "pointer": true
+        }
+    ],
+    "type": "object",
+    "required": [
+        "zone",
+        "name",
+        "type",
+        "data"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "zone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[A-Za-z0-9_.-]+$"
+        },
+        "name": {
+            "description": "Name of the node relative to the zone, @ for the zone itself",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^(@|[*A-Za-z0-9_.-]+)$"
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "A",
+                "AAAA",
+                "CNAME",
+                "MX",
+                "PTR",
+                "SRV",
+                "TXT"
+            ]
+        },
+        "data": {
+            "description": "A/AAAA: address; CNAME/PTR: host; MX: host preference; SRV: host port priority weight; TXT: text",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "^[^\\x00-\\x1f\\x7f]+$"
+        },
+        "ttl": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 604800
+        },
+        "replaces": {
+            "description": "The record that is changed",
+            "type": "object",
+            "required": [
+                "type",
+                "data"
+            ],
+            "additionalProperties": false,
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "A",
+                        "AAAA",
+                        "CNAME",
+                        "MX",
+                        "PTR",
+                        "SRV",
+                        "TXT"
+                    ]
+                },
+                "data": {
+                    "description": "A/AAAA: address; CNAME/PTR: host; MX: host preference; SRV: host port priority weight; TXT: text",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000,
+                    "pattern": "^[^\\x00-\\x1f\\x7f]+$"
+                }
+            }
+        },
+        "pointer": {
+            "description": "Also keep the PTR record of an address, if a reverse zone exists",
+            "type": "boolean"
+        }
+    }
+}

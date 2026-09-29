@@ -1,0 +1,24 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "list-dns-records input",
+    "$id": "http://schema.nethserver.org/windeploy/list-dns-records-input.json",
+    "description": "List the records of an internal DNS zone",
+    "examples": [
+        {
+            "zone": "ad.example.com"
+        }
+    ],
+    "type": "object",
+    "required": [
+        "zone"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "zone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[A-Za-z0-9_.-]+$"
+        }
+    }
+}

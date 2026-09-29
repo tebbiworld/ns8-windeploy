@@ -1,0 +1,59 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "remove-dns-record input",
+    "$id": "http://schema.nethserver.org/windeploy/remove-dns-record-input.json",
+    "description": "Delete a record of an internal DNS zone",
+    "examples": [
+        {
+            "zone": "ad.example.com",
+            "name": "printer",
+            "type": "A",
+            "data": "192.168.1.20"
+        }
+    ],
+    "type": "object",
+    "required": [
+        "zone",
+        "name",
+        "type",
+        "data"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "zone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[A-Za-z0-9_.-]+$"
+        },
+        "name": {
+            "description": "Name of the node relative to the zone, @ for the zone itself",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^(@|[*A-Za-z0-9_.-]+)$"
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "A",
+                "AAAA",
+                "CNAME",
+                "MX",
+                "PTR",
+                "SRV",
+                "TXT"
+            ]
+        },
+        "data": {
+            "description": "A/AAAA: address; CNAME/PTR: host; MX: host preference; SRV: host port priority weight; TXT: text",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "pattern": "^[^\\x00-\\x1f\\x7f]+$"
+        },
+        "pointer": {
+            "type": "boolean"
+        }
+    }
+}

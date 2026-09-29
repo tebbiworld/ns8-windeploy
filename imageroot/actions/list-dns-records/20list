@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Every record of a zone. Records Active Directory needs, records the
+# computers register themselves and SOA/NS are marked as locked.
+
+import json
+import sys
+
+import dnsrules
+import wdcommon
+
+request = json.load(sys.stdin)
+try:
+    zone = dnsrules.check_zone(request["zone"])
+    records = wdcommon.run_tool({"op": "dns_records", "zone": zone}, timeout=180)
+except (wdcommon.ToolError, ValueError) as ex:
+    wdcommon.dns_failed(ex, "zone")
+json.dump({"zone": zone, "records": records, "types": list(dnsrules.TYPES),
+           "ttl": {"min": dnsrules.TTL_MIN, "max": dnsrules.TTL_MAX, "default": dnsrules.TTL_DEFAULT}}, fp=sys.stdout)
