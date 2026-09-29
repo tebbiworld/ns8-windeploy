@@ -73,7 +73,10 @@ import gpogen  # noqa: E402
 
 GUID_RE = re.compile(r"^\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}$")
 # Relative paths the module may write below a GPO folder
-ALLOWED_FILE_RE = re.compile(r"^(windeploy\.json|Machine/(Preferences/ScheduledTasks/ScheduledTasks\.xml|Scripts/windeploy/[A-Za-z0-9._-]{1,120}\.ps1))$")
+ALLOWED_FILE_RE = re.compile(
+    r"^(windeploy\.json"
+    r"|Machine/(Preferences/ScheduledTasks/ScheduledTasks\.xml|Scripts/windeploy/[A-Za-z0-9._-]{1,120}\.ps1"
+    r"|Registry\.pol|Microsoft/Windows NT/SecEdit/GptTmpl\.inf))$")
 
 SCHEMA_GPC = "f30e3bc2-9ff0-11d1-b603-0000f80367c1"      # groupPolicyContainer
 ATTR_GPLINK = "f30e3bbe-9ff0-11d1-b603-0000f80367c1"
@@ -358,8 +361,11 @@ class Session:
         log(f"created GPO {guid} {display_name!r}")
         return {"guid": guid}
 
-    def apply(self, guid, files, backup_dir=None, add_cse=True):
-        """files: {relative path: base64 content or null to delete}."""
+    def apply(self, guid, files, backup_dir=None, add_cse=True, machine_extensions=None):
+        """files: {relative path: base64 content or null to delete}.
+        machine_extensions replaces gPCMachineExtensionNames (policy GPOs:
+        the module owns the whole GPO and knows which extensions it uses);
+        without it the scheduled tasks extension is added (add_cse)."""
         _check_guid(guid)
         for rel in files:
             if not ALLOWED_FILE_RE.match(rel):
@@ -379,7 +385,11 @@ class Session:
             _save_backup(backup_dir, guid, previous, old_version, old_ext)
 
         new_version = gpogen.bump_machine_version(int(old_version))
-        new_ext = gpogen.add_scheduled_tasks_extension(old_ext or "") if add_cse else old_ext
+        if machine_extensions is not None:
+            # parsed and written again: only well-formed GUID groups, sorted
+            new_ext = gpogen.format_extension_names(gpogen.parse_extension_names(machine_extensions)) or None
+        else:
+            new_ext = gpogen.add_scheduled_tasks_extension(old_ext or "") if add_cse else old_ext
         written = []
         try:
             # 2. files first: clients act on the version change only
@@ -398,7 +408,8 @@ class Session:
             msg["v_del"] = ldb.MessageElement(old_version, ldb.FLAG_MOD_DELETE, "versionNumber")
             msg["v_add"] = ldb.MessageElement(str(new_version), ldb.FLAG_MOD_ADD, "versionNumber")
             if new_ext != old_ext:
-                msg["e"] = ldb.MessageElement(new_ext, ldb.FLAG_MOD_REPLACE, "gPCMachineExtensionNames")
+                # an empty list of values removes the attribute
+                msg["e"] = ldb.MessageElement(new_ext or [], ldb.FLAG_MOD_REPLACE, "gPCMachineExtensionNames")
             self.samdb.modify(msg)
         except Exception:
             log(f"apply {guid} failed, restoring the previous files")
@@ -451,6 +462,38 @@ class Session:
         keep = "".join(e for e in entries if guid.lower() not in e.lower())
         self._set_gplink(target_dn, old, keep)
         return {"linked": False, "changed": True}
+
+    def domain_info(self):
+        """What the policy page shows about the domain, read only: the
+        password and lockout policy of domain accounts (in a Samba domain
+        it is set at the domain, not by a GPO) and whether the schema can
+        hold BitLocker recovery keys."""
+        attrs = ["minPwdLength", "pwdHistoryLength", "pwdProperties", "maxPwdAge",
+                 "lockoutThreshold", "lockoutDuration", "lockOutObservationWindow"]
+        m = self.samdb.search(self.domain_dn, scope=ldb.SCOPE_BASE, attrs=attrs)[0]
+
+        def number(name):
+            return int(str(m[name][0])) if name in m else 0
+
+        def minutes(name):
+            # negative 100 ns intervals; the minimum value means "never"
+            ticks = -number(name)
+            return None if ticks <= 0 or ticks >= 2 ** 62 else ticks // 600000000
+
+        schema = str(self.samdb.get_schema_basedn())
+        fve = self.samdb.search(schema, scope=ldb.SCOPE_ONELEVEL,
+                                expression="(lDAPDisplayName=msFVE-RecoveryInformation)", attrs=["cn"])
+        max_age = minutes("maxPwdAge")
+        return {
+            "min_password_length": number("minPwdLength"),
+            "password_history": number("pwdHistoryLength"),
+            "password_complexity": bool(number("pwdProperties") & 1),
+            "max_password_age_days": None if max_age is None else max_age // 1440,
+            "lockout_threshold": number("lockoutThreshold"),
+            "lockout_duration_minutes": minutes("lockoutDuration"),
+            "lockout_window_minutes": minutes("lockOutObservationWindow"),
+            "bitlocker_schema": len(fve) > 0,
+        }
 
     def targets(self):
         out = [{"dn": self.domain_dn, "name": self.realm.lower(), "kind": "domain"}]
@@ -735,7 +778,10 @@ def main():
             result = s.create(request["display_name"])
         elif op == "apply":
             result = s.apply(request["guid"], request.get("files", {}),
-                             backup_dir=request.get("backup_dir"), add_cse=request.get("add_cse", True))
+                             backup_dir=request.get("backup_dir"), add_cse=request.get("add_cse", True),
+                             machine_extensions=request.get("machine_extensions"))
+        elif op == "domain_info":
+            result = s.domain_info()
         elif op == "link":
             result = s.link(request["guid"], request["target_dn"])
         elif op == "unlink":
