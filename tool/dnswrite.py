@@ -71,6 +71,12 @@ class Dns:
         wanted = security.descriptor.from_sddl("D:" + ZONE_ACE.format(sid=sid), self.s.domain_sid)
         return wanted.as_sddl(self.s.domain_sid)[2:].lower() in sddl.lower()
 
+    def _records_count(self, zone):
+        try:
+            return len(self.records(zone))
+        except Exception:
+            return None
+
     def zones(self):
         _, res = self.conn.DnssrvComplexOperation2(VERSION, 0, self.server, None, "EnumZones",
                                                   dnsserver.DNSSRV_TYPEID_DWORD, dnsserver.DNS_ZONE_REQUEST_PRIMARY)
@@ -87,6 +93,8 @@ class Dns:
                 "reverse": name.endswith(".in-addr.arpa") or name.endswith(".ip6.arpa"),
                 "ad_zone": dnsrules.is_ad_zone(name),
                 "writable": bool(dn) and not dnsrules.is_ad_zone(name) and self._granted(sddl, gsid),
+                # the zones Active Directory lives in are never deleted
+                "locked": dnsrules.zone_locked(name, self.s.dns_domain) or "",
             })
         return sorted(out, key=lambda z: (z["reverse"], z["ad_zone"], z["name"]))
 
@@ -279,6 +287,67 @@ class Dns:
             result["pointer"] = self._pointer(data, host, dnsrules.TTL_DEFAULT, remove=True)
         return result
 
+    # ---- zones (as a domain admin) ------------------------------------------
+    def _operation(self, zone, name, typeid, data):
+        try:
+            self.conn.DnssrvOperation2(VERSION, 0, self.server, zone, 0, name, typeid, data)
+        except Exception as ex:
+            text = str(ex)
+            if "ACCESS_DENIED" in text:
+                raise DnsError("admin_not_allowed", zone or "") from None
+            if "ZONE_ALREADY_EXISTS" in text:
+                raise DnsError("zone_exists", zone or "") from None
+            if "ZONE_DOES_NOT_EXIST" in text:
+                raise DnsError("zone_not_found", zone or "") from None
+            raise
+
+    def _zone_names(self):
+        _, res = self.conn.DnssrvComplexOperation2(VERSION, 0, self.server, None, "EnumZones",
+                                                  dnsserver.DNSSRV_TYPEID_DWORD, dnsserver.DNS_ZONE_REQUEST_PRIMARY)
+        return [z.pszZoneName.lower() for z in res.ZoneArray]
+
+    def create_zone(self, zone, grant=True):
+        """A new primary zone, stored in the directory (domain partition)
+        like the zone of the domain, with secure updates only. The module
+        group gets its rights on it unless grant is false."""
+        try:
+            zone = dnsrules.check_new_zone(zone, self._zone_names(), self.s.dns_domain)
+        except dnsrules.RuleError as ex:
+            raise DnsError(ex.code, str(ex)) from None
+        info = dnsserver.DNS_RPC_ZONE_CREATE_INFO_LONGHORN()
+        info.pszZoneName = zone
+        info.dwZoneType = dnsp.DNS_ZONE_TYPE_PRIMARY
+        info.fAging = 0
+        info.fDsIntegrated = 1
+        info.fLoadExisting = 1
+        info.dwDpFlags = dnsserver.DNS_DP_DOMAIN_DEFAULT
+        self._operation(None, "ZoneCreate", dnsserver.DNSSRV_TYPEID_ZONE_CREATE, info)
+        update = dnsserver.DNS_RPC_NAME_AND_PARAM()
+        update.pszNodeName = "AllowUpdate"
+        update.dwParam = dnsp.DNS_ZONE_UPDATE_SECURE
+        self._operation(zone, "ResetDwordProperty", dnsserver.DNSSRV_TYPEID_NAME_AND_PARAM, update)
+        granted = False
+        if grant and self.s.group_sid():
+            granted = self.delegate(zone, True)["granted"]
+        return {"zone": zone, "created": True, "granted": granted,
+                "reverse": zone.endswith(".in-addr.arpa") or zone.endswith(".ip6.arpa")}
+
+    def delete_zone(self, zone, confirm):
+        """Delete a zone with all its records. Never the zones Active
+        Directory lives in. confirm repeats the name of the zone. The
+        records are returned, the caller keeps them."""
+        zone = dnsrules.check_zone(zone)
+        if dnsrules.check_zone(confirm) != zone:
+            raise DnsError("confirm_mismatch", zone)
+        reason = dnsrules.zone_locked(zone, self.s.dns_domain)
+        if reason:
+            raise DnsError("protected_" + reason, zone)
+        if zone not in self._zone_names():
+            raise DnsError("zone_not_found", zone)
+        records = self.records(zone)
+        self._operation(zone, "DeleteZoneFromDs", dnsserver.DNSSRV_TYPEID_NULL, None)
+        return {"zone": zone, "deleted": True, "records": records}
+
     # ---- rights (as a domain admin) -----------------------------------------
     def delegate(self, zone, grant=True):
         """Give the module group its rights on a zone, or take them away.
@@ -313,4 +382,8 @@ def run(session, request):
                           request.get("pointer", False))
     if op == "dns_delegate":
         return dns.delegate(request["zone"], request.get("grant", True))
+    if op == "dns_create_zone":
+        return dns.create_zone(request["zone"], request.get("grant", True))
+    if op == "dns_delete_zone":
+        return dns.delete_zone(request["zone"], request.get("confirm", ""))
     raise DnsError("unknown_operation", op)
