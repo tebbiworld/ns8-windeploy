@@ -87,11 +87,20 @@ For an address the reverse record can be kept along.
 - Records a computer registers itself are shown, not changed: the
   computer would overwrite the change.
 - Every change is kept in a list with the record before and after.
-- Removing the module leaves the records and the rights on the zones
-  as they are.
+- Zones are created and deleted by a domain admin from the page, with
+  credentials used for that request only. A forward zone by its name, a
+  reverse zone from its network (192.168.1.0/24 gives
+  1.168.192.in-addr.arpa). New zones are stored in the directory like
+  the zone of the domain and take secure updates only.
+- The zone of the domain and `_msdcs` are never deleted. Deleting a
+  zone needs its name typed again; its records are written to
+  `state/dns-backups` before (the last 20 files are kept, nothing is
+  restored automatically). PTR records in other zones that point to
+  names of a deleted zone stay.
+- Removing the module leaves the zones, the records and the rights on
+  the zones as they are.
 
-Not part of the module yet: creating and deleting zones, import and
-export.
+Not part of the module yet: import and export of zones.
 
 ## Lifecycle of the GPOs
 

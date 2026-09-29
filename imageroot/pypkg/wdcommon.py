@@ -35,6 +35,8 @@ DEPLOYMENTS = "deployments.json"
 POLICIES = "policies.json"
 POLICY_LOG = "policy-log.jsonl"
 DNS_LOG = "dns-log.jsonl"
+DNS_BACKUP_DIR = "dns-backups"
+DNS_BACKUPS_KEPT = 20
 BACKUP_DIR = "gpo-backups"
 SAMBA_IMAGE_ENV = "WINDEPLOY_SAMBA_IMAGE"
 
@@ -177,7 +179,7 @@ NT_STATUS_LOGON_FAILURE = 0xC000006D
 
 
 # requests that carry the credentials of a domain admin in their body
-ADMIN_OPS = ("provision", "dns_delegate")
+ADMIN_OPS = ("provision", "dns_delegate", "dns_create_zone", "dns_delete_zone")
 
 
 class ToolError(Exception):
@@ -274,6 +276,18 @@ def read_dns_log(limit=50):
     except FileNotFoundError:
         return []
     return [json.loads(line) for line in reversed(lines) if line.strip()]
+
+
+def prune_dns_backups(keep=DNS_BACKUPS_KEPT):
+    """Keep the records of the zones deleted last."""
+    folder = os.path.join(state_dir(), DNS_BACKUP_DIR)
+    try:
+        # the names end with a time stamp that sorts
+        files = sorted(os.listdir(folder), key=lambda n: n.rsplit("-", 1)[-1])
+    except FileNotFoundError:
+        return
+    for name in files[:-keep]:
+        os.remove(os.path.join(folder, name))
 
 
 def dns_failed(ex, field="data"):

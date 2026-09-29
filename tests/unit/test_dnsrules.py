@@ -98,5 +98,42 @@ class Reverse(unittest.TestCase):
         self.assertIsNone(dnsrules.reverse_node("192.168.1.1", zones))
 
 
+class Zones(unittest.TestCase):
+    def test_reverse_zone(self):
+        self.assertEqual(dnsrules.reverse_zone("192.168.1.0/24"), "1.168.192.in-addr.arpa")
+        self.assertEqual(dnsrules.reverse_zone("192.168.1.77/24"), "1.168.192.in-addr.arpa")
+        self.assertEqual(dnsrules.reverse_zone("172.16.0.0/16"), "16.172.in-addr.arpa")
+        self.assertEqual(dnsrules.reverse_zone("10.0.0.0/8"), "10.in-addr.arpa")
+        self.assertEqual(dnsrules.reverse_zone("fd00:1234::/32"), "4.3.2.1.0.0.d.f.ip6.arpa")
+        self.assertEqual(dnsrules.reverse_zone("fd00:1234:5678:9::/64"), "9.0.0.0.8.7.6.5.4.3.2.1.0.0.d.f.ip6.arpa")
+        # the PTR record of an address of the network lands in that zone
+        zone = dnsrules.reverse_zone("192.168.1.0/24")
+        self.assertEqual(dnsrules.reverse_node("192.168.1.20", [zone]), (zone, "20"))
+        for bad in ("192.168.1.0/25", "192.168.1.0/32", "0.0.0.0/0", "10.0.0.0/12", "fd00::/62", "fd00::/128",
+                    "example.com", "", "192.168.1.0/24; x"):
+            with self.assertRaises(dnsrules.RuleError, msg=bad):
+                dnsrules.reverse_zone(bad)
+
+    def test_new_zone(self):
+        have = ["ad.example.com", "_msdcs.ad.example.com"]
+        self.assertEqual(dnsrules.check_new_zone("Lab.Example.NET.", have, "ad.example.com"), "lab.example.net")
+        dnsrules.check_new_zone("1.168.192.in-addr.arpa", have, "ad.example.com")
+        dnsrules.check_new_zone("sub.ad.example.com", have, "ad.example.com")
+        cases = [("ad.example.com", "zone_exists"), ("AD.example.com", "zone_exists"), ("com", "zone_single_label"),
+                 ("example.com", "zone_above_domain"), ("_msdcs.lab.example.net", "protected_ad_zone"),
+                 ("_tcp.example.net", "protected_ad_zone"), ("x.arpa", "invalid_zone"), ("a b.net", "invalid_zone"),
+                 ("lab..net", "invalid_zone")]
+        for zone, code in cases:
+            with self.assertRaises(dnsrules.RuleError, msg=zone) as ctx:
+                dnsrules.check_new_zone(zone, have, "ad.example.com")
+            self.assertEqual(ctx.exception.code, code, zone)
+
+    def test_zone_locked(self):
+        self.assertEqual(dnsrules.zone_locked("AD.example.com", "ad.example.com"), "domain_zone")
+        self.assertEqual(dnsrules.zone_locked("_msdcs.ad.example.com", "ad.example.com"), "ad_zone")
+        self.assertIsNone(dnsrules.zone_locked("lab.example.net", "ad.example.com"))
+        self.assertIsNone(dnsrules.zone_locked("1.168.192.in-addr.arpa", "ad.example.com"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -105,7 +105,9 @@
         "list-dns-records": "List DNS records",
         "save-dns-record": "Save DNS record",
         "remove-dns-record": "Delete DNS record",
-        "grant-dns-zone": "Change rights on a DNS zone"
+        "grant-dns-zone": "Change rights on a DNS zone",
+        "create-dns-zone": "Create DNS zone",
+        "remove-dns-zone": "Delete DNS zone"
     },
     "error": {
         "error": "Error",
@@ -566,6 +568,36 @@
         "error_group_missing": "The group windeploy-admins does not exist: set up the service account first (Settings)",
         "error_admin_bind_failed": "User name or password of the administrator is wrong",
         "error_admin_not_allowed": "This account may not change the rights of the zone",
-        "error_too_many_records": "The zone has too many records to show"
+        "error_too_many_records": "The zone has too many records to show",
+        "zone_new": "New zone",
+        "zone_remove": "Delete zone",
+        "zone_new_title": "New DNS zone",
+        "zone_forward": "Zone for names",
+        "zone_reverse": "Reverse zone for a network",
+        "zone_name": "Name of the zone",
+        "zone_name_help": "At least two labels. The zone is stored in the directory like the zone of the domain.",
+        "zone_network": "Network",
+        "zone_network_help": "IPv4 with /8, /16 or /24, for example 192.168.1.0/24. The name of the zone is derived from it.",
+        "zone_grant": "Give the module the right to change the records of the zone",
+        "zone_shadow_title": "The zone answers for the whole name",
+        "zone_shadow": "Computers that ask this DNS server get only the records of this zone. If the same name exists on the internet, its public records are no longer reachable for them unless they are added here.",
+        "zone_create": "Create zone",
+        "zone_creating": "Creating DNS zone {zone}",
+        "zone_removing": "Deleting DNS zone {zone}",
+        "zone_failed": "The zone could not be changed, see the module log",
+        "zone_remove_title": "Delete DNS zone",
+        "zone_remove_desc": "The zone {zone} is deleted with all its records. Computers can no longer resolve its names.",
+        "zone_remove_backup": "The records are written to a file in the module state before, as a note of what was there. They are not restored automatically.",
+        "zone_confirm": "Type {zone} to confirm",
+        "zone_backup": "{n} records kept in {file}",
+        "change_zone_created": "Zone created",
+        "change_zone_deleted": "Zone deleted",
+        "error_invalid_network": "Not a valid network, for example 192.168.1.0/24",
+        "error_invalid_prefix": "A reverse zone ends on /8, /16 or /24 (IPv6: on a multiple of 4)",
+        "error_zone_single_label": "The name needs at least two labels, for example lab.example.net",
+        "error_zone_exists": "This zone exists already",
+        "error_zone_above_domain": "The domain lies inside this name: the zone would take over the names of the domain",
+        "error_protected_domain_zone": "This is the zone of the domain: it is never deleted",
+        "error_confirm_mismatch": "The name does not match the zone"
     }
 }

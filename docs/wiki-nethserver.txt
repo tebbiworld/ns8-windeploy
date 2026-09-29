@@ -11,7 +11,7 @@ windeploy is a community application from the [[ns8:tebbiworld_repository|tebbiw
 =====What it does=====
   * **Software deployment** — search the [[https://github.com/microsoft/winget-pkgs|winget community repository]] and roll packages out to the computers of the domain or of organizational units. A deployment is one GPO with one scheduled task per package; the task runs winget as SYSTEM, daily or weekly, or once with "run now".
   * **Policies** — security settings for the computers as GPOs: lock idle sessions, logon notice, removable media, BitLocker recovery keys into the directory, time source, Defender, firewall, print spooler, NTLMv2, auditing, event log sizes, PowerShell logging. 20 settings in six groups.
-  * **DNS** (from 0.1.0-alpha.4) — show the internal DNS zones of the domain and add, change and delete records: A, AAAA, CNAME, MX, SRV, TXT, and PTR in reverse zones.
+  * **DNS** — show the internal DNS zones of the domain and add, change and delete records: A, AAAA, CNAME, MX, SRV, TXT, and PTR in reverse zones. Create and delete zones, reverse zones from their network.
   * No Windows machine is needed to manage any of this, and no domain admin account is stored.
 
 =====How it works=====
@@ -38,7 +38,7 @@ A rule applies exactly as long as it exists.
   * Policy settings that stay on the computers when a GPO is gone (audit settings, NTLMv2) are reset to the Windows defaults first; the profile is deleted in a second step.
 
 =====DNS rights=====
-Reading the zones works with the service account as it is. For writing, a domain admin gives the group ''windeploy-admins'' rights on a zone, once, from the DNS page. Records that Active Directory needs (the zone itself, ''_msdcs'', ''_sites'', the AD services below ''_tcp'' and ''_udp'', the domain controllers) and records the computers register themselves are shown, not changed.
+Reading the zones works with the service account as it is. For writing, a domain admin gives the group ''windeploy-admins'' rights on a zone, once, from the DNS page. Creating and deleting zones asks for domain admin credentials each time; they are not stored. The zone of the domain and ''_msdcs'' are never deleted. Records that Active Directory needs (the zone itself, ''_msdcs'', ''_sites'', the AD services below ''_tcp'' and ''_udp'', the domain controllers) and records the computers register themselves are shown, not changed.
 
 =====Backup=====
 The module backup holds the settings, the service account password, the deployments and policy profiles with the GUIDs of their GPOs, the lists of changes and the last 10 versions of each GPO's files. The GPOs and DNS records themselves live in the directory and are part of the backup of the domain.
@@ -46,7 +46,7 @@ The module backup holds the settings, the service account password, the deployme
 =====Not included (by design)=====
   * uninstalling software
   * user side policy settings (wallpaper, screen saver), switching BitLocker on, Windows LAPS
-  * creating and deleting DNS zones
+  * import and export of DNS zones
 
 =====Tested with=====
 Windows 11 25H2 clients in a Samba 4.19 domain (NS8 samba module). Not tested: Windows 10, Windows Pro, a Windows domain controller.

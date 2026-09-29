@@ -27,10 +27,11 @@ KEEP = ["GPO_DOMAIN", "GPO_DC_HOST", "GPO_DC_IP", "GPO_REALM", "GPO_WORKGROUP", 
 agent.mset_env({k: env[k] for k in KEEP if k in env})
 
 if not request.get("replace"):
-    for name in (wdcommon.DEPLOYMENTS, wdcommon.POLICIES, wdcommon.POLICY_LOG, "rights.json"):
+    for name in (wdcommon.DEPLOYMENTS, wdcommon.POLICIES, wdcommon.POLICY_LOG, wdcommon.DNS_LOG, "rights.json"):
         try:
             os.remove(name)
         except FileNotFoundError:
             pass
     shutil.rmtree(wdcommon.BACKUP_DIR, ignore_errors=True)
+    shutil.rmtree(wdcommon.DNS_BACKUP_DIR, ignore_errors=True)
     print(agent.SD_NOTICE + "clone starts without deployments", file=sys.stderr)

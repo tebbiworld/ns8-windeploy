@@ -785,8 +785,8 @@ def main():
                                      request.get("guids"))
             json.dump({"ok": True, "result": result}, sys.stdout)
             return
-        if op == "dns_delegate":
-            # rights on a zone are given by a domain admin, used for this request only
+        if op in ("dns_delegate", "dns_create_zone", "dns_delete_zone"):
+            # zones and the rights on them are changed by a domain admin, used for this request only
             import dnswrite
             admin = Session(user=request["admin_user"], password=request["admin_password"])
             json.dump({"ok": True, "result": dnswrite.run(admin, request)}, sys.stdout)

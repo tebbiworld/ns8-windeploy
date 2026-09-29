@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Delete an internal DNS zone with all its records. Never the zone of the
+# domain or _msdcs. "confirm" repeats the name of the zone. The records
+# are kept in state/dns-backups before the zone is gone. Needs domain
+# admin credentials, used for this request only.
+
+import datetime
+import json
+import os
+import sys
+
+import agent
+import dnsrules
+import wdcommon
+
+request = json.load(sys.stdin)
+try:
+    zone = dnsrules.check_zone(request["zone"])
+    result = wdcommon.run_tool({
+        "op": "dns_delete_zone", "zone": zone, "confirm": request["confirm"],
+        "admin_user": request["admin_user"], "admin_password": request["admin_password"],
+    }, timeout=180)
+except wdcommon.ToolError as ex:
+    field = "admin_password" if ex.bad_credentials or ex.code == "admin_not_allowed" else (
+        "confirm" if ex.code == "confirm_mismatch" else "zone")
+    wdcommon.dns_failed(ex, field)
+except ValueError as ex:
+    wdcommon.dns_failed(ex, "zone")
+
+folder = os.path.join(wdcommon.state_dir(), wdcommon.DNS_BACKUP_DIR)
+os.makedirs(folder, mode=0o700, exist_ok=True)
+stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+name = f"{zone}-{stamp}.json"
+with open(os.path.join(folder, name), "w") as f:
+    json.dump({"zone": zone, "deleted": stamp, "records": result["records"]}, f, indent=1)
+wdcommon.prune_dns_backups()
+
+count = len([r for r in result["records"] if r["type"] not in dnsrules.READ_ONLY_TYPES])
+wdcommon.log_dns_change("zone_deleted", zone, {"name": f"{count}", "type": "", "data": name}, None)
+print(agent.SD_NOTICE + f"DNS zone {zone} deleted, {count} records kept in {name}", file=sys.stderr)
+json.dump({"zone": zone, "deleted": True, "records": count, "backup": name}, fp=sys.stdout)

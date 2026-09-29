@@ -111,7 +111,9 @@
         "list-dns-records": "Elenca record DNS",
         "save-dns-record": "Salva record DNS",
         "remove-dns-record": "Elimina record DNS",
-        "grant-dns-zone": "Modifica diritti su una zona DNS"
+        "grant-dns-zone": "Modifica diritti su una zona DNS",
+        "create-dns-zone": "Crea zona DNS",
+        "remove-dns-zone": "Elimina zona DNS"
     },
     "task": {
         "cannot_create_task": "Impossibile eseguire il task {action}"
@@ -566,6 +568,36 @@
         "error_group_missing": "Il gruppo windeploy-admins non esiste: configurare prima l'account di servizio (Impostazioni)",
         "error_admin_bind_failed": "Nome utente o password dell'amministratore errati",
         "error_admin_not_allowed": "Questo account non può modificare i diritti della zona",
-        "error_too_many_records": "La zona ha troppi record da mostrare"
+        "error_too_many_records": "La zona ha troppi record da mostrare",
+        "zone_new": "Nuova zona",
+        "zone_remove": "Elimina zona",
+        "zone_new_title": "Nuova zona DNS",
+        "zone_forward": "Zona per nomi",
+        "zone_reverse": "Zona inversa per una rete",
+        "zone_name": "Nome della zona",
+        "zone_name_help": "Almeno due parti. La zona viene salvata nella directory come la zona del dominio.",
+        "zone_network": "Rete",
+        "zone_network_help": "IPv4 con /8, /16 o /24, per esempio 192.168.1.0/24. Il nome della zona ne deriva.",
+        "zone_grant": "Concedi al modulo il diritto di modificare i record della zona",
+        "zone_shadow_title": "La zona risponde per l'intero nome",
+        "zone_shadow": "I computer che interrogano questo server DNS ricevono solo i record di questa zona. Se lo stesso nome esiste su internet, i suoi record pubblici non sono più raggiungibili per loro finché non vengono inseriti qui.",
+        "zone_create": "Crea zona",
+        "zone_creating": "Creazione della zona DNS {zone}",
+        "zone_removing": "Eliminazione della zona DNS {zone}",
+        "zone_failed": "Impossibile modificare la zona, vedere il registro del modulo",
+        "zone_remove_title": "Elimina zona DNS",
+        "zone_remove_desc": "La zona {zone} viene eliminata con tutti i suoi record. I computer non possono più risolverne i nomi.",
+        "zone_remove_backup": "Prima i record vengono scritti in un file nello stato del modulo, come nota di ciò che c'era. Non vengono ripristinati automaticamente.",
+        "zone_confirm": "Digitare {zone} per confermare",
+        "zone_backup": "{n} record conservati in {file}",
+        "change_zone_created": "Zona creata",
+        "change_zone_deleted": "Zona eliminata",
+        "error_invalid_network": "Rete non valida, per esempio 192.168.1.0/24",
+        "error_invalid_prefix": "Una zona inversa termina con /8, /16 o /24 (IPv6: con un multiplo di 4)",
+        "error_zone_single_label": "Il nome richiede almeno due parti, per esempio lab.example.net",
+        "error_zone_exists": "Questa zona esiste già",
+        "error_zone_above_domain": "Il dominio si trova all'interno di questo nome: la zona assumerebbe i nomi del dominio",
+        "error_protected_domain_zone": "È la zona del dominio: non viene mai eliminata",
+        "error_confirm_mismatch": "Il nome non corrisponde alla zona"
     }
 }
