@@ -72,3 +72,57 @@ class Scope(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Lifecycle(unittest.TestCase):
+    def test_tasks_are_removed_with_the_gpo(self):
+        files = wdcommon.build_files(deployment(), SETTINGS)
+        root = ET.fromstring(base64.b64decode(files[XML]).decode("utf-8").split("?>", 1)[1])
+        tasks = root.findall("TaskV2")
+        self.assertEqual(len(tasks), 2)
+        for t in tasks:
+            self.assertEqual(t.get("removePolicy"), "1")
+            self.assertIsNotNone(t.find(".//RegistrationTrigger"))
+
+    def test_run_now_skips_the_due_test(self):
+        d = deployment(a={"now_run_id": "{11111111-1111-1111-1111-111111111111}"})
+        root = ET.fromstring(base64.b64decode(wdcommon.build_files(d, SETTINGS)[XML]).decode("utf-8").split("?>", 1)[1])
+        self.assertTrue(root.find("ImmediateTaskV2//Arguments").text.endswith(" -RunNow"))
+        self.assertFalse(root.find("TaskV2//Arguments").text.endswith(" -RunNow"))
+
+    def test_description_file(self):
+        import json
+        files = wdcommon.build_files(deployment(), SETTINGS)
+        info = json.loads(base64.b64decode(files[wdcommon.DESCRIPTION_FILE]))
+        self.assertEqual(info["name"], "Nextcloud")
+        self.assertEqual([p["id"] for p in info["packages"]], ["Nextcloud.Talk", "Nextcloud.NextcloudDesktop"])
+
+
+class Backups(unittest.TestCase):
+    def test_prune_and_remove(self):
+        import tempfile
+        guid = "{00000000-0000-0000-0000-000000000001}"
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["AGENT_STATE_DIR"] = tmp
+            try:
+                for n in range(13):
+                    os.makedirs(os.path.join(tmp, wdcommon.BACKUP_DIR, guid, f"20260929T0000{n:02d}Z"))
+                wdcommon.prune_backups(guid)
+                left = sorted(os.listdir(os.path.join(tmp, wdcommon.BACKUP_DIR, guid)))
+                self.assertEqual(len(left), wdcommon.BACKUPS_KEPT)
+                self.assertEqual(left[0], "20260929T000003Z")
+                wdcommon.prune_backups("{00000000-0000-0000-0000-000000000002}")  # no folder: no error
+                wdcommon.remove_backups(guid)
+                self.assertFalse(os.path.exists(os.path.join(tmp, wdcommon.BACKUP_DIR, guid)))
+            finally:
+                del os.environ["AGENT_STATE_DIR"]
+
+
+class ResultCodes(unittest.TestCase):
+    def test_codes_not_text(self):
+        # "49" in the message (a DC address) is not a wrong password
+        self.assertFalse(wdcommon.ToolError("cannot reach 10.0.49.50", ldap_code=1).bad_credentials)
+        self.assertTrue(wdcommon.ToolError("x", ldap_code=49).bad_credentials)
+        self.assertTrue(wdcommon.ToolError("x", ntstatus=0xC000006D).bad_credentials)
+        self.assertTrue(wdcommon.ToolError("x", ldap_code=50).access_denied)
+        self.assertFalse(wdcommon.ToolError("x").access_denied)

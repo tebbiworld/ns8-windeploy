@@ -275,18 +275,23 @@ def build_files(deployment, settings):
     tasks = []
     now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
     keep = set()
+    delivery = deployment.get("delivery", "sysvol")
+    run_now = []
     for pkg in deployment["packages"]:
         rel = f"Machine/Scripts/windeploy/{gpogen.safe_file_part(pkg['id'])}.ps1"
         keep.add(rel)
-        script = gpogen.build_script(pkg["id"], mode=pkg.get("mode", "upgrade"),
-                                     scope="machine" if pkg.get("scope") == "machine" else "")
-        delivery = deployment.get("delivery", "sysvol")
+        options = dict(mode=pkg.get("mode", "upgrade"), scope="machine" if pkg.get("scope") == "machine" else "",
+                       schedule=deployment["schedule"])
+        script = gpogen.build_script(pkg["id"], **options)
         if delivery == "sysvol":
             files[rel] = base64.b64encode(gpogen.script_bytes(script)).decode()
             unc = f"\\\\{realm_dns}\\SysVol\\{realm_dns}\\Policies\\{guid}\\" + rel.replace("/", "\\")
             args = gpogen.task_arguments("sysvol", script_unc=unc)
+            run_now.append(gpogen.task_arguments("sysvol", script_unc=unc, run_now=True))
         else:
             args = gpogen.task_arguments("embedded", script_text=script)
+            run_now.append(gpogen.task_arguments(
+                "embedded", script_text=gpogen.build_script(pkg["id"], run_now=True, **options)))
         pkg.setdefault("task_uid", gpogen.new_uid())
         tasks.append({
             "name": f"windeploy {pkg['id']}"[:100],
@@ -296,6 +301,8 @@ def build_files(deployment, settings):
             "description": f"winget {pkg.get('mode', 'upgrade')} {pkg['id']} (NethServer module windeploy)",
             "arguments": args,
             "schedule": deployment["schedule"],
+            # the computers delete the task when the GPO no longer applies
+            "remove_policy": True,
         })
     for rel in deployment.get("_scripts", []):
         if rel not in keep:
@@ -309,12 +316,12 @@ def build_files(deployment, settings):
     # deployment when it was triggered. Each needs its own run-once id:
     # Windows remembers the id after the first item and skips any later
     # item with the same id. A new id makes every computer run it again.
-    for pkg, task in zip(deployment["packages"], tasks):
+    for pkg, task, args in zip(deployment["packages"], tasks, run_now):
         if not pkg.get("now_run_id"):
             continue
         pkg.setdefault("now_uid", gpogen.new_uid())
         immediate.append(dict(task, name=("windeploy now " + pkg["id"])[:100], uid=pkg["now_uid"],
-                              run_once_id=pkg["now_run_id"]))
+                              run_once_id=pkg["now_run_id"], arguments=args))
     xml = gpogen.build_scheduled_tasks_xml(tasks, immediate)
     files["Machine/Preferences/ScheduledTasks/ScheduledTasks.xml"] = base64.b64encode(xml.encode("utf-8")).decode()
     files[DESCRIPTION_FILE] = base64.b64encode(describe(deployment).encode("utf-8")).decode()

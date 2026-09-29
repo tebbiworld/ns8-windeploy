@@ -78,6 +78,22 @@ class Immediate(unittest.TestCase):
         self.assertEqual(it.find(".//ExecutionTimeLimit").text, "PT2H")
         self.assertEqual(it.find(".//DeleteExpiredTaskAfter").text, "PT0S")
 
+    def test_remove_policy(self):
+        """"Remove this item when it is no longer applied": replace action,
+        and a start at registration to make up for a missed time."""
+        task = {"name": "windeploy 7zip.7zip", "uid": gpogen.new_uid(), "changed": datetime.datetime(2026, 9, 29),
+                "arguments": "-x", "schedule": {"frequency": "daily", "time": "22:00", "start_date": "2026-09-29"}}
+        plain = ET.fromstring(gpogen.build_task(task))
+        self.assertIsNone(plain.get("removePolicy"))
+        self.assertEqual(plain.find("Properties").get("action"), "U")
+        self.assertIsNone(plain.find(".//RegistrationTrigger"))
+        elem = ET.fromstring(gpogen.build_task(dict(task, remove_policy=True)))
+        self.assertEqual(elem.get("removePolicy"), "1")
+        self.assertEqual(elem.get("image"), "1")
+        self.assertEqual(elem.find("Properties").get("action"), "R")
+        self.assertEqual(elem.find(".//RegistrationTrigger/Delay").text, "PT1M")
+        self.assertIsNotNone(elem.find(".//CalendarTrigger"))
+
     def test_default_time_limit(self):
         t = {"name": "a", "uid": gpogen.new_uid(), "changed": datetime.datetime(2026, 1, 1), "arguments": "-x",
              "schedule": {"frequency": "daily", "time": "08:00", "start_date": "2026-01-01"}}
@@ -137,7 +153,29 @@ class Script(unittest.TestCase):
         enc = gpogen.task_arguments("embedded", script_text=s).split()[-1]
         self.assertEqual(base64.b64decode(enc).decode("utf-16-le"), gpogen.compact_script(s))
         self.assertNotIn("# ", gpogen.compact_script(s))
-        self.assertLess(len(gpogen.task_arguments("embedded", script_text=s)), 8000)
+        # the command line of a task is limited to 32767 characters
+        self.assertLess(len(gpogen.task_arguments("embedded", script_text=s)), 16000)
+
+    def test_schedule_in_script(self):
+        weekly = {"frequency": "weekly", "days": ["Friday", "Monday"], "time": "12:30", "start_date": "2026-09-28"}
+        s = gpogen.build_script("7zip.7zip", schedule=weekly)
+        self.assertTrue(s.startswith("param([switch]$RunNow)\r\n"))
+        self.assertIn("$Time = '12:30'", s)
+        self.assertIn("$Days = @('Monday', 'Friday')", s)
+        self.assertIn("$StartDate = '2026-09-28'", s)
+        daily = gpogen.build_script("7zip.7zip", schedule=dict(weekly, frequency="daily"))
+        self.assertIn("$Days = @()", daily)
+        # "run now" of an embedded script: no arguments with -EncodedCommand
+        now = gpogen.build_script("7zip.7zip", schedule=weekly, run_now=True)
+        self.assertTrue(now.startswith("$RunNow = $true\r\n"))
+        self.assertTrue(gpogen.compact_script(now).startswith("$RunNow = $true\r\n"))
+        with self.assertRaises(gpogen.GenError):
+            gpogen.build_script("7zip.7zip", schedule=dict(weekly, time="25:00"))
+
+    def test_run_now_argument(self):
+        unc = "\\\\ad.example.com\\SysVol\\x.ps1"
+        self.assertTrue(gpogen.task_arguments("sysvol", script_unc=unc, run_now=True).endswith('x.ps1" -RunNow'))
+        self.assertTrue(gpogen.task_arguments("sysvol", script_unc=unc).endswith('x.ps1"'))
 
     def test_scope_machine(self):
         s = gpogen.build_script("Nextcloud.Talk", mode="install", scope="machine")
