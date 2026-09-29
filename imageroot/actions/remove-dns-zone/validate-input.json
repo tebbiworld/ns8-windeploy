@@ -1,0 +1,48 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "remove-dns-zone input",
+    "$id": "http://schema.nethserver.org/windeploy/remove-dns-zone-input.json",
+    "description": "Delete an internal DNS zone with all its records",
+    "examples": [
+        {
+            "zone": "lab.example.net",
+            "confirm": "lab.example.net",
+            "admin_user": "administrator",
+            "admin_password": "Secret-1234"
+        }
+    ],
+    "type": "object",
+    "required": [
+        "zone",
+        "confirm",
+        "admin_user",
+        "admin_password"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "zone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[A-Za-z0-9_.-]+$"
+        },
+        "confirm": {
+            "description": "The name of the zone again",
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[A-Za-z0-9_.-]+$"
+        },
+        "admin_user": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 104,
+            "pattern": "^[^\\x00-\\x1f]+$"
+        },
+        "admin_password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+        }
+    }
+}
