@@ -5,7 +5,9 @@ searches the [winget community repository](https://github.com/microsoft/winget-p
 and rolls out Windows software through Group Policy scheduled tasks in a
 Samba (or Windows) Active Directory.
 
-> Status: internal development version, not published in a catalog.
+> Status: alpha. Pre-releases are published as testing versions in the
+> [tebbiworld repository](https://github.com/tebbiworld/ns8-repo); not for
+> production yet.
 
 ## How it works
 
@@ -73,17 +75,25 @@ Tested end to end with Windows 11 25H2 clients in a Samba 4.19 domain
 | `ui/` | Vue 2 UI: Status, Guide, Settings, Deployments (en, de, it, fr) |
 | `tests/unit/` | offline tests of the generator against a working reference GPO |
 
-## Build and install
+## Install
+
+Add the tebbiworld repository to the cluster with testing versions
+enabled and install the module from the Software Center, or:
+
+```
+add-module ghcr.io/tebbiworld/windeploy:<version> 1
+```
+
+## Build
 
 ```
 bash build-images.sh
-buildah push ghcr.io/tebbiworld/windeploy-samba docker://ghcr.io/tebbiworld/windeploy-samba:<tag>
-buildah push ghcr.io/tebbiworld/windeploy docker://ghcr.io/tebbiworld/windeploy:<tag>
-add-module ghcr.io/tebbiworld/windeploy:<tag> 1
 ```
 
-The module image pins `windeploy-samba` with the same tag. Unit tests:
-`python3 -m unittest tests/unit/test_gpogen.py`.
+builds `windeploy` and `windeploy-samba`; the module image pins
+`windeploy-samba` with the same tag. The workflow "Publish images" builds
+and pushes both for every branch and tag. Unit tests:
+`python3 -m unittest discover -s tests/unit`.
 
 ## Requirements on the clients
 
