@@ -114,7 +114,9 @@
         "list-dns-records": "DNS-Einträge auflisten",
         "save-dns-record": "DNS-Eintrag speichern",
         "remove-dns-record": "DNS-Eintrag löschen",
-        "grant-dns-zone": "Rechte an einer DNS-Zone ändern"
+        "grant-dns-zone": "Rechte an einer DNS-Zone ändern",
+        "create-dns-zone": "DNS-Zone anlegen",
+        "remove-dns-zone": "DNS-Zone löschen"
     },
     "task": {
         "cannot_create_task": "Aufgabe {action} kann nicht erstellt werden"
@@ -566,6 +568,36 @@
         "error_group_missing": "Die Gruppe windeploy-admins gibt es nicht: zuerst das Dienstkonto einrichten (Einstellungen)",
         "error_admin_bind_failed": "Benutzername oder Kennwort des Administrators ist falsch",
         "error_admin_not_allowed": "Dieses Konto darf die Rechte der Zone nicht ändern",
-        "error_too_many_records": "Die Zone hat zu viele Einträge für die Anzeige"
+        "error_too_many_records": "Die Zone hat zu viele Einträge für die Anzeige",
+        "zone_new": "Neue Zone",
+        "zone_remove": "Zone löschen",
+        "zone_new_title": "Neue DNS-Zone",
+        "zone_forward": "Zone für Namen",
+        "zone_reverse": "Rückwärtszone für ein Netz",
+        "zone_name": "Name der Zone",
+        "zone_name_help": "Mindestens zwei Teile. Die Zone wird wie die Zone der Domäne im Verzeichnis gespeichert.",
+        "zone_network": "Netz",
+        "zone_network_help": "IPv4 mit /8, /16 oder /24, zum Beispiel 192.168.1.0/24. Der Name der Zone ergibt sich daraus.",
+        "zone_grant": "Dem Modul das Recht geben, die Einträge der Zone zu ändern",
+        "zone_shadow_title": "Die Zone antwortet für den ganzen Namen",
+        "zone_shadow": "Rechner, die diesen DNS-Server fragen, bekommen nur die Einträge dieser Zone. Gibt es denselben Namen im Internet, sind dessen öffentliche Einträge für sie nicht mehr erreichbar, solange sie hier nicht eingetragen sind.",
+        "zone_create": "Zone anlegen",
+        "zone_creating": "DNS-Zone {zone} wird angelegt",
+        "zone_removing": "DNS-Zone {zone} wird gelöscht",
+        "zone_failed": "Die Zone ließ sich nicht ändern, siehe Modulprotokoll",
+        "zone_remove_title": "DNS-Zone löschen",
+        "zone_remove_desc": "Die Zone {zone} wird mit allen Einträgen gelöscht. Rechner können ihre Namen danach nicht mehr auflösen.",
+        "zone_remove_backup": "Die Einträge werden vorher in eine Datei im Modulzustand geschrieben, als Notiz, was vorhanden war. Sie werden nicht automatisch wiederhergestellt.",
+        "zone_confirm": "Zur Bestätigung {zone} eingeben",
+        "zone_backup": "{n} Einträge aufbewahrt in {file}",
+        "change_zone_created": "Zone angelegt",
+        "change_zone_deleted": "Zone gelöscht",
+        "error_invalid_network": "Kein gültiges Netz, zum Beispiel 192.168.1.0/24",
+        "error_invalid_prefix": "Eine Rückwärtszone endet auf /8, /16 oder /24 (IPv6: auf einem Vielfachen von 4)",
+        "error_zone_single_label": "Der Name braucht mindestens zwei Teile, zum Beispiel lab.example.net",
+        "error_zone_exists": "Diese Zone gibt es schon",
+        "error_zone_above_domain": "Die Domäne liegt innerhalb dieses Namens: die Zone würde die Namen der Domäne übernehmen",
+        "error_protected_domain_zone": "Das ist die Zone der Domäne: sie wird nie gelöscht",
+        "error_confirm_mismatch": "Der Name stimmt nicht mit der Zone überein"
     }
 }

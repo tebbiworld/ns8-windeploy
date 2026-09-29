@@ -30,6 +30,11 @@
       <cv-column>
         <cv-tile light class="zones">
           <h4>{{ $t("dns.zones") }}</h4>
+          <div class="toolbar">
+            <NsButton kind="secondary" :icon="Add20" @click="askCreateZone">{{
+              $t("dns.zone_new")
+            }}</NsButton>
+          </div>
           <cv-skeleton-text
             v-if="loading.zones && !zones.length"
             :paragraph="true"
@@ -71,6 +76,14 @@
                     >{{
                       z.writable ? $t("dns.revoke") : $t("dns.grant")
                     }}</NsButton
+                  >
+                  <NsButton
+                    v-if="!z.locked"
+                    kind="ghost"
+                    size="small"
+                    :icon="TrashCan20"
+                    @click="askRemoveZone(z)"
+                    >{{ $t("dns.zone_remove") }}</NsButton
                   >
                 </td>
               </tr>
@@ -193,7 +206,15 @@
                 <td class="nowrap">{{ formatDate(l.time) }}</td>
                 <td>{{ l.zone }}</td>
                 <td>{{ $t("dns.change_" + l.change) }}</td>
-                <td class="data">
+                <td v-if="l.change === 'zone_deleted'" class="small">
+                  {{
+                    $t("dns.zone_backup", {
+                      n: l.before.name,
+                      file: l.before.data,
+                    })
+                  }}
+                </td>
+                <td v-else class="data">
                   <div v-if="l.before" :class="{ struck: l.after }">
                     {{ recordText(l.before) }}
                   </div>
@@ -336,6 +357,115 @@
       <template slot="primary-button">{{ $t("deployments.remove") }}</template>
     </NsModal>
 
+    <!-- new zone -->
+    <NsModal
+      :visible="newZone.visible"
+      :primary-button-disabled="loading.zone"
+      @modal-hidden="closeZoneDialogs"
+      @primary-click="createZone"
+    >
+      <template slot="title">{{ $t("dns.zone_new_title") }}</template>
+      <template slot="content">
+        <cv-form @submit.prevent>
+          <cv-radio-group vertical>
+            <cv-radio-button
+              v-model="newZone.kind"
+              value="forward"
+              :label="$t('dns.zone_forward')"
+              name="zone-kind"
+            />
+            <cv-radio-button
+              v-model="newZone.kind"
+              value="reverse"
+              :label="$t('dns.zone_reverse')"
+              name="zone-kind"
+            />
+          </cv-radio-group>
+          <NsTextInput
+            v-if="newZone.kind === 'forward'"
+            :label="$t('dns.zone_name')"
+            v-model.trim="newZone.zone"
+            placeholder="lab.example.net"
+            :helper-text="$t('dns.zone_name_help')"
+            :invalid-message="error.zoneName"
+          />
+          <NsTextInput
+            v-else
+            :label="$t('dns.zone_network')"
+            v-model.trim="newZone.network"
+            placeholder="192.168.1.0/24"
+            :helper-text="$t('dns.zone_network_help')"
+            :invalid-message="error.zoneName"
+          />
+          <cv-checkbox
+            value="grant"
+            :label="$t('dns.zone_grant')"
+            v-model="newZone.grant"
+          />
+          <NsInlineNotification
+            v-if="newZone.kind === 'forward'"
+            kind="info"
+            :title="$t('dns.zone_shadow_title')"
+            :description="$t('dns.zone_shadow')"
+            :showCloseButton="false"
+          />
+          <p class="muted small">{{ $t("dns.grant_admin_help") }}</p>
+          <NsTextInput
+            :label="$t('dns.admin_user')"
+            v-model.trim="admin.user"
+            autocomplete="off"
+          />
+          <NsTextInput
+            :label="$t('dns.admin_password')"
+            type="password"
+            v-model="admin.password"
+            autocomplete="off"
+            :invalid-message="error.zoneAdmin"
+          />
+        </cv-form>
+      </template>
+      <template slot="secondary-button">{{ $t("common.cancel") }}</template>
+      <template slot="primary-button">{{ $t("dns.zone_create") }}</template>
+    </NsModal>
+
+    <!-- delete zone -->
+    <NsModal
+      kind="danger"
+      :visible="dropZone.visible"
+      :primary-button-disabled="loading.zone"
+      @modal-hidden="closeZoneDialogs"
+      @primary-click="removeZone"
+    >
+      <template slot="title">{{ $t("dns.zone_remove_title") }}</template>
+      <template slot="content">
+        <cv-form @submit.prevent>
+          <p>{{ $t("dns.zone_remove_desc", { zone: dropZone.zone }) }}</p>
+          <p class="muted small">{{ $t("dns.zone_remove_backup") }}</p>
+          <NsTextInput
+            :label="$t('dns.zone_confirm', { zone: dropZone.zone })"
+            v-model.trim="dropZone.confirm"
+            autocomplete="off"
+            :invalid-message="error.zoneName"
+          />
+          <p class="muted small">{{ $t("dns.grant_admin_help") }}</p>
+          <NsTextInput
+            :label="$t('dns.admin_user')"
+            v-model.trim="admin.user"
+            autocomplete="off"
+          />
+          <NsTextInput
+            :label="$t('dns.admin_password')"
+            type="password"
+            v-model="admin.password"
+            autocomplete="off"
+            :invalid-message="error.zoneAdmin"
+          />
+        </cv-form>
+      </template>
+      <template slot="secondary-button">{{ $t("common.cancel") }}</template>
+      <template slot="primary-button">{{ $t("dns.zone_remove") }}</template>
+    </NsModal>
+
     <!-- rights on a zone -->
     <NsModal
       :visible="grant.visible"
@@ -427,12 +557,22 @@ export default {
       editor: this.emptyEditor(),
       remove: { visible: false, record: null, pointer: true },
       grant: { visible: false, zone: "", give: true, user: "", password: "" },
+      newZone: {
+        visible: false,
+        kind: "forward",
+        zone: "",
+        network: "",
+        grant: true,
+      },
+      dropZone: { visible: false, zone: "", confirm: "" },
+      admin: { user: "administrator", password: "" },
       loading: {
         zones: false,
         records: false,
         save: false,
         remove: false,
         grant: false,
+        zone: false,
       },
       error: {
         zones: "",
@@ -443,6 +583,8 @@ export default {
         ttl: "",
         remove: "",
         grant: "",
+        zoneName: "",
+        zoneAdmin: "",
       },
     };
   },
@@ -645,6 +787,102 @@ export default {
         this.loading.remove = false;
       }
     },
+    askCreateZone() {
+      this.error.zoneName = this.error.zoneAdmin = "";
+      this.admin.password = "";
+      this.newZone = {
+        visible: true,
+        kind: "forward",
+        zone: "",
+        network: "",
+        grant: true,
+      };
+    },
+    askRemoveZone(z) {
+      this.error.zoneName = this.error.zoneAdmin = "";
+      this.admin.password = "";
+      this.dropZone = { visible: true, zone: z.name, confirm: "" };
+    },
+    closeZoneDialogs() {
+      // the admin password does not stay in the page
+      this.newZone.visible = false;
+      this.dropZone.visible = false;
+      this.admin.password = "";
+    },
+    zoneError(err, fallback) {
+      // show the message at the field it belongs to
+      const text = this.errorText(err, fallback);
+      const field = err.validation ? err.validation[0].field : "";
+      if (field === "admin_password") this.error.zoneAdmin = text;
+      else this.error.zoneName = text;
+      this.admin.password = "";
+    },
+    async createZone() {
+      const z = this.newZone;
+      this.error.zoneName = this.error.zoneAdmin = "";
+      const value = z.kind === "forward" ? z.zone : z.network;
+      if (!value) this.error.zoneName = this.$t("common.required");
+      if (!this.admin.user || !this.admin.password)
+        this.error.zoneAdmin = this.$t("common.required");
+      if (this.error.zoneName || this.error.zoneAdmin) return;
+      const data = {
+        grant: !!z.grant,
+        admin_user: this.admin.user,
+        admin_password: this.admin.password,
+      };
+      if (z.kind === "forward") data.zone = value;
+      else data.network = value;
+      this.loading.zone = true;
+      try {
+        const res = await this.runModuleTask("create-dns-zone", data, {
+          title: this.$t("dns.zone_creating", { zone: value }),
+          hidden: false,
+        });
+        this.closeZoneDialogs();
+        this.zone = res.zone;
+        this.records = [];
+        this.listZones();
+      } catch (err) {
+        this.zoneError(err, "dns.zone_failed");
+      } finally {
+        this.loading.zone = false;
+      }
+    },
+    async removeZone() {
+      const z = this.dropZone;
+      this.error.zoneName = this.error.zoneAdmin = "";
+      if (z.confirm.toLowerCase() !== z.zone)
+        this.error.zoneName = this.$t("dns.error_confirm_mismatch");
+      if (!this.admin.user || !this.admin.password)
+        this.error.zoneAdmin = this.$t("common.required");
+      if (this.error.zoneName || this.error.zoneAdmin) return;
+      this.loading.zone = true;
+      try {
+        await this.runModuleTask(
+          "remove-dns-zone",
+          {
+            zone: z.zone,
+            confirm: z.confirm,
+            admin_user: this.admin.user,
+            admin_password: this.admin.password,
+          },
+          {
+            title: this.$t("dns.zone_removing", { zone: z.zone }),
+            hidden: false,
+          }
+        );
+        this.closeZoneDialogs();
+        if (this.zone === z.zone) {
+          this.zone = "";
+          this.records = [];
+        }
+        this.listZones();
+      } catch (err) {
+        this.zoneError(err, "dns.zone_failed");
+      } finally {
+        this.loading.zone = false;
+      }
+    },
     askGrant(z) {
       this.error.grant = "";
       this.grant = {
@@ -701,6 +939,9 @@ export default {
 }
 .zones {
   margin-bottom: $spacing-05;
+  .toolbar {
+    margin: $spacing-04 0;
+  }
 }
 .toolbar {
   display: flex;
