@@ -66,6 +66,33 @@ directory can store BitLocker recovery keys.
 Not part of the module yet: user side settings (wallpaper, screen
 saver), switching BitLocker on, reading recovery keys, Windows LAPS.
 
+## DNS
+
+The page "DNS" shows the internal DNS zones of the domain and changes
+their records: A, AAAA, CNAME, MX, SRV, TXT, and PTR in reverse zones.
+For an address the reverse record can be kept along.
+
+- Read and written through the DNS management RPC of the domain
+  controller, the interface `samba-tool dns` uses (`tool/dnswrite.py`).
+- Reading works with the service account as it is. For writing, the
+  group `windeploy-admins` gets the rights on a zone from a domain
+  admin, once, from the page; the credentials are not stored. The
+  rights can be taken away there as well. No membership in DnsAdmins.
+- These rights also cover the records Active Directory needs
+  (measured: the service account could change the record of the domain
+  controller). The module therefore refuses to change the zone itself
+  (SOA, NS), `_msdcs`, `_sites`, the AD services below `_tcp` and
+  `_udp`, `DomainDnsZones`, `ForestDnsZones`, `gc` and the domain
+  controllers. The rules are in `imageroot/pypkg/dnsrules.py`.
+- Records a computer registers itself are shown, not changed: the
+  computer would overwrite the change.
+- Every change is kept in a list with the record before and after.
+- Removing the module leaves the records and the rights on the zones
+  as they are.
+
+Not part of the module yet: creating and deleting zones, import and
+export.
+
 ## Lifecycle of the GPOs
 
 A rule applies exactly as long as it exists:
