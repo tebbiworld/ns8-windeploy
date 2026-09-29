@@ -26,6 +26,38 @@ Samba (or Windows) Active Directory.
 - The GPO is linked to the domain root or to organizational units; missing
   OUs can be created (empty) from the deployment editor.
 
+## Lifecycle of the GPOs
+
+A rule applies exactly as long as it exists:
+
+- The scheduled tasks carry "remove this item when it is no longer
+  applied" (`removePolicy`). A computer deletes a task at its next policy
+  refresh (start-up, about every 90 minutes, `gpupdate`) when the package
+  leaves the deployment, the GPO is deleted or unlinked, or the computer
+  moves to an OU the GPO does not apply to - also when it is switched on
+  only months later. Installed software is never uninstalled.
+- Windows creates such a task again at every policy refresh and forgets
+  its history, so a missed start would be lost (measured on Windows 11
+  25H2, also with the action "update"). The task therefore starts after
+  each refresh as well, and the script runs winget only when a scheduled
+  time has passed since its last run, kept in the registry under
+  `HKLM\SOFTWARE\windeploy`. A computer that was switched off catches up
+  after its next start. On a computer that sees a deployment for the
+  first time the script waits for the next scheduled time.
+- Removing a deployment deletes its GPO.
+- Removing the module deletes the GPOs of all its deployments (the UI
+  says so on the Status page). A DC that cannot be reached does not block
+  the removal; the GPOs left behind are listed in the module log.
+- Moving the module to another node keeps the GPOs: the new instance has
+  the same module UUID and manages them. A clone (copy) starts without
+  deployments, so that two instances never manage the same GPO.
+- A restore brings the deployments back without contacting the DC; the
+  rights are checked at the next save.
+- Every GPO holds a `windeploy.json` next to `GPT.INI` that names the
+  deployment and its packages; Windows ignores it.
+- The module keeps the last 10 versions of each GPO's files in
+  `state/gpo-backups` (part of the module backup).
+
 Tested end to end with Windows 11 25H2 clients in a Samba 4.19 domain
 (NS8 samba module): GPO → scheduled task as SYSTEM → winget installs.
 
