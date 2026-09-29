@@ -103,7 +103,10 @@
         "save-deployment": "Salva distribuzione",
         "remove-deployment": "Rimuovi distribuzione",
         "run-deployment-now": "Esegui subito la distribuzione",
-        "setup-service-account": "Configura account di servizio"
+        "setup-service-account": "Configura account di servizio",
+        "list-policies": "Elenca profili di criteri",
+        "save-policy": "Salva profilo di criteri",
+        "remove-policy": "Rimuovi profilo di criteri"
     },
     "task": {
         "cannot_create_task": "Impossibile eseguire il task {action}"
@@ -294,5 +297,165 @@
         "lifecycle_3": "Rimuovendo il modulo si eliminano i GPO di tutte le sue distribuzioni. Spostandolo su un altro nodo restano.",
         "lifecycle_4": "Un clone del modulo parte senza distribuzioni; un ripristino le riporta.",
         "lifecycle_5": "Un computer spento all'ora pianificata recupera dopo il successivo avvio o aggiornamento dei criteri. Un computer che riceve una distribuzione per la prima volta attende la successiva ora pianificata."
+    },
+    "policies": {
+        "title": "Criteri",
+        "help": "Un profilo di criteri è un GPO con impostazioni di sicurezza per i computer di un dominio o di singole unità organizzative. Le impostazioni valgono finché il profilo esiste ed è collegato.",
+        "domain_title": "Impostato nel dominio, non nel profilo",
+        "domain_help": "Letto dal dominio. In un dominio Samba i criteri password degli account di dominio si modificano nelle impostazioni del dominio di NethServer, non con un GPO.",
+        "domain_password": "Password",
+        "domain_password_value": "almeno {length} caratteri, {history} ricordate, valide {age} giorni",
+        "domain_complexity": ", complessità richiesta",
+        "domain_lockout": "Blocco account",
+        "domain_lockout_value": "dopo {n} accessi non riusciti, per {minutes} minuti",
+        "domain_no_lockout": "Disattivato: gli account non vengono mai bloccati dopo accessi non riusciti",
+        "domain_bitlocker": "Chiavi di ripristino BitLocker",
+        "domain_bitlocker_yes": "La directory può memorizzarle",
+        "domain_bitlocker_no": "Lo schema della directory non può memorizzarle",
+        "new": "Nuovo profilo",
+        "empty": "Nessun profilo di criteri",
+        "empty_desc": "Creare un profilo, scegliere le impostazioni e collegarlo al dominio o a unità organizzative.",
+        "settings": "Impostazioni",
+        "resetting": "In rimozione: scrive i valori predefiniti di Windows",
+        "reset_tag": "ripristinata",
+        "log_title": "Modifiche",
+        "log_time": "Ora",
+        "log_change": "Modifica",
+        "reason": "Motivo",
+        "change_created": "Creato",
+        "change_changed": "Modificato",
+        "change_reset": "Riportato ai valori predefiniti di Windows",
+        "change_deleted": "Eliminato",
+        "edit_title": "Modifica profilo di criteri",
+        "new_title": "Nuovo profilo di criteri",
+        "stays_hint": "Resta sui computer dopo la disattivazione, finché il profilo non l'ha ripristinata.",
+        "range": "da {min} a {max}",
+        "seconds": "{n} s",
+        "reset_help": "Disattivata. Il profilo scrive il valore predefinito di Windows finché i computer non lo hanno applicato.",
+        "reset_drop": "Tutti i computer lo hanno applicato: toglierla dal GPO",
+        "links_help": "Il profilo vale per i computer sotto le destinazioni selezionate.",
+        "reason_label": "Motivo della modifica",
+        "reason_help": "Viene riportato nell'elenco delle modifiche.",
+        "reason_required": "Inserire un motivo (almeno 3 caratteri)",
+        "saving": "Salvataggio del profilo di criteri {name}",
+        "removing": "Rimozione del profilo di criteri {name}",
+        "remove_title": "Rimuovi profilo di criteri",
+        "remove_delete": "Il profilo {name} e il suo GPO vengono eliminati. I computer tornano alle proprie impostazioni al successivo aggiornamento dei criteri.",
+        "remove_reset": "Queste impostazioni di {name} restano sui computer quando il GPO viene eliminato. Il profilo viene quindi modificato per scrivere i valori predefiniti di Windows:",
+        "remove_reset_next": "Lasciarlo collegato finché tutti i computer sono stati accesi e hanno aggiornato i criteri; poi rimuovere di nuovo il profilo per eliminarlo.",
+        "remove_button_reset": "Ripristina impostazioni",
+        "error_not_configured": "Collegare prima il modulo a un dominio (Impostazioni)",
+        "error_invalid_setting": "Controllare l'impostazione: {value}",
+        "error_link_target_not_found": "Non trovato nella directory: {value}",
+        "error_profile_not_found": "Il profilo non esiste più",
+        "error_name_in_use": "Un altro profilo si chiama già {value}",
+        "error_setting_required": "Selezionare almeno un'impostazione"
+    },
+    "policy_group": {
+        "logon": "Accesso e blocco",
+        "media": "Supporti rimovibili e BitLocker",
+        "time": "Ora",
+        "protection": "Protezione",
+        "network": "Rete",
+        "logging": "Registrazione"
+    },
+    "policy_param": {
+        "seconds": "Secondi senza input",
+        "caption": "Titolo",
+        "text": "Testo",
+        "method": "Crittografia delle unità di sistema e dati",
+        "security_mb": "Registro di sicurezza in MB"
+    },
+    "policy_value": {
+        "xts128": "XTS-AES 128 bit",
+        "xts256": "XTS-AES 256 bit"
+    },
+    "policy_setting": {
+        "session_lock": {
+            "title": "Blocca la sessione per inattività",
+            "desc": "Blocca lo schermo dopo il tempo indicato senza input da tastiera o mouse, per ogni utente del computer.",
+            "caution": "Blocca anche i computer di sala controllo e di misura: metterli in una propria unità organizzativa."
+        },
+        "logon_banner": {
+            "title": "Avviso prima dell'accesso",
+            "desc": "Mostra prima di ogni accesso un avviso da confermare."
+        },
+        "hide_last_user": {
+            "title": "Non mostrare l'ultimo nome utente",
+            "desc": "La schermata di accesso non mostra chi ha effettuato l'ultimo accesso."
+        },
+        "require_ctrl_alt_del": {
+            "title": "Richiedi Ctrl+Alt+Canc",
+            "desc": "Gli utenti premono Ctrl+Alt+Canc prima di inserire la password."
+        },
+        "block_microsoft_accounts": {
+            "title": "Blocca gli account Microsoft",
+            "desc": "Gli utenti non possono aggiungere account Microsoft né usarli per accedere."
+        },
+        "usb_block": {
+            "title": "Blocca i supporti rimovibili",
+            "desc": "Nessuna lettura o scrittura su chiavette USB, unità esterne, CD e DVD. Tastiere, mouse e scanner continuano a funzionare.",
+            "caution": "Blocca anche strumenti di misura e dongle di licenza che si presentano come memoria, e le chiavette BitLocker."
+        },
+        "usb_bitlocker_write": {
+            "title": "Scrittura solo su chiavette BitLocker",
+            "desc": "Le unità rimovibili senza BitLocker si possono leggere ma non scrivere. Windows propone di crittografarle.",
+            "caution": "I dispositivi che scrivono esportazioni su una chiavetta non crittografata smettono di funzionare."
+        },
+        "no_autorun": {
+            "title": "Disattiva AutoRun e AutoPlay",
+            "desc": "All'inserimento di un supporto non si avvia nulla da solo."
+        },
+        "bitlocker_policy": {
+            "title": "BitLocker: chiavi di ripristino nella directory",
+            "desc": "Imposta il metodo di crittografia e fa salvare a BitLocker la chiave di ripristino in Active Directory prima di crittografare un'unità. Non crittografa da solo.",
+            "caution": "Vale per le unità crittografate da ora in poi; un'unità già crittografata mantiene il suo metodo."
+        },
+        "time_source_domain": {
+            "title": "Ora dal dominio",
+            "desc": "I computer prendono l'ora solo dai controller di dominio, ogni ora."
+        },
+        "time_change_admins_only": {
+            "title": "Solo gli amministratori regolano l'orologio",
+            "desc": "La modifica dell'ora di sistema è riservata agli amministratori."
+        },
+        "timezone_change_admins_only": {
+            "title": "Solo gli amministratori impostano il fuso orario",
+            "desc": "Gli utenti non possono cambiare il fuso orario. Lasciare disattivato per i portatili in viaggio."
+        },
+        "defender_enforce": {
+            "title": "Imponi Microsoft Defender",
+            "desc": "La protezione in tempo reale non si può disattivare, le app potenzialmente indesiderate vengono bloccate."
+        },
+        "firewall_enforce": {
+            "title": "Imponi il firewall di Windows",
+            "desc": "Il firewall resta attivo in tutti i profili di rete. Le regole restano come sono."
+        },
+        "print_spooler_hardening": {
+            "title": "Proteggi lo spooler di stampa",
+            "desc": "Solo gli amministratori installano driver di stampa, lo spooler non accetta connessioni dalla rete.",
+            "caution": "I computer che condividono una stampante smettono di farlo."
+        },
+        "block_onedrive": {
+            "title": "Blocca OneDrive",
+            "desc": "OneDrive non sincronizza file. Gli altri client di sincronizzazione non sono interessati."
+        },
+        "ntlmv2_only": {
+            "title": "Solo NTLMv2",
+            "desc": "I computer rifiutano i vecchi metodi di accesso LM e NTLMv1.",
+            "caution": "Dispositivi vecchi (scanner, NAS) potrebbero averne bisogno."
+        },
+        "audit_extended": {
+            "title": "Controllo esteso",
+            "desc": "Registra nel registro di sicurezza accessi, blocchi, modifiche di account, gruppi e criteri, programmi avviati con riga di comando e supporti rimovibili."
+        },
+        "eventlog_sizes": {
+            "title": "Registri eventi più grandi",
+            "desc": "Ingrandisce i registri di sicurezza, applicazioni e sistema per conservare le voci più a lungo."
+        },
+        "powershell_logging": {
+            "title": "Registra gli script PowerShell",
+            "desc": "Registra nel registro eventi il testo degli script PowerShell eseguiti."
+        }
     }
 }

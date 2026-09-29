@@ -59,7 +59,10 @@
         "save-deployment": "Enregistrer le déploiement",
         "remove-deployment": "Supprimer le déploiement",
         "run-deployment-now": "Exécuter le déploiement maintenant",
-        "setup-service-account": "Configurer le compte de service"
+        "setup-service-account": "Configurer le compte de service",
+        "list-policies": "Lister les profils de stratégies",
+        "save-policy": "Enregistrer le profil de stratégies",
+        "remove-policy": "Supprimer le profil de stratégies"
     },
     "settings": {
         "title": "Paramètres",
@@ -294,5 +297,165 @@
         "lifecycle_3": "Supprimer le module supprime les GPO de tous ses déploiements. Le déplacer vers un autre nœud les conserve.",
         "lifecycle_4": "Un clone du module démarre sans déploiements ; une restauration les ramène.",
         "lifecycle_5": "Un ordinateur éteint à l'heure planifiée rattrape l'installation après son prochain démarrage ou la prochaine actualisation des stratégies. Un ordinateur qui reçoit un déploiement pour la première fois attend la prochaine heure planifiée."
+    },
+    "policies": {
+        "title": "Stratégies",
+        "help": "Un profil de stratégies est une GPO avec des paramètres de sécurité pour les ordinateurs d'un domaine ou d'unités d'organisation. Les paramètres s'appliquent tant que le profil existe et est lié.",
+        "domain_title": "Défini au niveau du domaine, pas dans un profil",
+        "domain_help": "Lu dans le domaine. Dans un domaine Samba, la stratégie de mot de passe des comptes du domaine se modifie dans les paramètres du domaine de NethServer, pas par une GPO.",
+        "domain_password": "Mots de passe",
+        "domain_password_value": "au moins {length} caractères, {history} mémorisés, valables {age} jours",
+        "domain_complexity": ", complexité exigée",
+        "domain_lockout": "Verrouillage des comptes",
+        "domain_lockout_value": "après {n} échecs de connexion, pendant {minutes} minutes",
+        "domain_no_lockout": "Désactivé : les comptes ne sont jamais verrouillés après des échecs de connexion",
+        "domain_bitlocker": "Clés de récupération BitLocker",
+        "domain_bitlocker_yes": "L'annuaire peut les stocker",
+        "domain_bitlocker_no": "Le schéma de l'annuaire ne peut pas les stocker",
+        "new": "Nouveau profil",
+        "empty": "Aucun profil de stratégies",
+        "empty_desc": "Créer un profil, choisir ses paramètres et le lier au domaine ou à des unités d'organisation.",
+        "settings": "Paramètres",
+        "resetting": "En cours de suppression : écrit les valeurs par défaut de Windows",
+        "reset_tag": "réinitialisé",
+        "log_title": "Modifications",
+        "log_time": "Heure",
+        "log_change": "Modification",
+        "reason": "Motif",
+        "change_created": "Créé",
+        "change_changed": "Modifié",
+        "change_reset": "Remis aux valeurs par défaut de Windows",
+        "change_deleted": "Supprimé",
+        "edit_title": "Modifier le profil de stratégies",
+        "new_title": "Nouveau profil de stratégies",
+        "stays_hint": "Reste sur les ordinateurs après la désactivation, jusqu'à ce que le profil l'ait réinitialisé.",
+        "range": "de {min} à {max}",
+        "seconds": "{n} s",
+        "reset_help": "Désactivé. Le profil écrit la valeur par défaut de Windows jusqu'à ce que les ordinateurs l'aient appliquée.",
+        "reset_drop": "Tous les ordinateurs l'ont appliquée : le retirer de la GPO",
+        "links_help": "Le profil s'applique aux ordinateurs situés sous les cibles cochées.",
+        "reason_label": "Motif de la modification",
+        "reason_help": "Conservé dans la liste des modifications.",
+        "reason_required": "Saisir un motif (au moins 3 caractères)",
+        "saving": "Enregistrement du profil de stratégies {name}",
+        "removing": "Suppression du profil de stratégies {name}",
+        "remove_title": "Supprimer le profil de stratégies",
+        "remove_delete": "Le profil {name} et sa GPO sont supprimés. Les ordinateurs reviennent à leurs propres paramètres à la prochaine actualisation des stratégies.",
+        "remove_reset": "Ces paramètres de {name} restent sur les ordinateurs quand la GPO est supprimée. Le profil est donc modifié pour écrire les valeurs par défaut de Windows :",
+        "remove_reset_next": "Le laisser lié jusqu'à ce que tous les ordinateurs aient été allumés et aient actualisé leurs stratégies ; supprimer ensuite le profil à nouveau pour l'effacer.",
+        "remove_button_reset": "Réinitialiser les paramètres",
+        "error_not_configured": "Connecter d'abord le module à un domaine (Paramètres)",
+        "error_invalid_setting": "Vérifier le paramètre : {value}",
+        "error_link_target_not_found": "Introuvable dans l'annuaire : {value}",
+        "error_profile_not_found": "Le profil n'existe plus",
+        "error_name_in_use": "Un autre profil s'appelle déjà {value}",
+        "error_setting_required": "Cocher au moins un paramètre"
+    },
+    "policy_group": {
+        "logon": "Connexion et verrouillage",
+        "media": "Supports amovibles et BitLocker",
+        "time": "Heure",
+        "protection": "Protection",
+        "network": "Réseau",
+        "logging": "Journalisation"
+    },
+    "policy_param": {
+        "seconds": "Secondes sans saisie",
+        "caption": "Titre",
+        "text": "Texte",
+        "method": "Chiffrement des lecteurs système et de données",
+        "security_mb": "Journal de sécurité en Mo"
+    },
+    "policy_value": {
+        "xts128": "XTS-AES 128 bits",
+        "xts256": "XTS-AES 256 bits"
+    },
+    "policy_setting": {
+        "session_lock": {
+            "title": "Verrouiller la session en cas d'inactivité",
+            "desc": "Verrouille l'écran après le délai indiqué sans saisie au clavier ni à la souris, pour chaque utilisateur de l'ordinateur.",
+            "caution": "Verrouille aussi les postes de supervision et de mesure : les placer dans leur propre unité d'organisation."
+        },
+        "logon_banner": {
+            "title": "Avis avant la connexion",
+            "desc": "Affiche avant chaque connexion un avis à confirmer."
+        },
+        "hide_last_user": {
+            "title": "Ne pas afficher le dernier nom d'utilisateur",
+            "desc": "L'écran de connexion n'indique pas qui s'est connecté en dernier."
+        },
+        "require_ctrl_alt_del": {
+            "title": "Exiger Ctrl+Alt+Suppr",
+            "desc": "Les utilisateurs appuient sur Ctrl+Alt+Suppr avant de saisir leur mot de passe."
+        },
+        "block_microsoft_accounts": {
+            "title": "Bloquer les comptes Microsoft",
+            "desc": "Les utilisateurs ne peuvent ni ajouter de comptes Microsoft ni se connecter avec eux."
+        },
+        "usb_block": {
+            "title": "Bloquer les supports amovibles",
+            "desc": "Aucune lecture ni écriture sur les clés USB, disques externes, CD et DVD. Claviers, souris et scanners continuent de fonctionner.",
+            "caution": "Bloque aussi les appareils de mesure et les dongles de licence qui se présentent comme du stockage, ainsi que les clés BitLocker."
+        },
+        "usb_bitlocker_write": {
+            "title": "Écriture uniquement sur les clés BitLocker",
+            "desc": "Les lecteurs amovibles sans BitLocker peuvent être lus, pas écrits. Windows propose de les chiffrer.",
+            "caution": "Les appareils qui écrivent des exports sur une clé non chiffrée ne fonctionnent plus."
+        },
+        "no_autorun": {
+            "title": "Désactiver AutoRun et AutoPlay",
+            "desc": "Rien ne démarre tout seul à l'insertion d'un support."
+        },
+        "bitlocker_policy": {
+            "title": "BitLocker : clés de récupération dans l'annuaire",
+            "desc": "Définit la méthode de chiffrement et fait enregistrer par BitLocker la clé de récupération dans Active Directory avant de chiffrer un lecteur. Ne chiffre pas de lui-même.",
+            "caution": "S'applique aux lecteurs chiffrés à partir de maintenant ; un lecteur déjà chiffré garde sa méthode."
+        },
+        "time_source_domain": {
+            "title": "Heure du domaine",
+            "desc": "Les ordinateurs prennent l'heure uniquement auprès des contrôleurs de domaine, toutes les heures."
+        },
+        "time_change_admins_only": {
+            "title": "Seuls les administrateurs règlent l'horloge",
+            "desc": "La modification de l'heure système est réservée aux administrateurs."
+        },
+        "timezone_change_admins_only": {
+            "title": "Seuls les administrateurs règlent le fuseau horaire",
+            "desc": "Les utilisateurs ne peuvent pas changer le fuseau horaire. À laisser désactivé pour les portables en déplacement."
+        },
+        "defender_enforce": {
+            "title": "Imposer Microsoft Defender",
+            "desc": "La protection en temps réel ne peut pas être désactivée, les applications potentiellement indésirables sont bloquées."
+        },
+        "firewall_enforce": {
+            "title": "Imposer le pare-feu Windows",
+            "desc": "Le pare-feu reste activé dans tous les profils réseau. Les règles restent telles quelles."
+        },
+        "print_spooler_hardening": {
+            "title": "Durcir le spouleur d'impression",
+            "desc": "Seuls les administrateurs installent des pilotes d'imprimante, le spouleur n'accepte aucune connexion du réseau.",
+            "caution": "Les ordinateurs qui partagent une imprimante cessent de le faire."
+        },
+        "block_onedrive": {
+            "title": "Bloquer OneDrive",
+            "desc": "OneDrive ne synchronise aucun fichier. Les autres clients de synchronisation ne sont pas concernés."
+        },
+        "ntlmv2_only": {
+            "title": "NTLMv2 uniquement",
+            "desc": "Les ordinateurs refusent les anciennes méthodes de connexion LM et NTLMv1.",
+            "caution": "D'anciens appareils (scanners, NAS) peuvent en avoir besoin."
+        },
+        "audit_extended": {
+            "title": "Audit étendu",
+            "desc": "Consigne dans le journal de sécurité les connexions, les verrouillages, les modifications de comptes, de groupes et de stratégies, les programmes lancés avec leur ligne de commande et les supports amovibles."
+        },
+        "eventlog_sizes": {
+            "title": "Journaux d'événements plus grands",
+            "desc": "Agrandit les journaux de sécurité, des applications et du système pour conserver les entrées plus longtemps."
+        },
+        "powershell_logging": {
+            "title": "Journaliser les scripts PowerShell",
+            "desc": "Consigne le texte des scripts PowerShell exécutés dans le journal des événements."
+        }
     }
 }
