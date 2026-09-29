@@ -375,6 +375,7 @@
 </template>
 
 <script>
+import { mapState } from "vuex";
 import Add20 from "@carbon/icons-vue/es/add/20";
 import Edit20 from "@carbon/icons-vue/es/edit/20";
 import Renew20 from "@carbon/icons-vue/es/renew/20";
@@ -433,6 +434,9 @@ export default {
         removeReason: "",
       },
     };
+  },
+  computed: {
+    ...mapState(["instanceName", "core", "appName"]),
   },
   beforeRouteEnter(to, from, next) {
     next((vm) => {
@@ -570,11 +574,17 @@ export default {
       this.loadTargets();
     },
     exclude(s) {
-      // two settings that contradict each other: the one ticked last wins
-      if (this.editor.on.includes(s.id))
-        this.editor.on = this.editor.on.filter(
-          (id) => !s.excludes.includes(id)
-        );
+      // Two settings that contradict each other: the one ticked last wins.
+      // The list is changed in place and after the checkbox has updated
+      // it: the checkboxes keep working on the array they were given.
+      this.$nextTick(() => {
+        const on = this.editor.on;
+        if (!on.includes(s.id)) return;
+        for (const other of s.excludes) {
+          const i = on.indexOf(other);
+          if (i !== -1) on.splice(i, 1);
+        }
+      });
     },
     async savePolicy() {
       const e = this.editor;
