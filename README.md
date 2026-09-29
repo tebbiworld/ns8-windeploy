@@ -28,6 +28,44 @@ Samba (or Windows) Active Directory.
 - The GPO is linked to the domain root or to organizational units; missing
   OUs can be created (empty) from the deployment editor.
 
+## Policy profiles
+
+The page "Policies" rolls out security settings for the computers: a
+*policy profile* is one GPO with settings picked from a catalog
+(`imageroot/pypkg/policygen.py`), linked like a deployment. Computer
+side only; 20 settings in six groups: lock idle sessions, logon notice,
+removable media, BitLocker recovery keys into the directory, time
+source, who may set the clock, Defender, firewall, print spooler,
+OneDrive, NTLMv2, auditing, event log sizes, PowerShell logging.
+
+Three kinds of files are written: `Machine/Registry.pol` (most
+settings), `GptTmpl.inf` (user rights) and a scheduled task that sets
+the audit subcategories with `auditpol`. What a computer does when the
+GPO is gone was measured with Windows 11 25H2:
+
+| Kind of setting | When the GPO no longer applies |
+| --- | --- |
+| Registry values below the policy keys | removed by Windows |
+| User rights | back to what they were before |
+| Registry values elsewhere (NTLMv2) | stay as set |
+| Audit settings | stay as set |
+
+Settings that stay have a *reset* state: switching them off, or
+removing the profile, first changes the GPO to write the Windows
+default. The GPO is deleted in a second step, when the computers have
+applied it. The advanced audit policy file (`audit.csv`) is not used on
+purpose: when such a GPO is removed, Windows clears all auditing, also
+what a fresh installation audits.
+
+Every change of a profile needs a reason and is kept in a list of
+changes with the settings before and after. The page also shows the
+password and lockout policy of the domain accounts (read only: in a
+Samba domain it is set at the domain, not by a GPO) and whether the
+directory can store BitLocker recovery keys.
+
+Not part of the module yet: user side settings (wallpaper, screen
+saver), switching BitLocker on, reading recovery keys, Windows LAPS.
+
 ## Lifecycle of the GPOs
 
 A rule applies exactly as long as it exists:
@@ -47,7 +85,8 @@ A rule applies exactly as long as it exists:
   after its next start. On a computer that sees a deployment for the
   first time the script waits for the next scheduled time.
 - Removing a deployment deletes its GPO.
-- Removing the module deletes the GPOs of all its deployments (the UI
+- Removing the module deletes the GPOs of all its deployments and policy
+  profiles; settings in the table above that stay are not reset then (the UI
   says so on the Status page). A DC that cannot be reached does not block
   the removal; the GPOs left behind are listed in the module log.
 - Moving the module to another node keeps the GPOs: the new instance has
