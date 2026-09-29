@@ -99,6 +99,11 @@
           </dl>
           <p class="help">{{ $t("guide.mode_scope") }}</p>
           <p class="help">{{ $t("guide.mode_msi") }}</p>
+
+          <h5 class="sub">{{ $t("guide.lifecycle_heading") }}</h5>
+          <ul class="bullets">
+            <li v-for="n in 5" :key="n">{{ $t("guide.lifecycle_" + n) }}</li>
+          </ul>
         </cv-tile>
 
         <cv-tile light class="tile">

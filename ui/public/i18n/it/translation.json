@@ -20,7 +20,9 @@
         "app_volumes": "Volume app|Volumi app",
         "installation_node": "Nodo di installazione",
         "mount": "Percorso di mount",
-        "rights_fix": "Mancano alcuni diritti: vedi le impostazioni."
+        "rights_fix": "Mancano alcuni diritti: vedi le impostazioni.",
+        "remove_module_title": "Rimuovendo il modulo si eliminano i suoi GPO",
+        "remove_module_desc": "Quando questo modulo viene rimosso, i GPO di tutte le sue distribuzioni vengono eliminati da Active Directory. I computer eliminano le operazioni pianificate al successivo aggiornamento dei criteri; il software installato resta. Spostando il modulo su un altro nodo i GPO restano."
     },
     "settings": {
         "save": "Salva",
@@ -166,10 +168,9 @@
         "error_name_in_use": "Il nome è già in uso",
         "error_generation_failed": "Impossibile generare i file del GPO",
         "remove_title": "Rimuovi distribuzione",
-        "remove_desc": "Il GPO di {name} viene scollegato.",
-        "remove_delete_gpo": "Elimina anche il GPO da Active Directory",
+        "remove_desc": "La distribuzione {name} e il suo GPO vengono eliminati da Active Directory.",
         "remove_clients_title": "Operazioni sui computer",
-        "remove_clients_desc": "Le operazioni pianificate già create sui computer restano finché non vengono eliminate a mano.",
+        "remove_clients_desc": "Ogni computer elimina le operazioni pianificate di questa distribuzione al successivo aggiornamento dei criteri (avvio, circa ogni 90 minuti o gpupdate), anche se viene acceso solo mesi dopo. Il software installato resta.",
         "removing": "Rimozione della distribuzione {name}",
         "remove_failed": "Rimozione non riuscita, vedi il log del modulo",
         "run_now": "Esegui subito",
@@ -286,6 +287,12 @@
         "cmd_create_ou": "Facoltativo: concedi il diritto di creare unità organizzative vuote (quando si collega una nuova unità).",
         "switch_heading": "1.3 Cambiare l'account di servizio",
         "switch_help": "Un altro account subentra appena è membro di windeploy-admins: inseriscilo in Impostazioni, la verifica dei diritti mostra se può modificare i GPO esistenti. La configurazione automatica fa entrambe le cose e consegna anche i GPO creati da un account precedente senza il gruppo. Il vecchio account resta; quando non serve più, toglilo dal gruppo o eliminalo.",
-        "mode_scope": "Se un pacchetto ha un programma di installazione per il computer, lo script lo richiede (--scope machine), ad es. l'MSI di Nextcloud.Talk; altrimenti winget sceglie volentieri, anche come SYSTEM, quello per utente, che poi resta bloccato. I pacchetti che si installano solo per utente non si possono distribuire così: il modulo li rifiuta al salvataggio."
+        "mode_scope": "Se un pacchetto ha un programma di installazione per il computer, lo script lo richiede (--scope machine), ad es. l'MSI di Nextcloud.Talk; altrimenti winget sceglie volentieri, anche come SYSTEM, quello per utente, che poi resta bloccato. I pacchetti che si installano solo per utente non si possono distribuire così: il modulo li rifiuta al salvataggio.",
+        "lifecycle_heading": "Rimozione e spostamento",
+        "lifecycle_1": "Una regola vale finché esiste: un computer elimina l'operazione di un pacchetto al successivo aggiornamento dei criteri quando il pacchetto esce dalla distribuzione, il GPO viene rimosso o il computer passa a un'OU a cui il GPO non si applica - anche mesi dopo. Il software installato resta.",
+        "lifecycle_2": "Rimuovendo una distribuzione si elimina il suo GPO.",
+        "lifecycle_3": "Rimuovendo il modulo si eliminano i GPO di tutte le sue distribuzioni. Spostandolo su un altro nodo restano.",
+        "lifecycle_4": "Un clone del modulo parte senza distribuzioni; un ripristino le riporta.",
+        "lifecycle_5": "Un computer spento all'ora pianificata recupera dopo il successivo avvio o aggiornamento dei criteri. Un computer che riceve una distribuzione per la prima volta attende la successiva ora pianificata."
     }
 }

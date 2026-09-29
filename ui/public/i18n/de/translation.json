@@ -82,7 +82,9 @@
         "installation_node": "Knoten der Installation",
         "node": "Knoten",
         "no_volumes": "Keine Volumen",
-        "rights_fix": "Es fehlen Rechte: siehe Einstellungen."
+        "rights_fix": "Es fehlen Rechte: siehe Einstellungen.",
+        "remove_module_title": "Mit dem Modul werden seine GPOs gelöscht",
+        "remove_module_desc": "Wird dieses Modul entfernt, werden die GPOs aller Verteilungen aus dem Active Directory gelöscht. Die Rechner entfernen die geplanten Aufgaben bei der nächsten Richtlinienaktualisierung; installierte Software bleibt. Beim Verschieben auf einen anderen Knoten bleiben die GPOs erhalten."
     },
     "about": {
         "title": "Über"
@@ -166,10 +168,9 @@
         "error_name_in_use": "Der Name ist schon vergeben",
         "error_generation_failed": "Die GPO-Dateien konnten nicht erzeugt werden",
         "remove_title": "Verteilung entfernen",
-        "remove_desc": "Das GPO von {name} wird entknüpft.",
-        "remove_delete_gpo": "GPO auch aus dem Active Directory löschen",
+        "remove_desc": "Die Verteilung {name} und ihr GPO werden aus dem Active Directory gelöscht.",
         "remove_clients_title": "Aufgaben auf den Rechnern",
-        "remove_clients_desc": "Geplante Aufgaben, die schon auf den Rechnern angelegt sind, bleiben dort, bis sie von Hand gelöscht werden.",
+        "remove_clients_desc": "Jeder Rechner entfernt die geplanten Aufgaben dieser Verteilung bei seiner nächsten Richtlinienaktualisierung (Start, etwa alle 90 Minuten oder gpupdate), auch wenn er erst Monate später eingeschaltet wird. Installierte Software bleibt.",
         "removing": "Verteilung {name} wird entfernt",
         "remove_failed": "Entfernen fehlgeschlagen, siehe Modulprotokoll",
         "run_now": "Sofort auslösen",
@@ -286,6 +287,12 @@
         "cmd_create_ou": "Optional: Recht geben, leere Organisationseinheiten anzulegen (beim Verknüpfen einer neuen OU).",
         "switch_heading": "1.3 Dienstkonto wechseln",
         "switch_help": "Ein anderes Konto übernimmt, sobald es Mitglied von windeploy-admins ist: unter Einstellungen eintragen, die Rechteprüfung zeigt, ob es die vorhandenen GPOs ändern darf. Die automatische Einrichtung erledigt beides und übergibt dabei auch GPOs, die ein früheres Konto ohne die Gruppe angelegt hat. Das alte Konto bleibt bestehen; wird es nicht mehr gebraucht, aus der Gruppe nehmen oder löschen.",
-        "mode_scope": "Hat ein Paket einen maschinenweiten Installer, verlangt ihn das Skript (--scope machine), z. B. das MSI von Nextcloud.Talk; ohne das nimmt winget auch als SYSTEM gern den Installer pro Benutzer, der dann hängt. Pakete, die sich nur pro Benutzer installieren, lassen sich so nicht verteilen: Das Modul lehnt sie beim Speichern ab."
+        "mode_scope": "Hat ein Paket einen maschinenweiten Installer, verlangt ihn das Skript (--scope machine), z. B. das MSI von Nextcloud.Talk; ohne das nimmt winget auch als SYSTEM gern den Installer pro Benutzer, der dann hängt. Pakete, die sich nur pro Benutzer installieren, lassen sich so nicht verteilen: Das Modul lehnt sie beim Speichern ab.",
+        "lifecycle_heading": "Entfernen und Verschieben",
+        "lifecycle_1": "Eine Regel gilt, solange sie besteht: Ein Rechner entfernt die Aufgabe eines Pakets bei der nächsten Richtlinienaktualisierung, wenn das Paket aus der Verteilung fällt, das GPO entfernt wird oder der Rechner in eine OU wechselt, für die das GPO nicht gilt – auch Monate später. Installierte Software bleibt.",
+        "lifecycle_2": "Wird eine Verteilung entfernt, wird ihr GPO gelöscht.",
+        "lifecycle_3": "Wird das Modul entfernt, werden die GPOs aller Verteilungen gelöscht. Beim Verschieben auf einen anderen Knoten bleiben sie erhalten.",
+        "lifecycle_4": "Ein Klon des Moduls beginnt ohne Verteilungen; eine Wiederherstellung bringt sie zurück.",
+        "lifecycle_5": "Ein Rechner, der zum geplanten Termin ausgeschaltet war, holt die Installation nach dem nächsten Start oder der nächsten Richtlinienaktualisierung nach. Ein Rechner, der eine Verteilung zum ersten Mal erhält, wartet auf den nächsten geplanten Termin."
     }
 }

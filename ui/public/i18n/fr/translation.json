@@ -20,7 +20,9 @@
         "no_services": "Aucun service",
         "no_images": "Aucune image",
         "no_volumes": "Aucun volume",
-        "rights_fix": "Des droits manquent : voir les paramètres."
+        "rights_fix": "Des droits manquent : voir les paramètres.",
+        "remove_module_title": "Supprimer le module supprime ses GPO",
+        "remove_module_desc": "Lorsque ce module est supprimé, les GPO de tous ses déploiements sont supprimées d'Active Directory. Les ordinateurs suppriment les tâches planifiées à la prochaine actualisation des stratégies ; les logiciels installés restent. Déplacer le module vers un autre nœud conserve les GPO."
     },
     "about": {
         "title": "À propos"
@@ -166,10 +168,9 @@
         "error_name_in_use": "Ce nom est déjà utilisé",
         "error_generation_failed": "Impossible de générer les fichiers de la GPO",
         "remove_title": "Supprimer le déploiement",
-        "remove_desc": "La GPO de {name} est déliée.",
-        "remove_delete_gpo": "Supprimer aussi la GPO d'Active Directory",
+        "remove_desc": "Le déploiement {name} et sa GPO sont supprimés d'Active Directory.",
         "remove_clients_title": "Tâches sur les ordinateurs",
-        "remove_clients_desc": "Les tâches planifiées déjà créées sur les ordinateurs y restent jusqu'à leur suppression manuelle.",
+        "remove_clients_desc": "Chaque ordinateur supprime les tâches planifiées de ce déploiement à sa prochaine actualisation des stratégies (démarrage, environ toutes les 90 minutes ou gpupdate), même s'il n'est allumé que des mois plus tard. Les logiciels installés restent.",
         "removing": "Suppression du déploiement {name}",
         "remove_failed": "Échec de la suppression, voir le journal du module",
         "run_now": "Exécuter maintenant",
@@ -286,6 +287,12 @@
         "cmd_create_ou": "Facultatif : donner le droit de créer des unités d'organisation vides (lors de la liaison d'une nouvelle unité).",
         "switch_heading": "1.3 Changer de compte de service",
         "switch_help": "Un autre compte prend le relais dès qu'il est membre de windeploy-admins : le saisir dans Paramètres, la vérification des droits indique s'il peut modifier les GPO existantes. La configuration automatique fait les deux et confie aussi les GPO créées par un ancien compte sans le groupe. L'ancien compte reste ; s'il ne sert plus, le retirer du groupe ou le supprimer.",
-        "mode_scope": "Si un paquet a un programme d'installation pour l'ordinateur, le script le demande (--scope machine), par ex. le MSI de Nextcloud.Talk ; sinon winget prend volontiers, même en tant que SYSTEM, celui par utilisateur, qui reste alors bloqué. Les paquets qui ne s'installent que par utilisateur ne peuvent pas être déployés ainsi : le module les refuse à l'enregistrement."
+        "mode_scope": "Si un paquet a un programme d'installation pour l'ordinateur, le script le demande (--scope machine), par ex. le MSI de Nextcloud.Talk ; sinon winget prend volontiers, même en tant que SYSTEM, celui par utilisateur, qui reste alors bloqué. Les paquets qui ne s'installent que par utilisateur ne peuvent pas être déployés ainsi : le module les refuse à l'enregistrement.",
+        "lifecycle_heading": "Suppression et déplacement",
+        "lifecycle_1": "Une règle s'applique tant qu'elle existe : un ordinateur supprime la tâche d'un paquet à la prochaine actualisation des stratégies lorsque le paquet quitte le déploiement, que la GPO est supprimée ou que l'ordinateur passe dans une OU à laquelle la GPO ne s'applique pas - même des mois plus tard. Les logiciels installés restent.",
+        "lifecycle_2": "Supprimer un déploiement supprime sa GPO.",
+        "lifecycle_3": "Supprimer le module supprime les GPO de tous ses déploiements. Le déplacer vers un autre nœud les conserve.",
+        "lifecycle_4": "Un clone du module démarre sans déploiements ; une restauration les ramène.",
+        "lifecycle_5": "Un ordinateur éteint à l'heure planifiée rattrape l'installation après son prochain démarrage ou la prochaine actualisation des stratégies. Un ordinateur qui reçoit un déploiement pour la première fois attend la prochaine heure planifiée."
     }
 }

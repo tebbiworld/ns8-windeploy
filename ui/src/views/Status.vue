@@ -157,6 +157,16 @@
         />
       </cv-column>
     </cv-row>
+    <cv-row v-if="wd.deployments">
+      <cv-column>
+        <NsInlineNotification
+          kind="info"
+          :title="$t('status.remove_module_title')"
+          :description="$t('status.remove_module_desc')"
+          :showCloseButton="false"
+        />
+      </cv-column>
+    </cv-row>
     <!-- services -->
     <cv-row>
       <cv-column class="page-subtitle">

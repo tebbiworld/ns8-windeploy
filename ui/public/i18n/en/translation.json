@@ -20,7 +20,9 @@
         "no_services": "No services",
         "no_images": "No images",
         "no_volumes": "No volumes",
-        "rights_fix": "Some rights are missing: see the settings."
+        "rights_fix": "Some rights are missing: see the settings.",
+        "remove_module_title": "Removing the module deletes its GPOs",
+        "remove_module_desc": "When this module is removed, the GPOs of all its deployments are deleted from Active Directory. The computers delete the scheduled tasks at their next policy refresh; installed software stays. Moving the module to another node keeps the GPOs."
     },
     "settings": {
         "title": "Settings",
@@ -166,10 +168,9 @@
         "error_name_in_use": "The name is already used",
         "error_generation_failed": "The GPO files could not be generated",
         "remove_title": "Remove deployment",
-        "remove_desc": "The GPO of {name} is unlinked.",
-        "remove_delete_gpo": "Also delete the GPO from Active Directory",
+        "remove_desc": "The deployment {name} and its GPO are deleted from Active Directory.",
         "remove_clients_title": "Tasks on the computers",
-        "remove_clients_desc": "Scheduled tasks already created on the computers stay there until they are deleted by hand.",
+        "remove_clients_desc": "Each computer deletes the scheduled tasks of this deployment at its next policy refresh (start-up, about every 90 minutes, or gpupdate), even if it is switched on only months later. Installed software stays.",
         "removing": "Removing deployment {name}",
         "remove_failed": "Removing failed, see the module log",
         "run_now": "Run now",
@@ -286,6 +287,12 @@
         "cmd_create_ou": "Optional: give the right to create empty organizational units (when linking a new OU).",
         "switch_heading": "1.3 Change the service account",
         "switch_help": "Another account takes over as soon as it is a member of windeploy-admins: enter it under Settings, the rights check shows whether it may change the existing GPOs. The automatic setup does both and also hands over GPOs an earlier account created without the group. The old account stays; when it is no longer needed, remove it from the group or delete it.",
-        "mode_scope": "When a package has a machine-wide installer, the script asks for it (--scope machine), e.g. the MSI of Nextcloud.Talk; otherwise winget readily takes the per-user installer even as SYSTEM, which then hangs. Packages that only install per user cannot be deployed this way: the module refuses them when saving."
+        "mode_scope": "When a package has a machine-wide installer, the script asks for it (--scope machine), e.g. the MSI of Nextcloud.Talk; otherwise winget readily takes the per-user installer even as SYSTEM, which then hangs. Packages that only install per user cannot be deployed this way: the module refuses them when saving.",
+        "lifecycle_heading": "Removing and moving",
+        "lifecycle_1": "A rule applies as long as it exists: a computer deletes the task of a package at its next policy refresh when the package leaves the deployment, the GPO is removed, or the computer moves to an OU the GPO does not apply to - also months later. Installed software stays.",
+        "lifecycle_2": "Removing a deployment deletes its GPO.",
+        "lifecycle_3": "Removing the module deletes the GPOs of all its deployments. Moving it to another node keeps them.",
+        "lifecycle_4": "A clone of the module starts without deployments; a restore brings them back.",
+        "lifecycle_5": "A computer that was switched off at the scheduled time catches up after its next start or policy refresh. A computer that gets a deployment for the first time waits for the next scheduled time."
     }
 }

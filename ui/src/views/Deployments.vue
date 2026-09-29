@@ -448,11 +448,6 @@
       <template slot="title">{{ $t("deployments.remove_title") }}</template>
       <template slot="content">
         <p>{{ $t("deployments.remove_desc", { name: remove.name }) }}</p>
-        <cv-checkbox
-          value="delete_gpo"
-          :label="$t('deployments.remove_delete_gpo')"
-          v-model="remove.deleteGpo"
-        />
         <NsInlineNotification
           kind="info"
           :title="$t('deployments.remove_clients_title')"
@@ -544,7 +539,7 @@ export default {
         seq: 0,
       },
       details: { loading: false, data: null },
-      remove: { visible: false, id: "", name: "", deleteGpo: true },
+      remove: { visible: false, id: "", name: "" },
       loading: {
         list: false,
         save: false,
@@ -903,7 +898,7 @@ export default {
     },
     askRemove(d) {
       this.error.remove = "";
-      this.remove = { visible: true, id: d.id, name: d.name, deleteGpo: true };
+      this.remove = { visible: true, id: d.id, name: d.name };
     },
     async removeDeployment() {
       this.loading.remove = true;
@@ -911,7 +906,7 @@ export default {
       try {
         await this.runModuleTask(
           "remove-deployment",
-          { id: this.remove.id, delete_gpo: !!this.remove.deleteGpo },
+          { id: this.remove.id },
           {
             title: this.$t("deployments.removing", { name: this.remove.name }),
             hidden: false,
