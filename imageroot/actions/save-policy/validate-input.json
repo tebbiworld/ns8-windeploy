@@ -1,0 +1,50 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "save-policy input",
+    "$id": "http://schema.nethserver.org/windeploy/save-policy-input.json",
+    "description": "Create or update a policy profile: one GPO with computer settings picked from the catalog",
+    "examples": [
+        {
+            "name": "Workstations",
+            "reason": "Lock idle sessions",
+            "settings": {
+                "session_lock": {"params": {"seconds": 180}},
+                "hide_last_user": {}
+            },
+            "link_targets": ["OU=Workstations,DC=ad,DC=example,DC=com"]
+        }
+    ],
+    "type": "object",
+    "required": ["name", "settings", "link_targets", "reason"],
+    "additionalProperties": false,
+    "properties": {
+        "id": {"type": "string", "pattern": "^[0-9a-f]{12}$", "description": "Existing profile; omit to create one"},
+        "name": {"type": "string", "minLength": 1, "maxLength": 80, "pattern": "^[^\\r\\n\\x00]+$"},
+        "reason": {
+            "description": "Why the profile is changed; kept in the change log",
+            "type": "string", "minLength": 3, "maxLength": 500, "pattern": "^[^\\x00]+$"
+        },
+        "settings": {
+            "description": "Settings that are switched on, by their catalog id. A setting left out is switched off: Windows removes it by itself, or the profile writes the Windows default (state reset)",
+            "type": "object",
+            "maxProperties": 100,
+            "propertyNames": {"pattern": "^[a-z0-9_]{1,40}$"},
+            "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                    "params": {"type": "object", "maxProperties": 10}
+                }
+            }
+        },
+        "drop_resets": {
+            "description": "Catalog ids in the reset state to take out of the GPO: the computers have seen the Windows default",
+            "type": "array", "maxItems": 100,
+            "items": {"type": "string", "pattern": "^[a-z0-9_]{1,40}$"}
+        },
+        "link_targets": {
+            "type": "array", "maxItems": 50,
+            "items": {"type": "string", "minLength": 1, "maxLength": 1000, "pattern": "^[^\\r\\n\\x00]+$"}
+        }
+    }
+}

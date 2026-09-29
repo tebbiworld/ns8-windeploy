@@ -1,0 +1,15 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "remove-policy input",
+    "$id": "http://schema.nethserver.org/windeploy/remove-policy-input.json",
+    "description": "Remove a policy profile. Step reset: settings Windows does not remove by itself write the Windows default, the GPO stays linked. Step delete: the GPO is deleted.",
+    "examples": [{"id": "0123456789ab", "step": "reset", "reason": "Workstations retired"}],
+    "type": "object",
+    "required": ["id", "step", "reason"],
+    "additionalProperties": false,
+    "properties": {
+        "id": {"type": "string", "pattern": "^[0-9a-f]{12}$"},
+        "step": {"type": "string", "enum": ["reset", "delete"]},
+        "reason": {"type": "string", "minLength": 3, "maxLength": 500, "pattern": "^[^\\x00]+$"}
+    }
+}

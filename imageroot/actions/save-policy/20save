@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Create or update a policy profile.
+#
+# The request lists the settings that are switched on. A setting that was
+# on and is left out now is switched off: what Windows removes by itself
+# disappears from the GPO, everything else changes to the reset state and
+# writes the Windows default until the admin takes it out (drop_resets).
+#
+# Order as in save-deployment: validate offline, create the GPO if
+# needed, write the files, adjust the links, store the profile, all under
+# the lock of policies.json.
+
+import copy
+import datetime
+import json
+import sys
+
+import agent
+import policygen
+import wdcommon
+
+request = json.load(sys.stdin)
+
+
+def fail(field, value, error):
+    agent.set_status("validation-failed")
+    json.dump([{"field": field, "parameter": field, "value": value, "error": error}], fp=sys.stdout)
+    sys.exit(3)
+
+
+settings = wdcommon.connection_settings()
+try:
+    wdcommon.validate_connection(settings)
+except ValueError as ex:
+    print(agent.SD_ERR + str(ex), file=sys.stderr)
+    fail("domain", settings.get("domain", ""), "not_configured")
+
+try:
+    wanted_on = policygen.check_settings({sid: {"state": "on", "params": entry.get("params", {})}
+                                          for sid, entry in request["settings"].items()})
+except policygen.PolicyError as ex:
+    print(agent.SD_ERR + str(ex), file=sys.stderr)
+    fail("settings", str(ex).split(":")[0], "invalid_setting")
+
+if request["link_targets"]:
+    try:
+        valid = {t["dn"].lower() for t in wdcommon.run_tool({"op": "targets"}, settings=settings, timeout=120)}
+    except (wdcommon.ToolError, ValueError) as ex:
+        print(agent.SD_ERR + "cannot read the link targets: " + str(ex), file=sys.stderr)
+        sys.exit(1)
+    for dn in request["link_targets"]:
+        if dn.lower() not in valid:
+            fail("link_targets", dn, "link_target_not_found")
+
+with wdcommon.policies_locked() as data:
+    current = data["profiles"]
+    old = None
+    if request.get("id"):
+        old = next((p for p in current if p["id"] == request["id"]), None)
+        if old is None:
+            fail("id", request["id"], "profile_not_found")
+    for p in current:
+        if p["name"].lower() == request["name"].lower() and p["id"] != request.get("id"):
+            fail("name", request["name"], "name_in_use")
+
+    profile = copy.deepcopy(old) if old else {"id": wdcommon.new_id(), "gpo_guid": "", "link_targets": [], "settings": {}}
+    before = copy.deepcopy(profile["settings"])
+    profile["name"] = request["name"]
+    # switched off: gone, or reset to the Windows default
+    off = [sid for sid, entry in before.items() if entry["state"] == "on" and sid not in wanted_on]
+    merged = policygen.after_removal(before, off)
+    for sid in request.get("drop_resets", []):
+        if merged.get(sid, {}).get("state") == "reset":
+            del merged[sid]
+    merged.update(wanted_on)
+    if not merged:
+        fail("settings", "", "setting_required")
+    profile["settings"] = merged
+    profile["state"] = "active"
+    try:
+        files, extensions = wdcommon.build_policy_files(profile)
+    except policygen.PolicyError as ex:
+        print(agent.SD_ERR + str(ex), file=sys.stderr)
+        fail("settings", str(ex).split(":")[0], "invalid_setting")
+
+    wanted = list({dn.lower(): dn for dn in request["link_targets"]}.values())
+    wanted_keys = {dn.lower() for dn in wanted}
+    linked_keys = {dn.lower() for dn in profile["link_targets"]}
+    created = False
+    try:
+        agent.set_progress(10)
+        if not profile["gpo_guid"]:
+            res = wdcommon.run_tool({"op": "create", "display_name": "windeploy policy: " + profile["name"]}, settings=settings)
+            profile["gpo_guid"] = res["guid"]
+            created = True
+        agent.set_progress(40)
+        res = wdcommon.run_tool({"op": "apply", "guid": profile["gpo_guid"], "files": files, "backup_dir": "/backup",
+                                 "machine_extensions": extensions}, settings=settings)
+        profile["version"] = res["version"]
+        wdcommon.prune_backups(profile["gpo_guid"])
+        agent.set_progress(70)
+        for dn in wanted:
+            if dn.lower() not in linked_keys:
+                wdcommon.run_tool({"op": "link", "guid": profile["gpo_guid"], "target_dn": dn}, settings=settings)
+        for dn in profile["link_targets"]:
+            if dn.lower() not in wanted_keys:
+                wdcommon.run_tool({"op": "unlink", "guid": profile["gpo_guid"], "target_dn": dn}, settings=settings)
+        profile["link_targets"] = wanted
+    except Exception as ex:
+        print(agent.SD_ERR + f"saving the policy profile failed: {type(ex).__name__}: {ex}", file=sys.stderr)
+        if created:
+            try:
+                wdcommon.delete_gpo(profile["gpo_guid"], wanted, settings=settings)
+            except Exception as cleanup:
+                print(agent.SD_ERR + f"could not remove the new GPO {profile['gpo_guid']}: {cleanup}", file=sys.stderr)
+        if isinstance(ex, (wdcommon.ToolError, ValueError)):
+            sys.exit(1)
+        raise
+
+    profile["changed"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    data["profiles"] = [p for p in current if p["id"] != profile["id"]] + [profile]
+    wdcommon.log_policy_change(profile["name"], "created" if old is None else "changed", request["reason"],
+                               before, profile["settings"])
+
+agent.set_progress(100)
+print(agent.SD_INFO + f"policy profile {profile['name']!r} saved in GPO {profile['gpo_guid']} version {profile.get('version')}", file=sys.stderr)
+json.dump({"id": profile["id"], "gpo_guid": profile["gpo_guid"], "version": profile.get("version"),
+           "resets": sorted(sid for sid, e in profile["settings"].items() if e["state"] == "reset")}, fp=sys.stdout)

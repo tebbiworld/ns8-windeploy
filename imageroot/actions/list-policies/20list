@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# The policy page in one request: the catalog of settings, the profiles
+# of this instance, the last changes, and what the domain itself says
+# about passwords and BitLocker (read only; null when the DC cannot be
+# asked).
+
+import json
+import sys
+
+import agent
+import policygen
+import wdcommon
+
+domain = None
+try:
+    domain = wdcommon.run_tool({"op": "domain_info"}, timeout=60)
+except Exception as ex:
+    print(agent.SD_WARNING + f"cannot read the domain settings: {ex}", file=sys.stderr)
+
+profiles = []
+for p in wdcommon.read_policies()["profiles"]:
+    profiles.append({k: p.get(k) for k in ("id", "name", "gpo_guid", "version", "link_targets", "settings", "state", "changed")})
+
+json.dump({
+    "catalog": policygen.catalog(),
+    "groups": policygen.GROUPS,
+    "profiles": sorted(profiles, key=lambda p: p["name"].lower()),
+    "log": wdcommon.read_policy_log(),
+    "domain": domain,
+}, fp=sys.stdout)

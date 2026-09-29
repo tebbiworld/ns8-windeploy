@@ -28,9 +28,12 @@ import uuid
 import agent
 import gpogen
 import modsecrets
+import policygen
 import wingetindex
 
 DEPLOYMENTS = "deployments.json"
+POLICIES = "policies.json"
+POLICY_LOG = "policy-log.jsonl"
 BACKUP_DIR = "gpo-backups"
 SAMBA_IMAGE_ENV = "WINDEPLOY_SAMBA_IMAGE"
 
@@ -189,21 +192,76 @@ class ToolError(Exception):
 # ---------------------------------------------------------- deployments ---
 
 @contextlib.contextmanager
-def deployments_locked():
-    """Read-modify-write of state/deployments.json under an exclusive lock."""
-    path = os.path.join(state_dir(), DEPLOYMENTS)
+def _locked(name, read):
+    path = os.path.join(state_dir(), name)
     lock = os.open(path + ".lock", os.O_CREAT | os.O_RDWR, 0o600)
     try:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        data = read_deployments()
+        data = read()
         yield data
-        fd, tmp = tempfile.mkstemp(dir=state_dir(), prefix=".deployments-")
+        fd, tmp = tempfile.mkstemp(dir=state_dir(), prefix="." + name + "-")
         with os.fdopen(fd, "w") as f:
             json.dump(data, f, indent=1)
         os.replace(tmp, path)
     finally:
         fcntl.flock(lock, fcntl.LOCK_UN)
         os.close(lock)
+
+
+def deployments_locked():
+    """Read-modify-write of state/deployments.json under an exclusive lock."""
+    return _locked(DEPLOYMENTS, read_deployments)
+
+
+def policies_locked():
+    """Read-modify-write of state/policies.json under an exclusive lock."""
+    return _locked(POLICIES, read_policies)
+
+
+def read_policies():
+    try:
+        with open(os.path.join(state_dir(), POLICIES)) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"profiles": []}
+
+
+def log_policy_change(profile, change, reason, before, after):
+    """One line per change of a policy profile: what was set before and
+    after, and why. Shown on the policy page."""
+    entry = {
+        "time": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        "profile": profile, "change": change, "reason": reason,
+        "before": before, "after": after,
+    }
+    with open(os.path.join(state_dir(), POLICY_LOG), "a") as f:
+        f.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
+def read_policy_log(limit=50):
+    try:
+        with open(os.path.join(state_dir(), POLICY_LOG)) as f:
+            lines = f.readlines()[-limit:]
+    except FileNotFoundError:
+        return []
+    return [json.loads(line) for line in reversed(lines) if line.strip()]
+
+
+def build_policy_files(profile):
+    """Files of a policy profile, base64 encoded for gpowrite (None
+    deletes a file), and the machine extension names of the GPO."""
+    profile.setdefault("task_uid", gpogen.new_uid())
+    files, extensions = policygen.build_files(profile["settings"], task_uid=profile["task_uid"])
+    out = {rel: None if data is None else base64.b64encode(data).decode() for rel, data in files.items()}
+    description = json.dumps({
+        "generator": "NethServer module windeploy",
+        "module_uuid": os.environ.get("MODULE_UUID", ""),
+        "kind": "policy",
+        "name": profile["name"],
+        "settings": profile["settings"],
+    }, indent=1) + "\n"
+    out[DESCRIPTION_FILE] = base64.b64encode(description.encode("utf-8")).decode()
+    return out, extensions
 
 
 BACKUPS_KEPT = 10
@@ -246,7 +304,8 @@ def read_deployments():
 
 def gpo_guids():
     """GUIDs of the GPOs this module instance made."""
-    return [d["gpo_guid"] for d in read_deployments()["deployments"] if d.get("gpo_guid")]
+    return ([d["gpo_guid"] for d in read_deployments()["deployments"] if d.get("gpo_guid")]
+            + [p["gpo_guid"] for p in read_policies()["profiles"] if p.get("gpo_guid")])
 
 
 def update_scopes(deployment):

@@ -9,8 +9,8 @@
 # comes with state/passwords.env.
 #
 # A move ("replace": the original is removed afterwards) keeps the
-# deployments: the new instance manages the same GPOs. A copy starts
-# without deployments, otherwise two instances would manage the same GPOs
+# deployments and policy profiles: the new instance manages the same GPOs.
+# A copy starts without them, otherwise two instances would manage the same GPOs
 # and removing a deployment in one would break the other.
 
 import json
@@ -27,7 +27,7 @@ KEEP = ["GPO_DOMAIN", "GPO_DC_HOST", "GPO_DC_IP", "GPO_REALM", "GPO_WORKGROUP", 
 agent.mset_env({k: env[k] for k in KEEP if k in env})
 
 if not request.get("replace"):
-    for name in (wdcommon.DEPLOYMENTS, "rights.json"):
+    for name in (wdcommon.DEPLOYMENTS, wdcommon.POLICIES, wdcommon.POLICY_LOG, "rights.json"):
         try:
             os.remove(name)
         except FileNotFoundError:
