@@ -641,6 +641,22 @@ class Session:
         self.samdb.modify(msg, controls=["sd_flags:1:4"])
         return True
 
+    def _remove_ace(self, dn, ace):
+        """Remove an ACE from the DACL of dn; False if it was not there."""
+        res = self.samdb.search(dn, scope=ldb.SCOPE_BASE, attrs=["nTSecurityDescriptor"], controls=["sd_flags:1:4"])
+        desc = ndr_unpack(security.descriptor, res[0]["nTSecurityDescriptor"][0])
+        # in Samba's spelling, as _add_ace compares it
+        gone = security.descriptor.from_sddl("D:" + ace, self.domain_sid).as_sddl(self.domain_sid)[2:]
+        sddl = desc.as_sddl(self.domain_sid)
+        at = sddl.lower().find(gone.lower())
+        if at == -1:
+            return False
+        new = security.descriptor.from_sddl(sddl[:at] + sddl[at + len(gone):], self.domain_sid)
+        msg = ldb.Message(ldb.Dn(self.samdb, dn))
+        msg["nTSecurityDescriptor"] = ldb.MessageElement(ndr_pack(new), ldb.FLAG_MOD_REPLACE, "nTSecurityDescriptor")
+        self.samdb.modify(msg, controls=["sd_flags:1:4"])
+        return True
+
     def create_ou(self, dn):
         m = re.fullmatch(r"OU=([^,=+\\\"<>;#]{1,64})((?:,OU=[^,=+\\\"<>;#]{1,64})*),(DC=.+)", dn, re.I)
         if not m or m.group(3).lower() != self.domain_dn.lower():
@@ -769,7 +785,17 @@ def main():
                                      request.get("guids"))
             json.dump({"ok": True, "result": result}, sys.stdout)
             return
+        if op == "dns_delegate":
+            # rights on a zone are given by a domain admin, used for this request only
+            import dnswrite
+            admin = Session(user=request["admin_user"], password=request["admin_password"])
+            json.dump({"ok": True, "result": dnswrite.run(admin, request)}, sys.stdout)
+            return
         s = Session()
+        if op.startswith("dns_"):
+            import dnswrite
+            json.dump({"ok": True, "result": dnswrite.run(s, request)}, sys.stdout)
+            return
         if op == "check":
             result = s.check(request.get("guids"))
         elif op == "list":
@@ -806,6 +832,16 @@ def main():
 
 
 def _error_code(ex):
+    code = getattr(ex, "code", None)
+    if isinstance(code, str):
+        return {"code": code}
+    werr = ex.args[0] if type(ex).__name__ == "WERRORError" and ex.args else None
+    if werr == 5:
+        return {"code": "access_denied"}
+    return _result_code(ex)
+
+
+def _result_code(ex):
     """Result code of a failed request, for the caller to tell a bad
     password from an unreachable DC without parsing the message: the LDAP
     result code of an LdbError, the NTSTATUS of an SMB error."""

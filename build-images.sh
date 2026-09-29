@@ -22,7 +22,7 @@ reponame="windeploy"
 #
 tool_ctx=$(mktemp -d)
 trap 'rm -rf "${tool_ctx}"' EXIT
-cp tool/Containerfile tool/gpowrite.py imageroot/pypkg/gpogen.py imageroot/pypkg/wingetindex.py "${tool_ctx}/"
+cp tool/Containerfile tool/gpowrite.py tool/dnswrite.py imageroot/pypkg/gpogen.py imageroot/pypkg/wingetindex.py imageroot/pypkg/dnsrules.py "${tool_ctx}/"
 buildah build --layers --tag "${repobase}/${reponame}-samba" "${tool_ctx}"
 images+=("${repobase}/${reponame}-samba")
 
