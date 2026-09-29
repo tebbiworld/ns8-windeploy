@@ -200,3 +200,54 @@ def reverse_node(address, zones):
     if best is None:
         return None
     return best, full[:-(len(best) + 1)]
+
+
+# ------------------------------------------------------------------ zones ---
+
+def reverse_zone(network):
+    """Name of the reverse zone of a network, e.g. 192.168.1.0/24 ->
+    1.168.192.in-addr.arpa. IPv4 networks end on a byte (/8, /16, /24),
+    IPv6 networks on a nibble (/4 ... /124), as reverse zones do."""
+    try:
+        net = ipaddress.ip_network(str(network).strip(), strict=False)
+    except ValueError:
+        raise RuleError("invalid_network", str(network)) from None
+    step = 8 if net.version == 4 else 4
+    low, high = (8, 24) if net.version == 4 else (16, 124)
+    if net.prefixlen % step or not low <= net.prefixlen <= high:
+        raise RuleError("invalid_prefix", str(network))
+    labels = net.network_address.reverse_pointer.split(".")
+    keep = net.prefixlen // step
+    return ".".join(labels[len(labels) - 2 - keep:])
+
+
+def check_new_zone(zone, existing, realm=""):
+    """Name of a zone to create. existing: names of the zones there are;
+    realm: DNS name of the domain."""
+    zone = check_zone(zone)
+    labels = zone.split(".")
+    if len(labels) < 2:
+        raise RuleError("zone_single_label", zone)
+    if any(x.startswith("_") for x in labels) or is_ad_zone(zone):
+        raise RuleError("protected_ad_zone", zone)
+    if zone.endswith(".arpa") and not (zone.endswith(".in-addr.arpa") or zone.endswith(".ip6.arpa")):
+        raise RuleError("invalid_zone", zone)
+    if zone in (z.lower() for z in existing):
+        raise RuleError("zone_exists", zone)
+    realm = realm.lower().rstrip(".")
+    if realm and realm.endswith("." + zone):
+        # the domain would become a part of the new zone without a delegation
+        raise RuleError("zone_above_domain", zone)
+    return zone
+
+
+def zone_locked(zone, realm):
+    """Reason why a zone is never deleted, or None: the zones Active
+    Directory lives in."""
+    zone = zone.lower().rstrip(".")
+    realm = realm.lower().rstrip(".")
+    if is_ad_zone(zone):
+        return "ad_zone"
+    if realm and zone == realm:
+        return "domain_zone"
+    return None
