@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-# Removing the module deletes its GPOs: a rule exists only as long as the
+# Removing the module deletes its GPOs (deployments and policy profiles): a rule exists only as long as the
 # module that manages it. The tasks carry removePolicy, so the computers
 # delete them at their next policy refresh; installed software stays.
 #
@@ -21,6 +21,7 @@ import subprocess
 import sys
 
 import agent
+import policygen
 import wdcommon
 
 subprocess.run(["systemctl", "--user", "disable", "--now", "windeploy-index.timer"], check=False)
@@ -36,17 +37,23 @@ def moved():
                for mid, value in rdb.hgetall("cluster/module_uuid").items())
 
 
-deployments = [d for d in wdcommon.read_deployments()["deployments"] if d.get("gpo_guid")]
-if not deployments:
+gpos = ([d for d in wdcommon.read_deployments()["deployments"] if d.get("gpo_guid")]
+        + [p for p in wdcommon.read_policies()["profiles"] if p.get("gpo_guid")])
+if not gpos:
     sys.exit(0)
 if moved():
     print(agent.SD_NOTICE + "module moved: its GPOs stay for the new instance", file=sys.stderr)
     sys.exit(0)
 
-for d in deployments:
+for d in gpos:
     try:
         wdcommon.delete_gpo(d["gpo_guid"], d.get("link_targets", []))
         print(agent.SD_NOTICE + f"GPO {d['gpo_guid']} ({d['name']}) deleted", file=sys.stderr)
     except Exception as ex:
         print(agent.SD_WARNING + f"GPO {d['gpo_guid']} ({d['name']}) could not be deleted and stays in AD, "
               f"linked to {', '.join(d.get('link_targets', [])) or 'nothing'}: {ex}", file=sys.stderr)
+    # registry values outside the policy keys and audit settings stay on the computers
+    left = [sid for sid, e in d.get("settings", {}).items() if e["state"] == "on" and policygen.is_tattoo(sid)]
+    if left:
+        print(agent.SD_WARNING + f"policy profile {d['name']}: the computers keep {', '.join(sorted(left))} "
+              "as set (not reset to the Windows default before the removal)", file=sys.stderr)

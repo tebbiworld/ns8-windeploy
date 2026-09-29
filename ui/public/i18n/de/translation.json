@@ -106,7 +106,10 @@
         "save-deployment": "Verteilung speichern",
         "remove-deployment": "Verteilung entfernen",
         "run-deployment-now": "Verteilung sofort auslösen",
-        "setup-service-account": "Dienstkonto einrichten"
+        "setup-service-account": "Dienstkonto einrichten",
+        "list-policies": "Richtlinienprofile auflisten",
+        "save-policy": "Richtlinienprofil speichern",
+        "remove-policy": "Richtlinienprofil entfernen"
     },
     "task": {
         "cannot_create_task": "Aufgabe {action} kann nicht erstellt werden"
@@ -294,5 +297,165 @@
         "lifecycle_3": "Wird das Modul entfernt, werden die GPOs aller Verteilungen gelöscht. Beim Verschieben auf einen anderen Knoten bleiben sie erhalten.",
         "lifecycle_4": "Ein Klon des Moduls beginnt ohne Verteilungen; eine Wiederherstellung bringt sie zurück.",
         "lifecycle_5": "Ein Rechner, der zum geplanten Termin ausgeschaltet war, holt die Installation nach dem nächsten Start oder der nächsten Richtlinienaktualisierung nach. Ein Rechner, der eine Verteilung zum ersten Mal erhält, wartet auf den nächsten geplanten Termin."
+    },
+    "policies": {
+        "title": "Richtlinien",
+        "help": "Ein Richtlinienprofil ist ein GPO mit Sicherheitseinstellungen für die Rechner einer Domäne oder einzelner Organisationseinheiten. Die Einstellungen gelten, solange das Profil besteht und verknüpft ist.",
+        "domain_title": "An der Domäne eingestellt, nicht im Profil",
+        "domain_help": "Aus der Domäne gelesen. In einer Samba-Domäne wird die Kennwortrichtlinie der Domänenkonten in den Domäneneinstellungen von NethServer geändert, nicht per GPO.",
+        "domain_password": "Kennwörter",
+        "domain_password_value": "mindestens {length} Zeichen, {history} gemerkt, {age} Tage gültig",
+        "domain_complexity": ", Komplexität verlangt",
+        "domain_lockout": "Kontosperre",
+        "domain_lockout_value": "nach {n} Fehlanmeldungen, für {minutes} Minuten",
+        "domain_no_lockout": "Aus: Konten werden nach Fehlanmeldungen nie gesperrt",
+        "domain_bitlocker": "BitLocker-Wiederherstellungsschlüssel",
+        "domain_bitlocker_yes": "Das Verzeichnis kann sie speichern",
+        "domain_bitlocker_no": "Das Schema des Verzeichnisses kann sie nicht speichern",
+        "new": "Neues Profil",
+        "empty": "Keine Richtlinienprofile",
+        "empty_desc": "Profil anlegen, Einstellungen wählen und mit der Domäne oder mit Organisationseinheiten verknüpfen.",
+        "settings": "Einstellungen",
+        "resetting": "Wird entfernt: schreibt die Windows-Standardwerte",
+        "reset_tag": "zurückgesetzt",
+        "log_title": "Änderungen",
+        "log_time": "Zeit",
+        "log_change": "Änderung",
+        "reason": "Grund",
+        "change_created": "Angelegt",
+        "change_changed": "Geändert",
+        "change_reset": "Auf Windows-Standard zurückgesetzt",
+        "change_deleted": "Gelöscht",
+        "edit_title": "Richtlinienprofil bearbeiten",
+        "new_title": "Neues Richtlinienprofil",
+        "stays_hint": "Bleibt nach dem Abschalten auf den Rechnern, bis das Profil sie zurückgesetzt hat.",
+        "range": "{min} bis {max}",
+        "seconds": "{n} s",
+        "reset_help": "Abgeschaltet. Das Profil schreibt den Windows-Standardwert, bis die Rechner ihn übernommen haben.",
+        "reset_drop": "Alle Rechner haben ihn übernommen: aus dem GPO nehmen",
+        "links_help": "Das Profil gilt für die Rechner unterhalb der angekreuzten Ziele.",
+        "reason_label": "Grund der Änderung",
+        "reason_help": "Steht in der Liste der Änderungen.",
+        "reason_required": "Grund eingeben (mindestens 3 Zeichen)",
+        "saving": "Richtlinienprofil {name} wird gespeichert",
+        "removing": "Richtlinienprofil {name} wird entfernt",
+        "remove_title": "Richtlinienprofil entfernen",
+        "remove_delete": "Das Profil {name} und sein GPO werden gelöscht. Die Rechner kehren bei der nächsten Richtlinienaktualisierung zu ihren eigenen Einstellungen zurück.",
+        "remove_reset": "Diese Einstellungen von {name} bleiben auf den Rechnern, wenn das GPO gelöscht wird. Das Profil wird deshalb so geändert, dass es die Windows-Standardwerte schreibt:",
+        "remove_reset_next": "Verknüpft lassen, bis alle Rechner eingeschaltet waren und ihre Richtlinien aktualisiert haben; danach das Profil erneut entfernen, dann wird es gelöscht.",
+        "remove_button_reset": "Einstellungen zurücksetzen",
+        "error_not_configured": "Zuerst das Modul mit einer Domäne verbinden (Einstellungen)",
+        "error_invalid_setting": "Einstellung prüfen: {value}",
+        "error_link_target_not_found": "Nicht im Verzeichnis gefunden: {value}",
+        "error_profile_not_found": "Das Profil gibt es nicht mehr",
+        "error_name_in_use": "Ein anderes Profil heißt schon {value}",
+        "error_setting_required": "Mindestens eine Einstellung ankreuzen"
+    },
+    "policy_group": {
+        "logon": "Anmeldung und Sperre",
+        "media": "Wechselmedien und BitLocker",
+        "time": "Zeit",
+        "protection": "Schutz",
+        "network": "Netzwerk",
+        "logging": "Protokollierung"
+    },
+    "policy_param": {
+        "seconds": "Sekunden ohne Eingabe",
+        "caption": "Titel",
+        "text": "Text",
+        "method": "Verschlüsselung von System- und Datenlaufwerken",
+        "security_mb": "Sicherheitsprotokoll in MB"
+    },
+    "policy_value": {
+        "xts128": "XTS-AES 128 Bit",
+        "xts256": "XTS-AES 256 Bit"
+    },
+    "policy_setting": {
+        "session_lock": {
+            "title": "Sitzung bei Inaktivität sperren",
+            "desc": "Sperrt den Bildschirm nach der angegebenen Zeit ohne Tastatur- oder Mauseingabe, für jeden Benutzer des Rechners.",
+            "caution": "Sperrt auch Leitstand- und Messrechner: diese in eine eigene Organisationseinheit legen."
+        },
+        "logon_banner": {
+            "title": "Hinweis vor der Anmeldung",
+            "desc": "Zeigt vor jeder Anmeldung einen Hinweis, der bestätigt werden muss."
+        },
+        "hide_last_user": {
+            "title": "Letzten Benutzernamen nicht anzeigen",
+            "desc": "Der Anmeldebildschirm zeigt nicht, wer zuletzt angemeldet war."
+        },
+        "require_ctrl_alt_del": {
+            "title": "Strg+Alt+Entf verlangen",
+            "desc": "Benutzer drücken Strg+Alt+Entf, bevor sie ihr Kennwort eingeben."
+        },
+        "block_microsoft_accounts": {
+            "title": "Microsoft-Konten blockieren",
+            "desc": "Benutzer können keine Microsoft-Konten hinzufügen oder sich damit anmelden."
+        },
+        "usb_block": {
+            "title": "Wechseldatenträger sperren",
+            "desc": "Kein Lesen und Schreiben auf USB-Sticks, externen Laufwerken, CDs und DVDs. Tastaturen, Mäuse und Scanner funktionieren weiter.",
+            "caution": "Sperrt auch Messgeräte und Lizenz-Dongles, die sich als Speicher melden, und BitLocker-Sticks."
+        },
+        "usb_bitlocker_write": {
+            "title": "Schreiben nur auf BitLocker-Sticks",
+            "desc": "Wechseldatenträger ohne BitLocker lassen sich lesen, aber nicht beschreiben. Windows bietet an, sie zu verschlüsseln.",
+            "caution": "Geräte, die Exporte auf einen unverschlüsselten Stick schreiben, funktionieren nicht mehr."
+        },
+        "no_autorun": {
+            "title": "AutoRun und AutoPlay abschalten",
+            "desc": "Beim Einlegen eines Mediums startet nichts von selbst."
+        },
+        "bitlocker_policy": {
+            "title": "BitLocker: Wiederherstellungsschlüssel ins Verzeichnis",
+            "desc": "Legt das Verschlüsselungsverfahren fest und lässt BitLocker den Wiederherstellungsschlüssel im Active Directory speichern, bevor ein Laufwerk verschlüsselt wird. Verschlüsselt nicht von selbst.",
+            "caution": "Gilt für Laufwerke, die ab jetzt verschlüsselt werden; ein verschlüsseltes Laufwerk behält sein Verfahren."
+        },
+        "time_source_domain": {
+            "title": "Zeit aus der Domäne",
+            "desc": "Die Rechner beziehen die Zeit nur von den Domänencontrollern, stündlich."
+        },
+        "time_change_admins_only": {
+            "title": "Uhrzeit stellen nur Administratoren",
+            "desc": "Das Ändern der Systemzeit bleibt Administratoren vorbehalten."
+        },
+        "timezone_change_admins_only": {
+            "title": "Zeitzone stellen nur Administratoren",
+            "desc": "Benutzer können die Zeitzone nicht ändern. Für Laptops auf Reisen abgeschaltet lassen."
+        },
+        "defender_enforce": {
+            "title": "Microsoft Defender erzwingen",
+            "desc": "Der Echtzeitschutz lässt sich nicht abschalten, möglicherweise unerwünschte Apps werden blockiert."
+        },
+        "firewall_enforce": {
+            "title": "Windows-Firewall erzwingen",
+            "desc": "Die Firewall bleibt in allen Netzwerkprofilen eingeschaltet. Die Regeln bleiben, wie sie sind."
+        },
+        "print_spooler_hardening": {
+            "title": "Druckwarteschlange härten",
+            "desc": "Nur Administratoren installieren Druckertreiber, die Druckwarteschlange nimmt keine Verbindungen aus dem Netz an.",
+            "caution": "Rechner, die einen Drucker freigeben, tun das nicht mehr."
+        },
+        "block_onedrive": {
+            "title": "OneDrive blockieren",
+            "desc": "OneDrive synchronisiert keine Dateien. Andere Sync-Clients sind nicht betroffen."
+        },
+        "ntlmv2_only": {
+            "title": "Nur NTLMv2",
+            "desc": "Die Rechner lehnen die alten Anmeldeverfahren LM und NTLMv1 ab.",
+            "caution": "Alte Geräte (Scanner, NAS) brauchen sie unter Umständen."
+        },
+        "audit_extended": {
+            "title": "Erweiterte Überwachung",
+            "desc": "Schreibt Anmeldungen, Sperren, Änderungen an Konten, Gruppen und Richtlinien, gestartete Programme mit Befehlszeile und Wechselmedien ins Sicherheitsprotokoll."
+        },
+        "eventlog_sizes": {
+            "title": "Größere Ereignisprotokolle",
+            "desc": "Vergrößert Sicherheits-, Anwendungs- und Systemprotokoll, damit Einträge länger erhalten bleiben."
+        },
+        "powershell_logging": {
+            "title": "PowerShell-Skripte protokollieren",
+            "desc": "Schreibt den Text ausgeführter PowerShell-Skripte ins Ereignisprotokoll."
+        }
     }
 }

@@ -8,6 +8,7 @@ import Status from "../views/Status.vue";
 import Settings from "../views/Settings.vue";
 import Deployments from "../views/Deployments.vue";
 import Guide from "../views/Guide.vue";
+import Policies from "../views/Policies.vue";
 
 Vue.use(VueRouter);
 
@@ -22,6 +23,11 @@ const routes = [
     path: "/deployments",
     name: "Deployments",
     component: Deployments,
+  },
+  {
+    path: "/policies",
+    name: "Policies",
+    component: Policies,
   },
   {
     path: "/guide",

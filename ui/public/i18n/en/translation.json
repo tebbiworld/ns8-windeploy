@@ -97,7 +97,10 @@
         "save-deployment": "Save deployment",
         "remove-deployment": "Remove deployment",
         "run-deployment-now": "Run deployment now",
-        "setup-service-account": "Set up service account"
+        "setup-service-account": "Set up service account",
+        "list-policies": "List policy profiles",
+        "save-policy": "Save policy profile",
+        "remove-policy": "Remove policy profile"
     },
     "error": {
         "error": "Error",
@@ -294,5 +297,165 @@
         "lifecycle_3": "Removing the module deletes the GPOs of all its deployments. Moving it to another node keeps them.",
         "lifecycle_4": "A clone of the module starts without deployments; a restore brings them back.",
         "lifecycle_5": "A computer that was switched off at the scheduled time catches up after its next start or policy refresh. A computer that gets a deployment for the first time waits for the next scheduled time."
+    },
+    "policies": {
+        "title": "Policies",
+        "help": "A policy profile is a GPO with security settings for the computers of a domain or of organizational units. The settings apply as long as the profile exists and is linked.",
+        "domain_title": "Set at the domain, not by a profile",
+        "domain_help": "Read from the domain. In a Samba domain the password policy of the domain accounts is changed in the domain settings of NethServer, not by a GPO.",
+        "domain_password": "Passwords",
+        "domain_password_value": "at least {length} characters, {history} remembered, valid {age} days",
+        "domain_complexity": ", complexity required",
+        "domain_lockout": "Account lockout",
+        "domain_lockout_value": "after {n} failed logons, for {minutes} minutes",
+        "domain_no_lockout": "Off: accounts are never locked after failed logons",
+        "domain_bitlocker": "BitLocker recovery keys",
+        "domain_bitlocker_yes": "The directory can store them",
+        "domain_bitlocker_no": "The directory schema cannot store them",
+        "new": "New profile",
+        "empty": "No policy profiles",
+        "empty_desc": "Create a profile, pick its settings and link it to the domain or to organizational units.",
+        "settings": "Settings",
+        "resetting": "Being removed: writes the Windows defaults",
+        "reset_tag": "reset",
+        "log_title": "Changes",
+        "log_time": "Time",
+        "log_change": "Change",
+        "reason": "Reason",
+        "change_created": "Created",
+        "change_changed": "Changed",
+        "change_reset": "Reset to the Windows defaults",
+        "change_deleted": "Deleted",
+        "edit_title": "Edit policy profile",
+        "new_title": "New policy profile",
+        "stays_hint": "Stays on the computers when switched off, until the profile has reset it.",
+        "range": "{min} to {max}",
+        "seconds": "{n} s",
+        "reset_help": "Switched off. The profile writes the Windows default until the computers have applied it.",
+        "reset_drop": "All computers have applied it: take it out of the GPO",
+        "links_help": "The profile applies to the computers below the ticked targets.",
+        "reason_label": "Reason for the change",
+        "reason_help": "Kept in the list of changes.",
+        "reason_required": "Enter a reason (at least 3 characters)",
+        "saving": "Saving policy profile {name}",
+        "removing": "Removing policy profile {name}",
+        "remove_title": "Remove policy profile",
+        "remove_delete": "The profile {name} and its GPO are deleted. The computers return to their own settings at the next policy refresh.",
+        "remove_reset": "These settings of {name} stay on the computers when the GPO is deleted. The profile is changed to write the Windows defaults instead:",
+        "remove_reset_next": "Leave it linked until all computers have been switched on and refreshed their policies, then remove the profile again to delete it.",
+        "remove_button_reset": "Reset settings",
+        "error_not_configured": "Connect the module to a domain first (Settings)",
+        "error_invalid_setting": "Check the setting: {value}",
+        "error_link_target_not_found": "Not found in the directory: {value}",
+        "error_profile_not_found": "The profile does not exist any more",
+        "error_name_in_use": "Another profile has the name {value}",
+        "error_setting_required": "Tick at least one setting"
+    },
+    "policy_group": {
+        "logon": "Logon and lock",
+        "media": "Removable media and BitLocker",
+        "time": "Time",
+        "protection": "Protection",
+        "network": "Network",
+        "logging": "Logging"
+    },
+    "policy_param": {
+        "seconds": "Seconds without input",
+        "caption": "Title",
+        "text": "Text",
+        "method": "Encryption of system and data drives",
+        "security_mb": "Security log in MB"
+    },
+    "policy_value": {
+        "xts128": "XTS-AES 128 bit",
+        "xts256": "XTS-AES 256 bit"
+    },
+    "policy_setting": {
+        "session_lock": {
+            "title": "Lock the session when idle",
+            "desc": "Locks the screen after the given time without keyboard or mouse input, for every user of the computer.",
+            "caution": "Also locks control room and measuring computers: give them their own organizational unit."
+        },
+        "logon_banner": {
+            "title": "Notice before logon",
+            "desc": "Shows a notice that must be confirmed before anyone logs on."
+        },
+        "hide_last_user": {
+            "title": "Do not show the last user name",
+            "desc": "The logon screen does not show who logged on last."
+        },
+        "require_ctrl_alt_del": {
+            "title": "Require Ctrl+Alt+Del",
+            "desc": "Users press Ctrl+Alt+Del before they enter their password."
+        },
+        "block_microsoft_accounts": {
+            "title": "Block Microsoft accounts",
+            "desc": "Users cannot add Microsoft accounts or log on with them."
+        },
+        "usb_block": {
+            "title": "Block removable storage",
+            "desc": "No reading from or writing to USB sticks, external drives, CDs and DVDs. Keyboards, mice and scanners keep working.",
+            "caution": "Also blocks measuring devices and licence dongles that appear as storage, and BitLocker sticks."
+        },
+        "usb_bitlocker_write": {
+            "title": "Write only to BitLocker sticks",
+            "desc": "Removable drives without BitLocker can be read, not written to. Windows offers to encrypt them.",
+            "caution": "Devices that write exports to a plain stick stop working."
+        },
+        "no_autorun": {
+            "title": "Switch off AutoRun and AutoPlay",
+            "desc": "Nothing starts by itself when a medium is inserted."
+        },
+        "bitlocker_policy": {
+            "title": "BitLocker: recovery keys into the directory",
+            "desc": "Sets the encryption method and makes BitLocker store the recovery key in Active Directory before a drive is encrypted. It does not encrypt by itself.",
+            "caution": "Applies to drives encrypted from now on; an encrypted drive keeps its method."
+        },
+        "time_source_domain": {
+            "title": "Time from the domain",
+            "desc": "Computers take the time from the domain controllers only, hourly."
+        },
+        "time_change_admins_only": {
+            "title": "Only administrators set the clock",
+            "desc": "Changing the system time is reserved for administrators."
+        },
+        "timezone_change_admins_only": {
+            "title": "Only administrators set the time zone",
+            "desc": "Users cannot change the time zone. Leave it off for laptops that travel."
+        },
+        "defender_enforce": {
+            "title": "Enforce Microsoft Defender",
+            "desc": "Real-time protection cannot be switched off, potentially unwanted apps are blocked."
+        },
+        "firewall_enforce": {
+            "title": "Enforce the Windows firewall",
+            "desc": "The firewall stays on in all network profiles. Rules stay as they are."
+        },
+        "print_spooler_hardening": {
+            "title": "Harden the print spooler",
+            "desc": "Only administrators install printer drivers, the spooler accepts no connections from the network.",
+            "caution": "Computers that share a printer stop doing so."
+        },
+        "block_onedrive": {
+            "title": "Block OneDrive",
+            "desc": "OneDrive does not sync files. Other sync clients are not affected."
+        },
+        "ntlmv2_only": {
+            "title": "NTLMv2 only",
+            "desc": "Computers refuse the old logon methods LM and NTLMv1.",
+            "caution": "Old devices (scanners, NAS) may need them."
+        },
+        "audit_extended": {
+            "title": "Extended auditing",
+            "desc": "Records logons, lockouts, changes of accounts, groups and policies, started programs with their command line, and removable media in the security log."
+        },
+        "eventlog_sizes": {
+            "title": "Larger event logs",
+            "desc": "Enlarges the security, application and system logs so that entries are kept longer."
+        },
+        "powershell_logging": {
+            "title": "Log PowerShell scripts",
+            "desc": "Records the text of executed PowerShell scripts in the event log."
+        }
     }
 }
