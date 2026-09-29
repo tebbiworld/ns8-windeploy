@@ -7,7 +7,7 @@
 # (libsmb_samba_internal) is packaged there. samba-dsdb-modules brings the
 # ildap ldb backend: without it ldap:// URLs bind anonymously.
 
-FROM docker.io/library/debian:13.7-slim
+FROM docker.io/library/debian:13.7-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3-samba samba-dsdb-modules samba-common krb5-config- \
