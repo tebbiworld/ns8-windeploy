@@ -1,8 +1,8 @@
 name: "Publish images"
 
-# Own build instead of NethServer/ns8-github-actions publish-branch.yml:
-# that reusable workflow limits the token to packages:write, which cannot
-# check out a private repository.
+# Builds both images of the module (windeploy, windeploy-samba) for every
+# branch and tag. A version tag is also pushed as "latest": the catalog
+# reads the list of versions from that image.
 
 on:
   push:
@@ -41,6 +41,9 @@ jobs:
           echo "$TOKEN" | buildah login -u "${{ github.actor }}" --password-stdin ghcr.io
           for image in windeploy-samba windeploy; do
             buildah push "${REPOBASE,,}/${image}" "docker://${REPOBASE,,}/${image}:${IMAGETAG}"
+            if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+              buildah push "${REPOBASE,,}/${image}" "docker://${REPOBASE,,}/${image}:latest"
+            fi
           done
           echo "### Images" >> "$GITHUB_STEP_SUMMARY"
           echo "- ${REPOBASE,,}/windeploy:${IMAGETAG}" >> "$GITHUB_STEP_SUMMARY"
