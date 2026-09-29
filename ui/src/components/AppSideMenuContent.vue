@@ -50,6 +50,13 @@
         <span>{{ $t("policies.title") }}</span>
       </cv-side-nav-link>
       <cv-side-nav-link
+        @click="goToAppPage(instanceName, 'dns')"
+        :class="{ 'current-page': isLinkActive('dns') }"
+      >
+        <template v-slot:nav-icon><Dns20 /></template>
+        <span>{{ $t("dns.title") }}</span>
+      </cv-side-nav-link>
+      <cv-side-nav-link
         @click="goToAppPage(instanceName, 'about')"
         :class="{ 'current-page': isLinkActive('about') }"
       >
@@ -66,6 +73,7 @@ import Information20 from "@carbon/icons-vue/es/information/20";
 import Activity20 from "@carbon/icons-vue/es/activity/20";
 import Deploy20 from "@carbon/icons-vue/es/deploy/20";
 import Policy20 from "@carbon/icons-vue/es/policy/20";
+import Dns20 from "@carbon/icons-vue/es/dns-services/20";
 import Book20 from "@carbon/icons-vue/es/book/20";
 import { mapState } from "vuex";
 import { QueryParamService, UtilService } from "@nethserver/ns8-ui-lib";
@@ -78,6 +86,7 @@ export default {
     Activity20,
     Deploy20,
     Policy20,
+    Dns20,
     Book20,
   },
   mixins: [QueryParamService, UtilService],
