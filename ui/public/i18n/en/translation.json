@@ -107,7 +107,9 @@
         "remove-dns-record": "Delete DNS record",
         "grant-dns-zone": "Change rights on a DNS zone",
         "create-dns-zone": "Create DNS zone",
-        "remove-dns-zone": "Delete DNS zone"
+        "remove-dns-zone": "Delete DNS zone",
+        "compare-dns-zone": "Compare DNS zone with the public DNS",
+        "adopt-dns-record": "Align DNS record"
     },
     "error": {
         "error": "Error",
@@ -598,6 +600,34 @@
         "error_zone_exists": "This zone exists already",
         "error_zone_above_domain": "The domain lies inside this name: the zone would take over the names of the domain",
         "error_protected_domain_zone": "This is the zone of the domain: it is never deleted",
-        "error_confirm_mismatch": "The name does not match the zone"
+        "error_confirm_mismatch": "The name does not match the zone",
+        "compare": "Compare with the public DNS",
+        "compare_help": "Sends the names of this zone to a public resolver over HTTPS. Nothing is changed.",
+        "comparing": "Comparing {zone} with the public DNS",
+        "compare_failed": "The comparison failed, see the module log",
+        "compare_not_public_title": "Not in the public DNS",
+        "compare_not_public": "The public DNS does not know {zone}: there is nothing to compare, the zone is internal only.",
+        "compare_summary": "{differs} differ, {only} only internal, {same} equal",
+        "compare_show_all": "Also show records that are equal or only internal",
+        "compare_skipped": "{n} names were not compared: too many in this zone.",
+        "compare_nothing": "No record differs from the public DNS.",
+        "compare_internal": "Internal",
+        "compare_public": "Public",
+        "compare_none": "no such record",
+        "compare_same": "equal",
+        "compare_internal_only": "only internal",
+        "compare_differs": "differs",
+        "adopt": "Take the public value",
+        "adopt_delete": "Delete internal record",
+        "adopt_title": "Take the public value",
+        "adopt_delete_title": "Delete the internal record",
+        "adopt_desc": "The internal records of {name} are replaced with what the public DNS says now.",
+        "adopt_delete_desc": "The internal record of {name} is deleted. Computers that ask the domain controller then get no answer for it from the zone {zone}; the public DNS answers only if the internal zone covers nothing but this name and is deleted as well.",
+        "adopt_alias_note": "The public DNS has an alias (CNAME) here: every other internal record of this name is removed, an alias stands alone.",
+        "change_adopted": "Taken from the public DNS",
+        "error_public_dns_unreachable": "No public resolver could be reached over HTTPS",
+        "error_no_public_record": "The public DNS has no such record any more",
+        "compare_dnshelper": "To change the public side instead, use the DNS helper of this cluster:",
+        "compare_no_dnshelper": "Changes here only touch the internal zone. The public side is changed at the DNS provider, or from this cluster with the module dnshelper."
     }
 }

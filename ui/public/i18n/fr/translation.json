@@ -69,7 +69,9 @@
         "remove-dns-record": "Supprimer l'enregistrement DNS",
         "grant-dns-zone": "Modifier les droits sur une zone DNS",
         "create-dns-zone": "Créer une zone DNS",
-        "remove-dns-zone": "Supprimer une zone DNS"
+        "remove-dns-zone": "Supprimer une zone DNS",
+        "compare-dns-zone": "Comparer la zone DNS avec le DNS public",
+        "adopt-dns-record": "Aligner l'enregistrement DNS"
     },
     "settings": {
         "title": "Paramètres",
@@ -598,6 +600,34 @@
         "error_zone_exists": "Cette zone existe déjà",
         "error_zone_above_domain": "Le domaine se trouve à l'intérieur de ce nom : la zone reprendrait les noms du domaine",
         "error_protected_domain_zone": "C'est la zone du domaine : elle n'est jamais supprimée",
-        "error_confirm_mismatch": "Le nom ne correspond pas à la zone"
+        "error_confirm_mismatch": "Le nom ne correspond pas à la zone",
+        "compare": "Comparer avec le DNS public",
+        "compare_help": "Envoie les noms de cette zone à un résolveur public via HTTPS. Rien n'est modifié.",
+        "comparing": "Comparaison de {zone} avec le DNS public",
+        "compare_failed": "La comparaison a échoué, voir le journal du module",
+        "compare_not_public_title": "Absent du DNS public",
+        "compare_not_public": "Le DNS public ne connaît pas {zone} : il n'y a rien à comparer, la zone est uniquement interne.",
+        "compare_summary": "{differs} différents, {only} uniquement internes, {same} identiques",
+        "compare_show_all": "Afficher aussi les enregistrements identiques ou uniquement internes",
+        "compare_skipped": "{n} noms n'ont pas été comparés : trop nombreux dans cette zone.",
+        "compare_nothing": "Aucun enregistrement ne diffère du DNS public.",
+        "compare_internal": "Interne",
+        "compare_public": "Public",
+        "compare_none": "aucun enregistrement de ce type",
+        "compare_same": "identique",
+        "compare_internal_only": "uniquement interne",
+        "compare_differs": "différent",
+        "adopt": "Reprendre la valeur publique",
+        "adopt_delete": "Supprimer l'enregistrement interne",
+        "adopt_title": "Reprendre la valeur publique",
+        "adopt_delete_title": "Supprimer l'enregistrement interne",
+        "adopt_desc": "Les enregistrements internes de {name} sont remplacés par ce que le DNS public fournit maintenant.",
+        "adopt_delete_desc": "L'enregistrement interne de {name} est supprimé. Les ordinateurs qui interrogent le contrôleur de domaine n'obtiennent alors plus de réponse de la zone {zone} ; le DNS public ne répond que si la zone interne ne couvre que ce nom et est supprimée elle aussi.",
+        "adopt_alias_note": "Le DNS public a ici un alias (CNAME) : tous les autres enregistrements internes de ce nom sont retirés, un alias est seul.",
+        "change_adopted": "Repris du DNS public",
+        "error_public_dns_unreachable": "Aucun résolveur public n'a pu être joint via HTTPS",
+        "error_no_public_record": "Le DNS public n'a plus cet enregistrement",
+        "compare_dnshelper": "Pour modifier plutôt le côté public, utiliser le DNS helper de ce cluster :",
+        "compare_no_dnshelper": "Les modifications ici ne concernent que la zone interne. Le côté public se modifie chez le fournisseur DNS, ou depuis ce cluster avec le module dnshelper."
     }
 }

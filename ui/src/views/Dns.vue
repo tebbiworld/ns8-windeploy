@@ -134,6 +134,123 @@
               class="own"
             />
           </div>
+          <div v-if="!currentZone.reverse" class="compare-bar">
+            <NsButton
+              kind="tertiary"
+              size="small"
+              :icon="Compare20"
+              :loading="loading.compare"
+              :disabled="loading.compare"
+              @click="compareZone"
+              >{{ $t("dns.compare") }}</NsButton
+            >
+            <span class="muted small">{{ $t("dns.compare_help") }}</span>
+          </div>
+          <NsInlineNotification
+            v-if="error.compare"
+            kind="error"
+            :title="$t('action.compare-dns-zone')"
+            :description="error.compare"
+            :showCloseButton="false"
+          />
+          <div v-if="comparison" class="comparison">
+            <NsInlineNotification
+              v-if="!comparison.public"
+              kind="info"
+              :title="$t('dns.compare_not_public_title')"
+              :description="$t('dns.compare_not_public', { zone })"
+              @close="comparison = null"
+            />
+            <template v-else>
+              <h5>
+                {{
+                  $t("dns.compare_summary", {
+                    differs: compareCount("differs"),
+                    only: compareCount("internal_only"),
+                    same: compareCount("same"),
+                  })
+                }}
+              </h5>
+              <cv-checkbox
+                value="all"
+                :label="$t('dns.compare_show_all')"
+                v-model="compareAll"
+              />
+              <p
+                v-if="comparison.dnshelper && comparison.dnshelper.length"
+                class="small helper"
+              >
+                {{ $t("dns.compare_dnshelper") }}
+                <cv-link
+                  v-for="h in comparison.dnshelper"
+                  :key="h"
+                  @click="core.$router.push('/apps/' + h)"
+                  >{{ h }}</cv-link
+                >
+              </p>
+              <p v-else class="muted small">
+                {{ $t("dns.compare_no_dnshelper") }}
+              </p>
+              <p v-if="comparison.skipped" class="warn small">
+                {{ $t("dns.compare_skipped", { n: comparison.skipped }) }}
+              </p>
+              <p v-if="!compareRows.length" class="muted">
+                {{ $t("dns.compare_nothing") }}
+              </p>
+              <table v-else class="list compare">
+                <thead>
+                  <tr>
+                    <th>{{ $t("dns.name") }}</th>
+                    <th>{{ $t("dns.compare_internal") }}</th>
+                    <th>{{ $t("dns.compare_public") }}</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in compareRows" :key="r.name + r.type">
+                    <td class="name">{{ r.name }}</td>
+                    <td class="data">
+                      <div v-for="v in r.internal" :key="v">
+                        {{ r.type }} {{ v }}
+                      </div>
+                    </td>
+                    <td class="data">
+                      <div v-for="v in r.public" :key="v">
+                        {{ r.public_type }} {{ v }}
+                      </div>
+                      <span v-if="!r.public.length" class="muted">{{
+                        $t("dns.compare_none")
+                      }}</span>
+                    </td>
+                    <td class="actions">
+                      <span v-if="r.status !== 'differs'" class="muted small">{{
+                        $t("dns.compare_" + r.status)
+                      }}</span>
+                      <template v-else-if="currentZone.writable">
+                        <NsButton
+                          kind="ghost"
+                          size="small"
+                          :icon="Download20"
+                          @click="askAdopt(r, 'public')"
+                          >{{ $t("dns.adopt") }}</NsButton
+                        >
+                        <NsButton
+                          kind="ghost"
+                          size="small"
+                          :icon="TrashCan20"
+                          @click="askAdopt(r, 'delete')"
+                          >{{ $t("dns.adopt_delete") }}</NsButton
+                        >
+                      </template>
+                      <span v-else class="warn small">{{
+                        $t("dns.compare_differs")
+                      }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </template>
+          </div>
           <cv-skeleton-text
             v-if="loading.records && !records.length"
             :paragraph="true"
@@ -357,6 +474,68 @@
       <template slot="primary-button">{{ $t("deployments.remove") }}</template>
     </NsModal>
 
+    <!-- take the public value or drop the internal record -->
+    <NsModal
+      :kind="adopt.mode === 'delete' ? 'danger' : 'default'"
+      :visible="adopt.visible"
+      :primary-button-disabled="loading.adopt"
+      @modal-hidden="adopt.visible = false"
+      @primary-click="adoptRecord"
+    >
+      <template slot="title">{{
+        adopt.mode === "delete"
+          ? $t("dns.adopt_delete_title")
+          : $t("dns.adopt_title")
+      }}</template>
+      <template slot="content">
+        <cv-form v-if="adopt.row" @submit.prevent>
+          <p>
+            {{
+              adopt.mode === "delete"
+                ? $t("dns.adopt_delete_desc", {
+                    name: adopt.row.name,
+                    zone,
+                  })
+                : $t("dns.adopt_desc", { name: adopt.row.name })
+            }}
+          </p>
+          <dl class="pairs">
+            <dt>{{ $t("dns.compare_internal") }}</dt>
+            <dd class="data struck">
+              <div v-for="v in adopt.row.internal" :key="v">
+                {{ adopt.row.type }} {{ v }}
+              </div>
+            </dd>
+            <template v-if="adopt.mode === 'public'">
+              <dt>{{ $t("dns.compare_public") }}</dt>
+              <dd class="data">
+                <div v-for="v in adopt.row.public" :key="v">
+                  {{ adopt.row.public_type }} {{ v }}
+                </div>
+              </dd>
+            </template>
+          </dl>
+          <p
+            v-if="adopt.mode === 'public' && adopt.row.public_type === 'CNAME'"
+            class="muted small"
+          >
+            {{ $t("dns.adopt_alias_note") }}
+          </p>
+          <NsInlineNotification
+            v-if="error.adopt"
+            kind="error"
+            :title="$t('action.adopt-dns-record')"
+            :description="error.adopt"
+            :showCloseButton="false"
+          />
+        </cv-form>
+      </template>
+      <template slot="secondary-button">{{ $t("common.cancel") }}</template>
+      <template slot="primary-button">{{
+        adopt.mode === "delete" ? $t("dns.adopt_delete") : $t("dns.adopt")
+      }}</template>
+    </NsModal>
+
     <!-- new zone -->
     <NsModal
       :visible="newZone.visible"
@@ -516,6 +695,8 @@ import Renew20 from "@carbon/icons-vue/es/renew/20";
 import TrashCan20 from "@carbon/icons-vue/es/trash-can/20";
 import Locked20 from "@carbon/icons-vue/es/locked/20";
 import Unlocked20 from "@carbon/icons-vue/es/unlocked/20";
+import Compare20 from "@carbon/icons-vue/es/compare/20";
+import Download20 from "@carbon/icons-vue/es/download/20";
 import {
   QueryParamService,
   UtilService,
@@ -548,6 +729,11 @@ export default {
       TrashCan20,
       Locked20,
       Unlocked20,
+      Compare20,
+      Download20,
+      comparison: null,
+      compareAll: false,
+      adopt: { visible: false, row: null, mode: "public" },
       zones: [],
       zone: "",
       records: [],
@@ -573,6 +759,8 @@ export default {
         remove: false,
         grant: false,
         zone: false,
+        compare: false,
+        adopt: false,
       },
       error: {
         zones: "",
@@ -585,6 +773,8 @@ export default {
         grant: "",
         zoneName: "",
         zoneAdmin: "",
+        compare: "",
+        adopt: "",
       },
     };
   },
@@ -598,6 +788,12 @@ export default {
       return this.currentZone.reverse
         ? ["PTR", "CNAME", "TXT"]
         : TYPES.filter((t) => t !== "PTR");
+    },
+    compareRows() {
+      if (!this.comparison) return [];
+      return this.comparison.rows.filter(
+        (r) => this.compareAll || r.status === "differs"
+      );
     },
     shown() {
       const text = this.filter.text.toLowerCase();
@@ -677,6 +873,8 @@ export default {
     selectZone(name) {
       this.zone = name;
       this.records = [];
+      this.comparison = null;
+      this.error.compare = "";
       this.listRecords();
     },
     async listRecords() {
@@ -692,6 +890,51 @@ export default {
         this.error.records = this.errorText(e, "dns.records_failed");
       } finally {
         this.loading.records = false;
+      }
+    },
+    compareCount(status) {
+      return this.comparison.rows.filter((r) => r.status === status).length;
+    },
+    async compareZone() {
+      this.loading.compare = true;
+      this.error.compare = "";
+      try {
+        this.comparison = await this.runModuleTask(
+          "compare-dns-zone",
+          { zone: this.zone },
+          {
+            title: this.$t("dns.comparing", { zone: this.zone }),
+            hidden: false,
+          }
+        );
+      } catch (e) {
+        this.comparison = null;
+        this.error.compare = this.errorText(e, "dns.compare_failed");
+      } finally {
+        this.loading.compare = false;
+      }
+    },
+    askAdopt(row, mode) {
+      this.error.adopt = "";
+      this.adopt = { visible: true, row, mode };
+    },
+    async adoptRecord() {
+      const a = this.adopt;
+      this.error.adopt = "";
+      this.loading.adopt = true;
+      try {
+        await this.runModuleTask(
+          "adopt-dns-record",
+          { zone: this.zone, name: a.row.name, type: a.row.type, mode: a.mode },
+          { title: this.$t("dns.saving", { name: a.row.name }), hidden: false }
+        );
+        this.adopt.visible = false;
+        await this.listZones();
+        this.compareZone();
+      } catch (e) {
+        this.error.adopt = this.errorText(e, "deployments.save_failed");
+      } finally {
+        this.loading.adopt = false;
       }
     },
     openEditor(r) {
@@ -994,6 +1237,34 @@ table.records {
 }
 .record {
   margin: $spacing-04 0;
+}
+.compare-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-05;
+  margin-bottom: $spacing-05;
+}
+.comparison {
+  margin-bottom: $spacing-06;
+  padding: $spacing-05;
+  background: $ui-01;
+  h5 {
+    margin-bottom: $spacing-03;
+  }
+}
+.helper a {
+  margin-left: $spacing-03;
+  cursor: pointer;
+}
+.pairs {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: $spacing-03 $spacing-06;
+  margin: $spacing-05 0;
+  dt {
+    font-weight: 600;
+  }
 }
 .struck {
   text-decoration: line-through;
