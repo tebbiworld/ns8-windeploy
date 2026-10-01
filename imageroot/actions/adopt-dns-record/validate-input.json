@@ -1,0 +1,54 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "adopt-dns-record input",
+    "$id": "http://schema.nethserver.org/windeploy/adopt-dns-record-input.json",
+    "description": "Set the internal records of a name to what the public DNS says, or delete them",
+    "examples": [
+        {
+            "zone": "example.com",
+            "name": "invest",
+            "type": "CNAME",
+            "mode": "public"
+        }
+    ],
+    "type": "object",
+    "required": [
+        "zone",
+        "name",
+        "type"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "zone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[A-Za-z0-9_.-]+$"
+        },
+        "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^(@|[A-Za-z0-9_.-]+)$"
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "A",
+                "AAAA",
+                "CNAME",
+                "MX",
+                "SRV",
+                "TXT"
+            ]
+        },
+        "mode": {
+            "description": "public: take the public values; delete: remove the internal records of this name and type",
+            "type": "string",
+            "enum": [
+                "public",
+                "delete"
+            ]
+        }
+    }
+}

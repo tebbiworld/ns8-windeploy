@@ -6,12 +6,12 @@ TBA
 
 windeploy is a community application from the [[ns8:tebbiworld_repository|tebbiworld]] repository. Documentation and source can be found on [[https://github.com/tebbiworld/ns8-windeploy|Github]]
 
-**Status: alpha.** Pre-releases are published as testing versions. Not for production yet.
+**Status: beta.** The 0.x versions install from the Software Center like any other application. Try it on a test domain first.
 
 =====What it does=====
   * **Software deployment** — search the [[https://github.com/microsoft/winget-pkgs|winget community repository]] and roll packages out to the computers of the domain or of organizational units. A deployment is one GPO with one scheduled task per package; the task runs winget as SYSTEM, daily or weekly, or once with "run now".
   * **Policies** — security settings for the computers as GPOs: lock idle sessions, logon notice, removable media, BitLocker recovery keys into the directory, time source, Defender, firewall, print spooler, NTLMv2, auditing, event log sizes, PowerShell logging. 20 settings in six groups.
-  * **DNS** — show the internal DNS zones of the domain and add, change and delete records: A, AAAA, CNAME, MX, SRV, TXT, and PTR in reverse zones. Create and delete zones, reverse zones from their network.
+  * **DNS** — show the internal DNS zones of the domain and add, change and delete records: A, AAAA, CNAME, MX, SRV, TXT, and PTR in reverse zones. Create and delete zones, reverse zones from their network. Compare a zone with the public DNS and see which internal records differ.
   * No Windows machine is needed to manage any of this, and no domain admin account is stored.
 
 =====How it works=====
@@ -21,7 +21,7 @@ windeploy is a community application from the [[ns8:tebbiworld_repository|tebbiw
   * One instance serves one domain. The module runs rootless and needs no route and no port.
 
 =====First steps=====
-  - Install the module from the Software Center (enable testing versions for the repository) and open its **Settings**.
+  - Install the module from the Software Center and open its **Settings**.
   - Pick the domain and let the module set up the service account, or follow the numbered steps on the **Guide** page to do it by hand.
   - Check that every line of the rights check is green.
   - Create a deployment on the **Deployments** page: search a package, choose a schedule and link it to the domain or to an organizational unit.
@@ -62,7 +62,7 @@ Windows 11 25H2 clients in a Samba 4.19 domain (NS8 samba module). Not tested: W
 
 {{tag>application}}
 {{tag>category:Sysadmin}}
-{{tag>status:Alpha}}
+{{tag>status:Beta}}
 {{tag>certlevel:1}}
 {{tag>repo:tebbiworld}}
 {{tag>description:"Windows software deployment with winget, security policies and internal DNS records through Group Policy in a Samba or Windows Active Directory"}}

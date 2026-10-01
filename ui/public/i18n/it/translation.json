@@ -113,7 +113,9 @@
         "remove-dns-record": "Elimina record DNS",
         "grant-dns-zone": "Modifica diritti su una zona DNS",
         "create-dns-zone": "Crea zona DNS",
-        "remove-dns-zone": "Elimina zona DNS"
+        "remove-dns-zone": "Elimina zona DNS",
+        "compare-dns-zone": "Confronta zona DNS con il DNS pubblico",
+        "adopt-dns-record": "Allinea record DNS"
     },
     "task": {
         "cannot_create_task": "Impossibile eseguire il task {action}"
@@ -598,6 +600,34 @@
         "error_zone_exists": "Questa zona esiste già",
         "error_zone_above_domain": "Il dominio si trova all'interno di questo nome: la zona assumerebbe i nomi del dominio",
         "error_protected_domain_zone": "È la zona del dominio: non viene mai eliminata",
-        "error_confirm_mismatch": "Il nome non corrisponde alla zona"
+        "error_confirm_mismatch": "Il nome non corrisponde alla zona",
+        "compare": "Confronta con il DNS pubblico",
+        "compare_help": "Invia i nomi di questa zona a un resolver pubblico tramite HTTPS. Non viene modificato nulla.",
+        "comparing": "Confronto di {zone} con il DNS pubblico",
+        "compare_failed": "Il confronto non è riuscito, vedere il registro del modulo",
+        "compare_not_public_title": "Non presente nel DNS pubblico",
+        "compare_not_public": "Il DNS pubblico non conosce {zone}: non c'è nulla da confrontare, la zona è solo interna.",
+        "compare_summary": "{differs} diversi, {only} solo interni, {same} uguali",
+        "compare_show_all": "Mostra anche i record uguali o solo interni",
+        "compare_skipped": "{n} nomi non sono stati confrontati: troppi in questa zona.",
+        "compare_nothing": "Nessun record differisce dal DNS pubblico.",
+        "compare_internal": "Interno",
+        "compare_public": "Pubblico",
+        "compare_none": "nessun record di questo tipo",
+        "compare_same": "uguale",
+        "compare_internal_only": "solo interno",
+        "compare_differs": "diverso",
+        "adopt": "Usa il valore pubblico",
+        "adopt_delete": "Elimina record interno",
+        "adopt_title": "Usa il valore pubblico",
+        "adopt_delete_title": "Elimina il record interno",
+        "adopt_desc": "I record interni di {name} vengono sostituiti con ciò che il DNS pubblico fornisce ora.",
+        "adopt_delete_desc": "Il record interno di {name} viene eliminato. I computer che interrogano il controller di dominio non ricevono più risposta dalla zona {zone}; il DNS pubblico risponde solo se la zona interna copre esclusivamente questo nome e viene eliminata anch'essa.",
+        "adopt_alias_note": "Il DNS pubblico ha qui un alias (CNAME): tutti gli altri record interni di questo nome vengono rimossi, un alias sta da solo.",
+        "change_adopted": "Preso dal DNS pubblico",
+        "error_public_dns_unreachable": "Nessun resolver pubblico raggiungibile tramite HTTPS",
+        "error_no_public_record": "Il DNS pubblico non ha più questo record",
+        "compare_dnshelper": "Per modificare invece il lato pubblico, usare il DNS helper di questo cluster:",
+        "compare_no_dnshelper": "Le modifiche qui riguardano solo la zona interna. Il lato pubblico si modifica presso il provider DNS, oppure da questo cluster con il modulo dnshelper."
     }
 }

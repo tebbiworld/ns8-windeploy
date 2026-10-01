@@ -5,9 +5,10 @@ searches the [winget community repository](https://github.com/microsoft/winget-p
 and rolls out Windows software through Group Policy scheduled tasks in a
 Samba (or Windows) Active Directory.
 
-> Status: alpha. Pre-releases are published as testing versions in the
-> [tebbiworld repository](https://github.com/tebbiworld/ns8-repo); not for
-> production yet.
+> Status: beta. The 0.x versions are regular releases in the
+> [tebbiworld repository](https://github.com/tebbiworld/ns8-repo) and can
+> be installed from the Software Center without enabling testing versions.
+> Try it on a test domain first.
 
 ## How it works
 
@@ -100,7 +101,22 @@ For an address the reverse record can be kept along.
 - Removing the module leaves the zones, the records and the rights on
   the zones as they are.
 
-Not part of the module yet: import and export of zones.
+- **Compare with the public DNS**: an internal zone answers for its whole
+  name, so a record changed at the DNS provider keeps its old value for
+  everybody who asks the domain controller. The comparison lists the
+  records the module may change next to what the public DNS says: equal,
+  different, or only internal. For a record that differs the internal
+  side can take the public value or be deleted. The public side is
+  asked over DNS over HTTPS (Cloudflare, then Google), because routers
+  often redirect plain DNS to the internal server; the names of the
+  zone are sent to that resolver. Wildcards and zones the public DNS
+  does not know are not compared.
+- If the cluster has a [dnshelper](https://github.com/danb35/ns8-dnshelper)
+  instance, the comparison points to it: that module changes the public
+  side at the DNS provider.
+
+Not part of the module yet: import and export of zones, changing the
+public side through dnshelper.
 
 ## Lifecycle of the GPOs
 
@@ -152,8 +168,8 @@ Tested end to end with Windows 11 25H2 clients in a Samba 4.19 domain
 
 ## Install
 
-Add the tebbiworld repository to the cluster with testing versions
-enabled and install the module from the Software Center, or:
+Add the tebbiworld repository to the cluster and install the module from
+the Software Center, or:
 
 ```
 add-module ghcr.io/tebbiworld/windeploy:<version> 1

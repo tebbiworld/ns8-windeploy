@@ -116,7 +116,9 @@
         "remove-dns-record": "DNS-Eintrag löschen",
         "grant-dns-zone": "Rechte an einer DNS-Zone ändern",
         "create-dns-zone": "DNS-Zone anlegen",
-        "remove-dns-zone": "DNS-Zone löschen"
+        "remove-dns-zone": "DNS-Zone löschen",
+        "compare-dns-zone": "DNS-Zone mit dem öffentlichen DNS vergleichen",
+        "adopt-dns-record": "DNS-Eintrag angleichen"
     },
     "task": {
         "cannot_create_task": "Aufgabe {action} kann nicht erstellt werden"
@@ -598,6 +600,34 @@
         "error_zone_exists": "Diese Zone gibt es schon",
         "error_zone_above_domain": "Die Domäne liegt innerhalb dieses Namens: die Zone würde die Namen der Domäne übernehmen",
         "error_protected_domain_zone": "Das ist die Zone der Domäne: sie wird nie gelöscht",
-        "error_confirm_mismatch": "Der Name stimmt nicht mit der Zone überein"
+        "error_confirm_mismatch": "Der Name stimmt nicht mit der Zone überein",
+        "compare": "Mit dem öffentlichen DNS vergleichen",
+        "compare_help": "Schickt die Namen dieser Zone per HTTPS an einen öffentlichen Resolver. Geändert wird nichts.",
+        "comparing": "{zone} wird mit dem öffentlichen DNS verglichen",
+        "compare_failed": "Der Vergleich ist fehlgeschlagen, siehe Modulprotokoll",
+        "compare_not_public_title": "Nicht im öffentlichen DNS",
+        "compare_not_public": "Das öffentliche DNS kennt {zone} nicht: es gibt nichts zu vergleichen, die Zone ist rein intern.",
+        "compare_summary": "{differs} weichen ab, {only} nur intern, {same} gleich",
+        "compare_show_all": "Auch gleiche und nur interne Einträge zeigen",
+        "compare_skipped": "{n} Namen wurden nicht verglichen: zu viele in dieser Zone.",
+        "compare_nothing": "Kein Eintrag weicht vom öffentlichen DNS ab.",
+        "compare_internal": "Intern",
+        "compare_public": "Öffentlich",
+        "compare_none": "kein solcher Eintrag",
+        "compare_same": "gleich",
+        "compare_internal_only": "nur intern",
+        "compare_differs": "weicht ab",
+        "adopt": "Öffentlichen Wert übernehmen",
+        "adopt_delete": "Internen Eintrag löschen",
+        "adopt_title": "Öffentlichen Wert übernehmen",
+        "adopt_delete_title": "Internen Eintrag löschen",
+        "adopt_desc": "Die internen Einträge von {name} werden durch das ersetzt, was das öffentliche DNS jetzt liefert.",
+        "adopt_delete_desc": "Der interne Eintrag von {name} wird gelöscht. Rechner, die den Domänencontroller fragen, bekommen dafür aus der Zone {zone} dann keine Antwort mehr; das öffentliche DNS antwortet nur, wenn die interne Zone ausschließlich diesen Namen abdeckt und ebenfalls gelöscht wird.",
+        "adopt_alias_note": "Das öffentliche DNS hat hier einen Alias (CNAME): alle anderen internen Einträge dieses Namens werden entfernt, ein Alias steht allein.",
+        "change_adopted": "Aus dem öffentlichen DNS übernommen",
+        "error_public_dns_unreachable": "Kein öffentlicher Resolver war per HTTPS erreichbar",
+        "error_no_public_record": "Das öffentliche DNS hat diesen Eintrag nicht mehr",
+        "compare_dnshelper": "Um stattdessen die öffentliche Seite zu ändern, den DNS-Helper dieses Clusters verwenden:",
+        "compare_no_dnshelper": "Änderungen hier betreffen nur die interne Zone. Die öffentliche Seite wird beim DNS-Anbieter geändert, oder aus diesem Cluster mit dem Modul dnshelper."
     }
 }
