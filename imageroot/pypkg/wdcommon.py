@@ -82,6 +82,14 @@ def ns8_domains():
     return sorted(domains.values(), key=lambda d: d["name"])
 
 
+def dnshelper_instances():
+    """Module ids of the dnshelper instances of the cluster (the module by
+    danb35 that changes public zones at DNS providers). They announce
+    themselves as module/<id>/srv/api/dnshelper."""
+    rdb = agent.redis_connect()
+    return sorted(key.split("/")[1] for key in rdb.scan_iter("module/*/srv/api/dnshelper"))
+
+
 def connection_settings(env=None):
     """DC connection from state/environment, filled from the NS8 domain when
     the admin picked one and left the DC fields empty."""

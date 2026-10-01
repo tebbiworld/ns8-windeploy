@@ -1,0 +1,24 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "compare-dns-zone input",
+    "$id": "http://schema.nethserver.org/windeploy/compare-dns-zone-input.json",
+    "description": "Compare the changeable records of an internal zone with the public DNS",
+    "examples": [
+        {
+            "zone": "example.com"
+        }
+    ],
+    "type": "object",
+    "required": [
+        "zone"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "zone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "pattern": "^[A-Za-z0-9_.-]+$"
+        }
+    }
+}

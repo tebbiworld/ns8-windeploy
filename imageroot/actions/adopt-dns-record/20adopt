@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Make the internal records of one name say what the public DNS says, or
+# delete them ("mode": "delete"), so that the name is answered by the
+# public DNS again where the internal zone covers only this name. The
+# public values are looked up again here, not taken from the request.
+
+import json
+import sys
+
+import agent
+import dnscompare
+import dnsrules
+import wdcommon
+
+request = json.load(sys.stdin)
+mode = request.get("mode", "public")
+try:
+    zone = dnsrules.check_zone(request["zone"])
+    name = dnsrules.check_name(request["name"])
+    rtype = request["type"]
+    records = [r for r in wdcommon.run_tool({"op": "dns_records", "zone": zone}, timeout=180) if r["name"] == name]
+    if any(r["locked"] for r in records):
+        raise dnsrules.RuleError("protected_" + next(r["locked"] for r in records if r["locked"]), name)
+    node = [(r["type"], r["data"], r["dynamic"]) for r in records]
+    if mode == "delete":
+        delete, add = sorted((t, d) for t, d, _ in node if t == rtype), []
+    else:
+        kind, ptype, values = dnscompare.public_view(dnscompare.fqdn(zone, name), rtype)
+        if kind in ("missing", "empty"):
+            raise dnsrules.RuleError("no_public_record", name)
+        for v in values:
+            dnsrules.normalize(ptype, v)
+        delete, add = dnscompare.adoption(name, rtype, node, kind, ptype, values)
+    ttl = next((r["ttl"] for r in records if r["type"] == rtype), dnsrules.TTL_DEFAULT)
+    ttl = min(max(ttl, dnsrules.TTL_MIN), dnsrules.TTL_MAX)
+    # deletions first: an alias cannot stand next to other records
+    for t, d in delete:
+        wdcommon.run_tool({"op": "dns_delete", "zone": zone, "name": name, "type": t, "data": d, "pointer": True}, timeout=120)
+        wdcommon.log_dns_change("deleted", zone, {"name": name, "type": t, "data": d}, None)
+    for t, d in add:
+        res = wdcommon.run_tool({"op": "dns_save", "zone": zone, "name": name, "type": t, "data": d, "ttl": ttl,
+                                 "pointer": False}, timeout=120)
+        wdcommon.log_dns_change("adopted", zone, None, {k: res[k] for k in ("name", "type", "data", "ttl")})
+except dnscompare.LookupError_ as ex:
+    print(agent.SD_ERR + str(ex), file=sys.stderr)
+    agent.set_status("validation-failed")
+    json.dump([{"field": "zone", "parameter": "zone", "value": "", "error": "public_dns_unreachable"}], fp=sys.stdout)
+    sys.exit(3)
+except (wdcommon.ToolError, ValueError) as ex:
+    wdcommon.dns_failed(ex, "name")
+
+print(agent.SD_INFO + f"DNS {zone}: {name} {rtype} {mode}: {len(delete)} deleted, {len(add)} added", file=sys.stderr)
+json.dump({"zone": zone, "name": name, "deleted": [list(x) for x in delete], "added": [list(x) for x in add]}, fp=sys.stdout)
