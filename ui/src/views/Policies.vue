@@ -113,8 +113,15 @@
               <tr v-for="p in profiles" :key="p.id">
                 <td class="name">
                   {{ p.name }}
-                  <div v-if="p.state === 'resetting'" class="warn small">
-                    {{ $t("policies.resetting") }}
+                  <div v-if="p.pending_delete" class="warn small">
+                    {{
+                      $t("removal.pending", {
+                        date: formatDate(p.pending_delete.until),
+                      })
+                    }}
+                  </div>
+                  <div v-if="p.pending_delete" class="muted small">
+                    {{ p.pending_delete.reason }}
                   </div>
                 </td>
                 <td>
@@ -141,9 +148,25 @@
                   <div class="muted guid">{{ p.gpo_guid }}</div>
                   <div class="muted small">{{ formatDate(p.changed) }}</div>
                 </td>
-                <td class="actions">
+                <td v-if="p.pending_delete" class="actions">
                   <NsButton
-                    v-if="p.state !== 'resetting'"
+                    kind="ghost"
+                    size="small"
+                    :icon="Undo20"
+                    @click="askRemove(p, 'cancel')"
+                    >{{ $t("removal.button_cancel") }}</NsButton
+                  >
+                  <NsButton
+                    kind="ghost"
+                    size="small"
+                    :icon="TrashCan20"
+                    :disabled="!isDue(p.pending_delete)"
+                    @click="askRemove(p, 'delete')"
+                    >{{ $t("removal.button_delete") }}</NsButton
+                  >
+                </td>
+                <td v-else class="actions">
+                  <NsButton
                     kind="ghost"
                     size="small"
                     :icon="Edit20"
@@ -154,7 +177,7 @@
                     kind="ghost"
                     size="small"
                     :icon="TrashCan20"
-                    @click="askRemove(p)"
+                    @click="askRemove(p, 'start')"
                     >{{ $t("deployments.remove") }}</NsButton
                   >
                 </td>
@@ -332,48 +355,19 @@
     </NsModal>
 
     <!-- remove -->
-    <NsModal
-      kind="danger"
+    <RemovalDialog
+      kind="policy"
       :visible="remove.visible"
-      :primary-button-disabled="loading.remove"
-      @modal-hidden="remove.visible = false"
-      @primary-click="removePolicy"
-    >
-      <template slot="title">{{ $t("policies.remove_title") }}</template>
-      <template slot="content">
-        <cv-form @submit.prevent>
-          <p>
-            {{ $t("policies.remove_" + remove.step, { name: remove.name }) }}
-          </p>
-          <ul v-if="remove.stays.length" class="bullets">
-            <li v-for="id in remove.stays" :key="id">
-              {{ $t("policy_setting." + id + ".title") }}
-            </li>
-          </ul>
-          <p v-if="remove.step === 'reset'" class="muted small">
-            {{ $t("policies.remove_reset_next") }}
-          </p>
-          <NsTextInput
-            :label="$t('policies.reason_label')"
-            v-model.trim="remove.reason"
-            :invalid-message="error.removeReason"
-          />
-          <NsInlineNotification
-            v-if="error.remove"
-            kind="error"
-            :title="$t('action.remove-policy')"
-            :description="error.remove"
-            :showCloseButton="false"
-          />
-        </cv-form>
-      </template>
-      <template slot="secondary-button">{{ $t("common.cancel") }}</template>
-      <template slot="primary-button">{{
-        remove.step === "reset"
-          ? $t("policies.remove_button_reset")
-          : $t("deployments.remove")
-      }}</template>
-    </NsModal>
+      :step="remove.step"
+      :name="remove.name"
+      :until="remove.until"
+      :stays="remove.stays"
+      :graceDays="graceDays"
+      :loading="loading.remove"
+      :error="error.remove"
+      @hidden="remove.visible = false"
+      @submit="removePolicy"
+    />
   </cv-grid>
 </template>
 
@@ -383,6 +377,8 @@ import Add20 from "@carbon/icons-vue/es/add/20";
 import Edit20 from "@carbon/icons-vue/es/edit/20";
 import Renew20 from "@carbon/icons-vue/es/renew/20";
 import TrashCan20 from "@carbon/icons-vue/es/trash-can/20";
+import Undo20 from "@carbon/icons-vue/es/undo/20";
+import RemovalDialog from "@/components/RemovalDialog";
 import {
   QueryParamService,
   UtilService,
@@ -393,6 +389,7 @@ import moduleTask from "@/mixins/moduleTask";
 
 export default {
   name: "Policies",
+  components: { RemovalDialog },
   mixins: [
     moduleTask,
     IconService,
@@ -411,6 +408,7 @@ export default {
       Edit20,
       Renew20,
       TrashCan20,
+      Undo20,
       catalog: [],
       groups: [],
       profiles: [],
@@ -422,10 +420,11 @@ export default {
         visible: false,
         id: "",
         name: "",
-        step: "delete",
+        step: "start",
+        until: "",
         stays: [],
-        reason: "",
       },
+      graceDays: 14,
       loading: { list: false, targets: false, save: false, remove: false },
       error: {
         list: "",
@@ -434,7 +433,6 @@ export default {
         name: "",
         reason: "",
         remove: "",
-        removeReason: "",
       },
     };
   },
@@ -531,6 +529,7 @@ export default {
         this.groups = res.groups;
         this.profiles = res.profiles;
         this.log = res.log;
+        this.graceDays = res.grace_days || 14;
         this.domain = res.domain;
       } catch (e) {
         this.error.list = this.$t("error.generic_error");
@@ -637,8 +636,13 @@ export default {
         this.loading.save = false;
       }
     },
-    askRemove(p) {
-      this.error.remove = this.error.removeReason = "";
+    isDue(pending) {
+      return !!pending && new Date(pending.until) <= new Date();
+    },
+    askRemove(p, step) {
+      this.error.remove = "";
+      // settings Windows does not remove by itself: they write the
+      // Windows defaults during the waiting period
       const stays = Object.keys(p.settings).filter(
         (id) => p.settings[id].state === "on" && this.byId(id).tattoo
       );
@@ -646,35 +650,32 @@ export default {
         visible: true,
         id: p.id,
         name: p.name,
-        step: stays.length ? "reset" : "delete",
-        stays,
-        reason: "",
+        step,
+        until: p.pending_delete ? p.pending_delete.until : "",
+        stays: step === "start" ? stays : [],
       };
     },
-    async removePolicy() {
-      this.error.remove = this.error.removeReason = "";
-      if (this.remove.reason.length < 3) {
-        this.error.removeReason = this.$t("policies.reason_required");
-        return;
-      }
+    async removePolicy(data) {
+      this.error.remove = "";
       this.loading.remove = true;
       try {
         await this.runModuleTask(
           "remove-policy",
+          { id: this.remove.id, ...data },
           {
-            id: this.remove.id,
-            step: this.remove.step,
-            reason: this.remove.reason,
-          },
-          {
-            title: this.$t("policies.removing", { name: this.remove.name }),
+            title: this.$t("removal.task_" + data.step, {
+              name: this.remove.name,
+            }),
             hidden: false,
           }
         );
         this.remove.visible = false;
         this.listPolicies();
       } catch (e) {
-        this.error.remove = this.$t("deployments.remove_failed");
+        this.error.remove =
+          e.validation && e.validation[0]
+            ? this.$t("removal.error_" + e.validation[0].error)
+            : this.$t("deployments.remove_failed");
       } finally {
         this.loading.remove = false;
       }

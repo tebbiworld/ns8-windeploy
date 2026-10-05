@@ -59,7 +59,9 @@
         "optional": "optional",
         "right_can_manage_gpos": "Vorhandene GPOs des Moduls ändern",
         "foreign_gpos": "Eine Verteilung hat ein GPO, das dieses Konto nicht ändern darf (von einem früheren Dienstkonto angelegt). Abhilfe: unter Einstellungen die automatische Einrichtung erneut ausführen, sie übergibt die GPOs an die Gruppe {group}. | {n} Verteilungen haben GPOs, die dieses Konto nicht ändern darf (von einem früheren Dienstkonto angelegt). Abhilfe: unter Einstellungen die automatische Einrichtung erneut ausführen, sie übergibt die GPOs an die Gruppe {group}.",
-        "not_in_group": "Das Konto ist nicht Mitglied der Gruppe {group}: GPOs, die es anlegt, kann ein späteres Dienstkonto nicht übernehmen."
+        "not_in_group": "Das Konto ist nicht Mitglied der Gruppe {group}: GPOs, die es anlegt, kann ein späteres Dienstkonto nicht übernehmen.",
+        "grace_days": "Wartefrist beim Entfernen (Tage)",
+        "grace_days_help": "Zeit zwischen dem Start des Entfernens einer Verteilung oder eines Profils und dem Löschen des GPO. Vorgabe 14 Tage."
     },
     "common": {
         "required": "Erforderlich",
@@ -179,11 +181,6 @@
         "error_deployment_not_found": "Die Verteilung gibt es nicht mehr",
         "error_name_in_use": "Der Name ist schon vergeben",
         "error_generation_failed": "Die GPO-Dateien konnten nicht erzeugt werden",
-        "remove_title": "Verteilung entfernen",
-        "remove_desc": "Die Verteilung {name} und ihr GPO werden aus dem Active Directory gelöscht.",
-        "remove_clients_title": "Aufgaben auf den Rechnern",
-        "remove_clients_desc": "Jeder Rechner entfernt die geplanten Aufgaben dieser Verteilung bei seiner nächsten Richtlinienaktualisierung (Start, etwa alle 90 Minuten oder gpupdate), auch wenn er erst Monate später eingeschaltet wird. Installierte Software bleibt.",
-        "removing": "Verteilung {name} wird entfernt",
         "remove_failed": "Entfernen fehlgeschlagen, siehe Modulprotokoll",
         "run_now": "Sofort auslösen",
         "run_now_task": "{name} sofort auslösen",
@@ -206,7 +203,8 @@
         "error_ou_create_failed": "Die OU {dn} konnte nicht angelegt werden, siehe Modulprotokoll.",
         "error_user_scope_only": "{value} installiert sich nur pro Benutzer und lässt sich nicht als SYSTEM verteilen",
         "scope_machine": "Maschinenweiter Installer vorhanden: die Verteilung verlangt ihn (--scope machine).",
-        "scope_user": "Nur Installation pro Benutzer: als SYSTEM nicht verteilbar, das Modul lehnt das Paket beim Speichern ab."
+        "scope_user": "Nur Installation pro Benutzer: als SYSTEM nicht verteilbar, das Modul lehnt das Paket beim Speichern ab.",
+        "error_removal_pending": "Das Entfernen läuft; zuerst abbrechen"
     },
     "mode": {
         "upgrade": "Aktualisieren, wenn installiert",
@@ -326,7 +324,6 @@
         "empty": "Keine Richtlinienprofile",
         "empty_desc": "Profil anlegen, Einstellungen wählen und mit der Domäne oder mit Organisationseinheiten verknüpfen.",
         "settings": "Einstellungen",
-        "resetting": "Wird entfernt: schreibt die Windows-Standardwerte",
         "reset_tag": "zurückgesetzt",
         "log_title": "Änderungen",
         "log_time": "Zeit",
@@ -349,18 +346,17 @@
         "reason_help": "Steht in der Liste der Änderungen.",
         "reason_required": "Grund eingeben (mindestens 3 Zeichen)",
         "saving": "Richtlinienprofil {name} wird gespeichert",
-        "removing": "Richtlinienprofil {name} wird entfernt",
         "remove_title": "Richtlinienprofil entfernen",
-        "remove_delete": "Das Profil {name} und sein GPO werden gelöscht. Die Rechner kehren bei der nächsten Richtlinienaktualisierung zu ihren eigenen Einstellungen zurück.",
-        "remove_reset": "Diese Einstellungen von {name} bleiben auf den Rechnern, wenn das GPO gelöscht wird. Das Profil wird deshalb so geändert, dass es die Windows-Standardwerte schreibt:",
-        "remove_reset_next": "Verknüpft lassen, bis alle Rechner eingeschaltet waren und ihre Richtlinien aktualisiert haben; danach das Profil erneut entfernen, dann wird es gelöscht.",
-        "remove_button_reset": "Einstellungen zurücksetzen",
         "error_not_configured": "Zuerst das Modul mit einer Domäne verbinden (Einstellungen)",
         "error_invalid_setting": "Einstellung prüfen: {value}",
         "error_link_target_not_found": "Nicht im Verzeichnis gefunden: {value}",
         "error_profile_not_found": "Das Profil gibt es nicht mehr",
         "error_name_in_use": "Ein anderes Profil heißt schon {value}",
-        "error_setting_required": "Mindestens eine Einstellung ankreuzen"
+        "error_setting_required": "Mindestens eine Einstellung ankreuzen",
+        "change_removal_started": "Entfernen gestartet",
+        "change_removal_cancelled": "Entfernen abgebrochen",
+        "change_deleted_by_timer": "Gelöscht nach Ablauf der Wartefrist",
+        "error_removal_pending": "Das Entfernen läuft; zuerst abbrechen"
     },
     "policy_group": {
         "logon": "Anmeldung und Sperre",
@@ -632,5 +628,35 @@
         "error_no_public_record": "Das öffentliche DNS hat diesen Eintrag nicht mehr",
         "compare_dnshelper": "Um stattdessen die öffentliche Seite zu ändern, den DNS-Helper dieses Clusters verwenden:",
         "compare_no_dnshelper": "Änderungen hier betreffen nur die interne Zone. Die öffentliche Seite wird beim DNS-Anbieter geändert, oder aus diesem Cluster mit dem Modul dnshelper."
+    },
+    "removal": {
+        "title_start": "Entfernen starten",
+        "title_cancel": "Entfernen abbrechen",
+        "title_delete": "Endgültig löschen",
+        "button_start": "Entfernen starten",
+        "button_cancel": "Entfernen abbrechen",
+        "button_delete": "Endgültig löschen",
+        "deployment_start": "Die Rechner löschen die geplanten Aufgaben von {name} bei ihrer nächsten Richtlinienaktualisierung. Das GPO bleibt während der Wartefrist verknüpft, damit auch selten verbundene Rechner das mitbekommen; danach wird es gelöscht. Installierte Software bleibt.",
+        "policy_start": "Die Einstellungen von {name} werden auf den Rechnern aufgehoben. Das GPO bleibt während der Wartefrist verknüpft, damit auch selten verbundene Rechner das mitbekommen; danach wird es gelöscht.",
+        "policy_stays": "Diese Einstellungen entfernt Windows nicht selbst. Das Profil schreibt während der Wartefrist dafür die Windows-Standardwerte:",
+        "deployment_cancel": "Die Aufgaben von {name} werden wieder so ins GPO geschrieben wie vor dem Start des Entfernens.",
+        "policy_cancel": "Die Einstellungen von {name} werden wieder so ins GPO geschrieben wie vor dem Start des Entfernens.",
+        "deployment_delete": "Die Wartefrist ist abgelaufen. Das GPO von {name} wird entknüpft und gelöscht.",
+        "policy_delete": "Die Wartefrist ist abgelaufen. Das GPO von {name} wird entknüpft und gelöscht.",
+        "days_label": "Wartefrist in Tagen",
+        "days_help": "Danach löscht das Modul das GPO von selbst (täglich gegen 3 Uhr). Vorgabe aus den Einstellungen.",
+        "days_range": "Eine ganze Zahl von 1 bis 365",
+        "pending": "Löschung ausstehend bis {date}",
+        "task_start": "Entfernen von {name} starten",
+        "task_cancel": "Entfernen von {name} abbrechen",
+        "task_delete": "{name} endgültig löschen",
+        "error_removal_pending": "Das Entfernen läuft bereits; zuerst abbrechen",
+        "error_removal_not_pending": "Für diesen Eintrag läuft kein Entfernen",
+        "error_removal_not_due": "Die Wartefrist ist noch nicht abgelaufen",
+        "log_title": "Entfernte Verteilungen",
+        "change_removal_started": "Entfernen gestartet",
+        "change_removal_cancelled": "Entfernen abgebrochen",
+        "change_deleted": "Gelöscht",
+        "change_deleted_by_timer": "Gelöscht nach Ablauf der Wartefrist"
     }
 }

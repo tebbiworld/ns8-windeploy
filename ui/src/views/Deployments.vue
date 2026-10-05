@@ -76,7 +76,19 @@
             </thead>
             <tbody>
               <tr v-for="d in deployments" :key="d.id">
-                <td class="name">{{ d.name }}</td>
+                <td class="name">
+                  {{ d.name }}
+                  <div v-if="d.pending_delete" class="warn small">
+                    {{
+                      $t("removal.pending", {
+                        date: formatDate(d.pending_delete.until),
+                      })
+                    }}
+                  </div>
+                  <div v-if="d.pending_delete" class="muted small">
+                    {{ d.pending_delete.reason }}
+                  </div>
+                </td>
                 <td>
                   <div v-for="p in d.packages" :key="p.id" class="pkg">
                     <a
@@ -119,7 +131,24 @@
                   }}</span>
                   <span v-else class="muted">{{ d.gpo_guid || "-" }}</span>
                 </td>
-                <td class="actions">
+                <td v-if="d.pending_delete" class="actions">
+                  <NsButton
+                    kind="ghost"
+                    size="small"
+                    :icon="Undo20"
+                    @click="askRemove(d, 'cancel')"
+                    >{{ $t("removal.button_cancel") }}</NsButton
+                  >
+                  <NsButton
+                    kind="ghost"
+                    size="small"
+                    :icon="TrashCan20"
+                    :disabled="!isDue(d.pending_delete)"
+                    @click="askRemove(d, 'delete')"
+                    >{{ $t("removal.button_delete") }}</NsButton
+                  >
+                </td>
+                <td v-else class="actions">
                   <NsButton
                     kind="ghost"
                     size="small"
@@ -140,10 +169,42 @@
                     kind="ghost"
                     size="small"
                     :icon="TrashCan20"
-                    @click="askRemove(d)"
+                    @click="askRemove(d, 'start')"
                     >{{ $t("deployments.remove") }}</NsButton
                   >
                 </td>
+              </tr>
+            </tbody>
+          </table>
+        </cv-tile>
+      </cv-column>
+    </cv-row>
+
+    <!-- removal log -->
+    <cv-row v-if="log.length">
+      <cv-column>
+        <cv-tile light>
+          <h4>{{ $t("removal.log_title") }}</h4>
+          <table class="deployments">
+            <thead>
+              <tr>
+                <th>{{ $t("policies.log_time") }}</th>
+                <th>{{ $t("deployments.name") }}</th>
+                <th>{{ $t("policies.log_change") }}</th>
+                <th>{{ $t("policies.reason") }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(l, i) in log" :key="i">
+                <td class="nowrap">{{ formatDate(l.time) }}</td>
+                <td>{{ l.deployment }}</td>
+                <td>
+                  {{ $t("removal.change_" + l.change) }}
+                  <div v-if="l.until" class="muted small">
+                    {{ $t("removal.pending", { date: formatDate(l.until) }) }}
+                  </div>
+                </td>
+                <td>{{ l.reason }}</td>
               </tr>
             </tbody>
           </table>
@@ -438,33 +499,18 @@
     </NsModal>
 
     <!-- remove -->
-    <NsModal
-      kind="danger"
+    <RemovalDialog
+      kind="deployment"
       :visible="remove.visible"
-      :primary-button-disabled="loading.remove"
-      @modal-hidden="remove.visible = false"
-      @primary-click="removeDeployment"
-    >
-      <template slot="title">{{ $t("deployments.remove_title") }}</template>
-      <template slot="content">
-        <p>{{ $t("deployments.remove_desc", { name: remove.name }) }}</p>
-        <NsInlineNotification
-          kind="info"
-          :title="$t('deployments.remove_clients_title')"
-          :description="$t('deployments.remove_clients_desc')"
-          :showCloseButton="false"
-        />
-        <NsInlineNotification
-          v-if="error.remove"
-          kind="error"
-          :title="$t('action.remove-deployment')"
-          :description="error.remove"
-          :showCloseButton="false"
-        />
-      </template>
-      <template slot="secondary-button">{{ $t("common.cancel") }}</template>
-      <template slot="primary-button">{{ $t("deployments.remove") }}</template>
-    </NsModal>
+      :step="remove.step"
+      :name="remove.name"
+      :until="remove.until"
+      :graceDays="graceDays"
+      :loading="loading.remove"
+      :error="error.remove"
+      @hidden="remove.visible = false"
+      @submit="removeDeployment"
+    />
   </cv-grid>
 </template>
 
@@ -476,6 +522,8 @@ import Renew20 from "@carbon/icons-vue/es/renew/20";
 import TrashCan20 from "@carbon/icons-vue/es/trash-can/20";
 import Play20 from "@carbon/icons-vue/es/play/20";
 import Launch16 from "@carbon/icons-vue/es/launch/16";
+import Undo20 from "@carbon/icons-vue/es/undo/20";
+import RemovalDialog from "@/components/RemovalDialog";
 import {
   QueryParamService,
   UtilService,
@@ -501,7 +549,7 @@ function today() {
 
 export default {
   name: "Deployments",
-  components: { Launch16 },
+  components: { Launch16, RemovalDialog },
   mixins: [
     moduleTask,
     IconService,
@@ -521,6 +569,7 @@ export default {
       Renew20,
       TrashCan20,
       Play20,
+      Undo20,
       runNow: { id: "", message: "", failed: false },
       weekdays: WEEKDAYS,
       ouInput: "",
@@ -539,7 +588,9 @@ export default {
         seq: 0,
       },
       details: { loading: false, data: null },
-      remove: { visible: false, id: "", name: "" },
+      remove: { visible: false, id: "", name: "", step: "start", until: "" },
+      graceDays: 14,
+      log: [],
       loading: {
         list: false,
         save: false,
@@ -652,6 +703,8 @@ export default {
       try {
         const res = await this.runModuleTask("list-deployments");
         this.deployments = res.deployments;
+        this.log = res.log || [];
+        this.graceDays = res.grace_days || 14;
         if (res.error) this.error.list = res.error;
       } catch (e) {
         this.error.list = this.$t("error.generic_error");
@@ -896,26 +949,40 @@ export default {
         };
       }
     },
-    askRemove(d) {
-      this.error.remove = "";
-      this.remove = { visible: true, id: d.id, name: d.name };
+    isDue(pending) {
+      return !!pending && new Date(pending.until) <= new Date();
     },
-    async removeDeployment() {
+    askRemove(d, step) {
+      this.error.remove = "";
+      this.remove = {
+        visible: true,
+        id: d.id,
+        name: d.name,
+        step,
+        until: d.pending_delete ? d.pending_delete.until : "",
+      };
+    },
+    async removeDeployment(data) {
       this.loading.remove = true;
       this.error.remove = "";
       try {
         await this.runModuleTask(
           "remove-deployment",
-          { id: this.remove.id },
+          { id: this.remove.id, ...data },
           {
-            title: this.$t("deployments.removing", { name: this.remove.name }),
+            title: this.$t("removal.task_" + data.step, {
+              name: this.remove.name,
+            }),
             hidden: false,
           }
         );
         this.remove.visible = false;
         this.listDeployments();
       } catch (e) {
-        this.error.remove = this.$t("deployments.remove_failed");
+        this.error.remove =
+          e.validation && e.validation[0]
+            ? this.$t("removal.error_" + e.validation[0].error)
+            : this.$t("deployments.remove_failed");
       } finally {
         this.loading.remove = false;
       }
@@ -969,6 +1036,13 @@ table.deployments {
 .guid {
   font-size: 0.75rem;
   word-break: break-all;
+}
+.warn {
+  color: #8e6a00;
+  font-weight: normal;
+}
+.nowrap {
+  white-space: nowrap;
 }
 .muted {
   color: $text-02;
