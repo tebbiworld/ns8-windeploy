@@ -448,17 +448,33 @@ def add_scheduled_tasks_extension(value):
     return format_extension_names(mapping)
 
 
-def bump_machine_version(version_number):
+def bump_version(version_number, machine=True, user=False):
     """versionNumber: user version in the upper 16 bit, computer version in
-    the lower 16 bit. Increment the computer part; it wraps to 1, not 0
-    (0 means "never changed" to the clients)."""
+    the lower 16 bit. Increment the parts that changed; a part wraps to 1,
+    not 0 (0 means "never changed" to the clients)."""
     version_number = int(version_number)
     if not 0 <= version_number <= 0xFFFFFFFF:
         raise GenError(f"versionNumber out of range: {version_number}")
-    user = version_number >> 16
-    machine = version_number & 0xFFFF
-    machine = machine + 1 if machine < 0xFFFF else 1
-    return (user << 16) | machine
+    user_part = version_number >> 16
+    machine_part = version_number & 0xFFFF
+    if machine:
+        machine_part = machine_part + 1 if machine_part < 0xFFFF else 1
+    if user:
+        user_part = user_part + 1 if user_part < 0xFFFF else 1
+    return (user_part << 16) | machine_part
+
+
+def bump_machine_version(version_number):
+    """Increment the computer part of versionNumber only."""
+    return bump_version(version_number, machine=True, user=False)
+
+
+def changed_parts(paths):
+    """Which halves of a GPO the written paths belong to: (machine, user).
+    Files outside Machine/ and User/ (windeploy.json) count for neither."""
+    machine = any(p.startswith("Machine/") for p in paths)
+    user = any(p.startswith("User/") for p in paths)
+    return machine, user
 
 
 def build_gpt_ini(version_number, display_name=None):

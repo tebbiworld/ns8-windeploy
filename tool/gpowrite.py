@@ -29,9 +29,11 @@ Requests (field "op"):
                           on the given (existing) GPOs of the module
   list    {guids}         attributes of the given GPOs
   create  {display_name}  new empty GPO, returns its GUID
-  apply   {guid, files, add_cse, backup_dir, display_name}
+  apply   {guid, files, add_cse, backup_dir, display_name,
+           machine_extensions, user_extensions}
                           write files below the GPO folder, register the
-                          scheduled task CSE, bump the computer version;
+                          scheduled task CSE, bump the version of the
+                          computer and/or user part that changed;
                           a new display_name renames the GPO (LDAP and
                           GPT.INI)
   link    {guid, target_dn}      append the GPO to gPLink of target_dn
@@ -78,7 +80,8 @@ GUID_RE = re.compile(r"^\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-
 ALLOWED_FILE_RE = re.compile(
     r"^(windeploy\.json"
     r"|Machine/(Preferences/ScheduledTasks/ScheduledTasks\.xml|Scripts/windeploy/[A-Za-z0-9._-]{1,120}\.ps1"
-    r"|Registry\.pol|Microsoft/Windows NT/SecEdit/GptTmpl\.inf))$")
+    r"|Registry\.pol|Microsoft/Windows NT/SecEdit/GptTmpl\.inf)"
+    r"|User/Registry\.pol)$")
 
 SCHEMA_GPC = "f30e3bc2-9ff0-11d1-b603-0000f80367c1"      # groupPolicyContainer
 ATTR_GPLINK = "f30e3bbe-9ff0-11d1-b603-0000f80367c1"
@@ -297,7 +300,8 @@ class Session:
             _check_guid(guid)
             try:
                 m = self.samdb.search(self.gpo_dn(guid), scope=ldb.SCOPE_BASE,
-                                      attrs=["displayName", "versionNumber", "gPCMachineExtensionNames", "flags"])[0]
+                                      attrs=["displayName", "versionNumber", "gPCMachineExtensionNames",
+                                             "gPCUserExtensionNames", "flags"])[0]
             except ldb.LdbError:
                 out.append({"guid": guid, "exists": False})
                 continue
@@ -306,6 +310,7 @@ class Session:
                 "display_name": str(m.get("displayName", [b""])[0]),
                 "version": int(str(m.get("versionNumber", [b"0"])[0])),
                 "machine_extensions": str(m.get("gPCMachineExtensionNames", [b""])[0]),
+                "user_extensions": str(m.get("gPCUserExtensionNames", [b""])[0]),
                 "flags": int(str(m.get("flags", [b"0"])[0])),
                 "links": self._links_of(guid),
             })
@@ -362,13 +367,21 @@ class Session:
         log(f"created GPO {guid} {display_name!r}")
         return {"guid": guid}
 
-    def apply(self, guid, files, backup_dir=None, add_cse=True, machine_extensions=None, display_name=None):
+    def apply(self, guid, files, backup_dir=None, add_cse=True, machine_extensions=None, display_name=None,
+              user_extensions=None):
         """files: {relative path: base64 content or null to delete}.
         machine_extensions replaces gPCMachineExtensionNames (policy GPOs:
         the module owns the whole GPO and knows which extensions it uses);
         without it the scheduled tasks extension is added (add_cse).
         display_name renames the GPO in the same LDAP change; without it
-        the name stays as it is."""
+        the name stays as it is. user_extensions replaces
+        gPCUserExtensionNames the same way.
+
+        Only the part that changed gets a new version: files below User/ or
+        new user extensions bump the user part (upper 16 bit), files below
+        Machine/ or new machine extensions the computer part. A request
+        that touches neither (only windeploy.json) bumps the computer part
+        as before, so every apply is a new version."""
         _check_guid(guid)
         if display_name is not None:
             _check_display_name(display_name)
@@ -377,9 +390,11 @@ class Session:
                 raise GpoError(f"path not allowed: {rel}")
         dn = self.gpo_dn(guid)
         m = self.samdb.search(dn, scope=ldb.SCOPE_BASE,
-                              attrs=["versionNumber", "gPCMachineExtensionNames", "displayName"])[0]
+                              attrs=["versionNumber", "gPCMachineExtensionNames", "gPCUserExtensionNames",
+                                     "displayName"])[0]
         old_version = str(m.get("versionNumber", [b"0"])[0])
         old_ext = str(m["gPCMachineExtensionNames"][0]) if "gPCMachineExtensionNames" in m else None
+        old_user_ext = str(m["gPCUserExtensionNames"][0]) if "gPCUserExtensionNames" in m else None
         old_name = str(m.get("displayName", [b""])[0])
         new_name = old_name if display_name is None else display_name
 
@@ -388,14 +403,23 @@ class Session:
         for rel in list(files) + ["GPT.INI"]:
             previous[rel] = self.read_file(self.share_path(guid, rel))
         if backup_dir:
-            _save_backup(backup_dir, guid, previous, old_version, old_ext)
+            _save_backup(backup_dir, guid, previous, old_version, old_ext, old_user_ext)
 
-        new_version = gpogen.bump_machine_version(int(old_version))
         if machine_extensions is not None:
             # parsed and written again: only well-formed GUID groups, sorted
             new_ext = gpogen.format_extension_names(gpogen.parse_extension_names(machine_extensions)) or None
         else:
             new_ext = gpogen.add_scheduled_tasks_extension(old_ext or "") if add_cse else old_ext
+        if user_extensions is not None:
+            new_user_ext = gpogen.format_extension_names(gpogen.parse_extension_names(user_extensions)) or None
+        else:
+            new_user_ext = old_user_ext
+        machine_changed, user_changed = gpogen.changed_parts(files)
+        machine_changed = machine_changed or new_ext != old_ext
+        user_changed = user_changed or new_user_ext != old_user_ext
+        if not (machine_changed or user_changed):
+            machine_changed = True
+        new_version = gpogen.bump_version(int(old_version), machine=machine_changed, user=user_changed)
         written = []
         try:
             # 2. files first: clients act on the version change only
@@ -416,6 +440,8 @@ class Session:
             if new_ext != old_ext:
                 # an empty list of values removes the attribute
                 msg["e"] = ldb.MessageElement(new_ext or [], ldb.FLAG_MOD_REPLACE, "gPCMachineExtensionNames")
+            if new_user_ext != old_user_ext:
+                msg["u"] = ldb.MessageElement(new_user_ext or [], ldb.FLAG_MOD_REPLACE, "gPCUserExtensionNames")
             if new_name != old_name:
                 msg["n"] = ldb.MessageElement(new_name, ldb.FLAG_MOD_REPLACE, "displayName")
             self.samdb.modify(msg)
@@ -434,7 +460,7 @@ class Session:
         if new_name != old_name:
             log(f"renamed {guid} {old_name!r} -> {new_name!r}")
         log(f"applied {len(files)} file(s) to {guid}, version {old_version} -> {new_version}")
-        return {"guid": guid, "version": new_version, "machine_extensions": new_ext}
+        return {"guid": guid, "version": new_version, "machine_extensions": new_ext, "user_extensions": new_user_ext}
 
     def _gplink(self, target_dn):
         m = self.samdb.search(target_dn, scope=ldb.SCOPE_BASE, attrs=["gPLink"])[0]
@@ -773,12 +799,12 @@ def _quiet(fn):
         log(f"rollback step failed: {ex}")
 
 
-def _save_backup(backup_dir, guid, previous, version, ext):
+def _save_backup(backup_dir, guid, previous, version, ext, user_ext=None):
     import datetime
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     target = os.path.join(backup_dir, guid, stamp)
     os.makedirs(target, mode=0o700, exist_ok=True)
-    meta = {"version": version, "machine_extensions": ext, "files": {}}
+    meta = {"version": version, "machine_extensions": ext, "user_extensions": user_ext, "files": {}}
     for rel, data in previous.items():
         meta["files"][rel] = data is not None
         if data is not None:
@@ -821,7 +847,8 @@ def main():
             result = s.apply(request["guid"], request.get("files", {}),
                              backup_dir=request.get("backup_dir"), add_cse=request.get("add_cse", True),
                              machine_extensions=request.get("machine_extensions"),
-                             display_name=request.get("display_name"))
+                             display_name=request.get("display_name"),
+                             user_extensions=request.get("user_extensions"))
         elif op == "domain_info":
             result = s.domain_info()
         elif op == "link":

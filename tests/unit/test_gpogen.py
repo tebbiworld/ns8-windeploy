@@ -125,6 +125,20 @@ class Version(unittest.TestCase):
         self.assertEqual(gpogen.bump_machine_version((3 << 16) | 5), (3 << 16) | 6)
         self.assertEqual(gpogen.bump_machine_version((2 << 16) | 0xFFFF), (2 << 16) | 1)
 
+    def test_bump_user_part(self):
+        # handover example: 524295 = user 8, computer 7
+        self.assertEqual(gpogen.bump_version(524295, machine=False, user=True), (9 << 16) | 7)
+        self.assertEqual(gpogen.bump_version(524295, machine=True, user=True), (9 << 16) | 8)
+        self.assertEqual(gpogen.bump_version(0xFFFF0003, machine=False, user=True), (1 << 16) | 3)
+        self.assertEqual(gpogen.bump_version(5, machine=False, user=False), 5)
+        with self.assertRaises(gpogen.GenError):
+            gpogen.bump_version(1 << 32)
+
+    def test_changed_parts(self):
+        self.assertEqual(gpogen.changed_parts(["windeploy.json"]), (False, False))
+        self.assertEqual(gpogen.changed_parts(["User/Registry.pol", "windeploy.json"]), (False, True))
+        self.assertEqual(gpogen.changed_parts(["Machine/Registry.pol", "User/Registry.pol"]), (True, True))
+
 
 class GptIni(unittest.TestCase):
     def test_reference_bytes(self):
