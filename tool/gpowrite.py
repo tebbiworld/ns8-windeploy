@@ -838,6 +838,12 @@ def main():
             raise GpoError(f"unknown op {op!r}")
         json.dump({"ok": True, "result": result}, sys.stdout)
     except (GpoError, ldb.LdbError) as ex:
+        reason = _bind_reason(ex)
+        if reason:
+            # a refused login is no program error: one line, no traceback
+            log(f"login refused by the domain controller (AD reason {reason})")
+            json.dump({"ok": False, "error": "login refused", "ad_reason": reason, **_error_code(ex)}, sys.stdout)
+            sys.exit(2)
         log(traceback.format_exc())
         json.dump({"ok": False, "error": str(ex), **_error_code(ex)}, sys.stdout)
         sys.exit(2)
@@ -855,6 +861,20 @@ def _error_code(ex):
     if werr == 5:
         return {"code": "access_denied"}
     return _result_code(ex)
+
+
+LDAP_INVALID_CREDENTIALS = 49
+# "AcceptSecurityContext error, data 533, v..." in the message of LDAP 49
+BIND_REASON_RE = re.compile(r"\bdata ([0-9a-fA-F]{1,8})\b")
+
+
+def _bind_reason(ex):
+    """The AD sub-code of a refused LDAP login ("52e", "533", ...), "" when
+    the error is something else or carries no sub-code ("49")."""
+    if not (isinstance(ex, ldb.LdbError) and ex.args and ex.args[0] == LDAP_INVALID_CREDENTIALS):
+        return ""
+    m = BIND_REASON_RE.search(str(ex.args[1]) if len(ex.args) > 1 else "")
+    return m.group(1).lower() if m else "49"
 
 
 def _result_code(ex):

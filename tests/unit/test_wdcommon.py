@@ -127,6 +127,15 @@ class ResultCodes(unittest.TestCase):
         self.assertTrue(wdcommon.ToolError("x", ldap_code=50).access_denied)
         self.assertFalse(wdcommon.ToolError("x").access_denied)
 
+    def test_login_reason_plain_text(self):
+        ex = wdcommon.ToolError("login refused", ldap_code=49, ad_reason="533")
+        self.assertEqual(ex.login_reason("administrator"),
+                         "login of 'administrator' refused: account disabled (AD code 533)")
+        self.assertIn("wrong password", wdcommon.ToolError("x", ldap_code=49, ad_reason="52e").login_reason("a"))
+        # unknown sub-code: shown as it is, no guess
+        self.assertEqual(wdcommon.ToolError("x", ldap_code=49, ad_reason="999").login_reason("a"),
+                         "login of 'a' refused (AD code 999)")
+
 
 class PolicyLog(unittest.TestCase):
     def test_rename_is_logged(self):

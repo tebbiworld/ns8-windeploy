@@ -174,7 +174,7 @@ def run_tool(request, settings=None, timeout=300, password=None):
     if not response.get("ok"):
         raise ToolError(response.get("error") or f"gpowrite exited with {proc.returncode}",
                         ldap_code=response.get("ldap_code"), ntstatus=response.get("ntstatus"),
-                        code=response.get("code"))
+                        code=response.get("code"), ad_reason=response.get("ad_reason"))
     return response["result"]
 
 
@@ -190,13 +190,41 @@ NT_STATUS_LOGON_FAILURE = 0xC000006D
 ADMIN_OPS = ("provision", "dns_delegate", "dns_create_zone", "dns_delete_zone")
 
 
+# Sub-codes of a refused AD login ("data 533" in LDAP error 49). Only for
+# the task log: the UI shows one neutral message for all of them, so it
+# tells nobody whether an account exists or is disabled.
+AD_LOGIN_REASONS = {
+    "525": "user not found",
+    "52e": "wrong password",
+    "530": "logon not permitted at this time",
+    "531": "logon not permitted from this workstation",
+    "532": "password expired",
+    "533": "account disabled",
+    "568": "too many security IDs in the token",
+    "701": "account expired",
+    "773": "password must be changed before the first logon",
+    "775": "account locked out",
+}
+
+
 class ToolError(Exception):
-    def __init__(self, message, ldap_code=None, ntstatus=None, code=None):
+    def __init__(self, message, ldap_code=None, ntstatus=None, code=None, ad_reason=None):
         super().__init__(message)
         self.ldap_code = ldap_code
         self.ntstatus = ntstatus
         # a key of the UI translations, for errors the admin can act on
         self.code = code
+        # AD sub-code of a refused login, e.g. "533"
+        self.ad_reason = ad_reason
+
+    def login_reason(self, account):
+        """One plain line for the task log why the login of account failed."""
+        reason = AD_LOGIN_REASONS.get(self.ad_reason or "", "")
+        if reason:
+            return f"login of {account!r} refused: {reason} (AD code {self.ad_reason})"
+        if self.ad_reason:
+            return f"login of {account!r} refused (AD code {self.ad_reason})"
+        return f"login of {account!r} refused: {self}"
 
     @property
     def bad_credentials(self):
@@ -300,11 +328,16 @@ def prune_dns_backups(keep=DNS_BACKUPS_KEPT):
         os.remove(os.path.join(folder, name))
 
 
-def dns_failed(ex, field="data"):
+def dns_failed(ex, field="data", account=None):
     """End an action after a failed DNS request: errors the admin can act
     on become a validation error with their code, others fail the task."""
     import agent as _agent
-    print(_agent.SD_ERR + "DNS request failed: " + str(ex), file=sys.stderr)
+    if getattr(ex, "bad_credentials", False):
+        # account: the domain admin of the request, else the service account
+        account = account or os.environ.get("GPO_USER", "service account")
+        print(_agent.SD_ERR + "DNS request failed: " + ex.login_reason(account), file=sys.stderr)
+    else:
+        print(_agent.SD_ERR + "DNS request failed: " + str(ex), file=sys.stderr)
     code = getattr(ex, "code", None)
     if code or getattr(ex, "bad_credentials", False):
         _agent.set_status("validation-failed")

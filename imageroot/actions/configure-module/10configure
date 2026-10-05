@@ -57,7 +57,8 @@ if not request.get("skip_check"):
         result = wdcommon.run_tool({"op": "check", "guids": wdcommon.gpo_guids()},
                                    settings=settings, timeout=120, password=password)
     except wdcommon.ToolError as ex:
-        print(agent.SD_ERR + "check failed: " + str(ex), file=sys.stderr)
+        msg = ex.login_reason(settings["user"]) if ex.bad_credentials else str(ex)
+        print(agent.SD_ERR + "check failed: " + msg, file=sys.stderr)
         if ex.bad_credentials:
             fail("password", "", "bind_failed")
         fail("dc_ip", "", "dc_unreachable")
