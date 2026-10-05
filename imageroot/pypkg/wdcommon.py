@@ -35,6 +35,9 @@ DEPLOYMENTS = "deployments.json"
 POLICIES = "policies.json"
 POLICY_LOG = "policy-log.jsonl"
 DNS_LOG = "dns-log.jsonl"
+DEPLOYMENT_LOG = "deployment-log.jsonl"
+GRACE_DAYS_DEFAULT = 14
+GRACE_DAYS_MAX = 365
 DNS_BACKUP_DIR = "dns-backups"
 DNS_BACKUPS_KEPT = 20
 BACKUP_DIR = "gpo-backups"
@@ -287,6 +290,63 @@ def log_policy_change(profile, change, reason, before, after, renamed_from=None)
         f.write(json.dumps(entry, sort_keys=True) + "\n")
 
 
+def log_deployment_change(deployment, change, reason, pending=None):
+    """One line per removal step of a deployment (started, cancelled,
+    deleted), with the reason. Shown on the deployments page."""
+    entry = {
+        "time": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        "deployment": deployment, "change": change, "reason": reason,
+    }
+    if pending:
+        entry["until"] = pending.get("until")
+    with open(os.path.join(state_dir(), DEPLOYMENT_LOG), "a") as f:
+        f.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
+def read_deployment_log(limit=50):
+    try:
+        with open(os.path.join(state_dir(), DEPLOYMENT_LOG)) as f:
+            lines = f.readlines()[-limit:]
+    except FileNotFoundError:
+        return []
+    return [json.loads(line) for line in reversed(lines) if line.strip()]
+
+
+# ------------------------------------------------------ pending delete ---
+
+def grace_days_default():
+    """Default waiting period between starting a removal and deleting the
+    GPO (setting DELETE_GRACE_DAYS, 14 days when unset or invalid)."""
+    try:
+        days = int(os.environ.get("DELETE_GRACE_DAYS", ""))
+    except ValueError:
+        return GRACE_DAYS_DEFAULT
+    return days if 1 <= days <= GRACE_DAYS_MAX else GRACE_DAYS_DEFAULT
+
+
+def new_pending(reason, days=None, now=None):
+    """The pending_delete record of an item whose removal starts now."""
+    days = grace_days_default() if days is None else int(days)
+    if not 1 <= days <= GRACE_DAYS_MAX:
+        raise ValueError(f"waiting period out of range: {days}")
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    return {
+        "since": now.isoformat(timespec="seconds"),
+        "until": (now + datetime.timedelta(days=days)).isoformat(timespec="seconds"),
+        "days": days,
+        "reason": reason,
+    }
+
+
+def pending_due(item, now=None):
+    """True when the waiting period of an item in removal is over."""
+    pending = item.get("pending_delete")
+    if not pending:
+        return False
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    return datetime.datetime.fromisoformat(pending["until"]) <= now
+
+
 def read_policy_log(limit=50):
     try:
         with open(os.path.join(state_dir(), POLICY_LOG)) as f:
@@ -461,6 +521,8 @@ def build_files(deployment, settings):
             "schedule": deployment["schedule"],
             # the computers delete the task when the GPO no longer applies
             "remove_policy": True,
+            # removal started: the computers delete the task now
+            "delete": bool(deployment.get("pending_delete")),
         })
     for rel in deployment.get("_scripts", []):
         if rel not in keep:
@@ -475,7 +537,7 @@ def build_files(deployment, settings):
     # Windows remembers the id after the first item and skips any later
     # item with the same id. A new id makes every computer run it again.
     for pkg, task, args in zip(deployment["packages"], tasks, run_now):
-        if not pkg.get("now_run_id"):
+        if not pkg.get("now_run_id") or deployment.get("pending_delete"):
             continue
         pkg.setdefault("now_uid", gpogen.new_uid())
         immediate.append(dict(task, name=("windeploy now " + pkg["id"])[:100], uid=pkg["now_uid"],
@@ -500,4 +562,5 @@ def describe(deployment):
         "delivery": deployment.get("delivery", "sysvol"),
         "schedule": deployment["schedule"],
         "packages": [{"id": p["id"], "mode": p.get("mode", "upgrade")} for p in deployment["packages"]],
+        "pending_delete": deployment.get("pending_delete"),
     }, indent=1) + "\n"

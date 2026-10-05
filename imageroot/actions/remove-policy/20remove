@@ -5,58 +5,53 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-# Remove a policy profile, in one or two steps.
+# Remove a policy profile in steps (see pypkg/removal.py): start, cancel,
+# or delete when the waiting period is over.
 #
 # Windows removes registry policy and restores user rights by itself
 # when the GPO is gone. Audit settings and registry values outside the
-# policy keys stay on the computers as they were set (see policygen).
-# For those the step "reset" changes the GPO to write the
-# Windows defaults and leaves it linked; the step "delete" deletes the
-# GPO, when the computers have seen the defaults. A profile without such
-# settings is deleted at once.
+# policy keys stay on the computers as they were set (see policygen):
+# start makes the GPO write the Windows defaults for those, and the
+# waiting period gives the computers time to apply them.
 
-import copy
-import datetime
 import json
 import sys
 
 import agent
 import policygen
+import removal
 import wdcommon
 
 request = json.load(sys.stdin)
 
+
+def fail(field, value, error):
+    agent.set_status("validation-failed")
+    json.dump([{"field": field, "parameter": field, "value": value, "error": error}], fp=sys.stdout)
+    sys.exit(3)
+
+
 with wdcommon.policies_locked() as data:
     profile = next((p for p in data["profiles"] if p["id"] == request["id"]), None)
     if profile is None:
-        agent.set_status("validation-failed")
-        json.dump([{"field": "id", "parameter": "id", "value": request["id"], "error": "profile_not_found"}], fp=sys.stdout)
-        sys.exit(3)
-    before = copy.deepcopy(profile["settings"])
-    on = [sid for sid, entry in before.items() if entry["state"] == "on"]
-    after = policygen.after_removal(before, on)
+        fail("id", request["id"], "profile_not_found")
     step = request["step"]
-    if step == "reset" and not after:
-        step = "delete"  # nothing stays on the computers
     try:
-        if step == "reset":
-            profile["settings"] = after
-            files, extensions = wdcommon.build_policy_files(profile)
-            res = wdcommon.run_tool({"op": "apply", "guid": profile["gpo_guid"], "files": files, "backup_dir": "/backup",
-                                     "machine_extensions": extensions})
-            wdcommon.prune_backups(profile["gpo_guid"])
-            profile["version"] = res["version"]
-            profile["state"] = "resetting"
-            profile["changed"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        if step == "start":
+            pending = removal.start_profile(profile, request["reason"], request.get("days"))
+            result = {"step": step, "until": pending["until"],
+                      "resets": sorted(sid for sid, e in profile["settings"].items() if e["state"] == "reset")}
+        elif step == "cancel":
+            removal.cancel_profile(profile, request["reason"])
+            result = {"step": step}
         else:
-            if profile.get("gpo_guid"):
-                wdcommon.delete_gpo(profile["gpo_guid"], profile.get("link_targets", []))
-            data["profiles"] = [p for p in data["profiles"] if p["id"] != request["id"]]
+            removal.purge_profile(data, profile, request["reason"])
+            result = {"step": step}
+    except removal.RemovalError as ex:
+        fail("step", step, ex.code)
     except (wdcommon.ToolError, ValueError, policygen.PolicyError) as ex:
-        print(agent.SD_ERR + "removing the policy profile failed: " + str(ex), file=sys.stderr)
+        print(agent.SD_ERR + f"removing the policy profile ({step}) failed: {ex}", file=sys.stderr)
         sys.exit(1)
-    wdcommon.log_policy_change(profile["name"], "reset" if step == "reset" else "deleted", request["reason"],
-                               before, profile["settings"] if step == "reset" else {})
 
-json.dump({"step": step, "left_on_computers": sorted(sid for sid in on if policygen.is_tattoo(sid)) if step == "delete" else []},
-          fp=sys.stdout)
+print(agent.SD_INFO + f"policy profile {profile['name']!r}: removal step {step}", file=sys.stderr)
+json.dump(result, fp=sys.stdout)

@@ -65,6 +65,8 @@ with wdcommon.policies_locked() as data:
         old = next((p for p in current if p["id"] == request["id"]), None)
         if old is None:
             fail("id", request["id"], "profile_not_found")
+        if old.get("pending_delete"):
+            fail("id", request["id"], "removal_pending")
     for p in current:
         if p["name"].lower() == request["name"].lower() and p["id"] != request.get("id"):
             fail("name", request["name"], "name_in_use")

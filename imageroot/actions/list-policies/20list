@@ -25,12 +25,16 @@ except Exception as ex:
 
 profiles = []
 for p in wdcommon.read_policies()["profiles"]:
-    profiles.append({k: p.get(k) for k in ("id", "name", "gpo_guid", "version", "link_targets", "settings", "state", "changed")})
+    item = {k: p.get(k) for k in ("id", "name", "gpo_guid", "version", "link_targets", "settings", "state", "changed")}
+    if p.get("pending_delete"):
+        item["pending_delete"] = {k: v for k, v in p["pending_delete"].items() if k != "previous_settings"}
+    profiles.append(item)
 
 json.dump({
     "catalog": policygen.catalog(),
     "groups": policygen.GROUPS,
     "profiles": sorted(profiles, key=lambda p: p["name"].lower()),
     "log": wdcommon.read_policy_log(),
+    "grace_days": wdcommon.grace_days_default(),
     "domain": domain,
 }, fp=sys.stdout)

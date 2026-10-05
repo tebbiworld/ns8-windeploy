@@ -2,11 +2,18 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "remove-deployment input",
     "$id": "http://schema.nethserver.org/windeploy/remove-deployment-input.json",
-    "description": "Remove a deployment and delete its GPO. The computers delete the tasks at their next policy refresh; installed software stays.",
-    "examples": [{"id": "0123456789ab"}],
+    "description": "Remove a deployment in steps. start: the tasks get the action delete, the computers remove them, the GPO stays linked for the waiting period. cancel: the tasks come back. delete: after the waiting period, unlink and delete the GPO. Installed software stays.",
+    "examples": [
+        {"id": "0123456789ab", "step": "start", "reason": "Replaced by the new browser deployment", "days": 14},
+        {"id": "0123456789ab", "step": "cancel", "reason": "Still needed"}
+    ],
     "type": "object",
-    "required": ["id"],
+    "required": ["id", "step", "reason"],
+    "additionalProperties": false,
     "properties": {
-        "id": {"type": "string", "pattern": "^[0-9a-f]{12}$"}
+        "id": {"type": "string", "pattern": "^[0-9a-f]{12}$"},
+        "step": {"type": "string", "enum": ["start", "cancel", "delete"]},
+        "reason": {"type": "string", "minLength": 3, "maxLength": 500, "pattern": "^[^\\x00]+$"},
+        "days": {"description": "Waiting period of this removal (start only); default from the settings", "type": "integer", "minimum": 1, "maximum": 365}
     }
 }

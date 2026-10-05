@@ -5,32 +5,45 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-# Remove a deployment together with its GPO: unlink it, delete it. The
-# tasks carry removePolicy, so every computer that had them deletes them
-# at its next policy refresh. Installed software stays.
+# Remove a deployment in steps (see pypkg/removal.py): start, cancel, or
+# delete when the waiting period is over. Installed software stays.
 
 import json
 import sys
 
 import agent
+import removal
 import wdcommon
 
 request = json.load(sys.stdin)
 
+
+def fail(field, value, error):
+    agent.set_status("validation-failed")
+    json.dump([{"field": field, "parameter": field, "value": value, "error": error}], fp=sys.stdout)
+    sys.exit(3)
+
+
 with wdcommon.deployments_locked() as data:
     deployment = next((d for d in data["deployments"] if d["id"] == request["id"]), None)
     if deployment is None:
-        agent.set_status("validation-failed")
-        json.dump([{"field": "id", "parameter": "id", "value": request["id"], "error": "deployment_not_found"}], fp=sys.stdout)
-        sys.exit(3)
+        fail("id", request["id"], "deployment_not_found")
+    step = request["step"]
+    try:
+        if step == "start":
+            pending = removal.start_deployment(deployment, request["reason"], request.get("days"))
+            result = {"step": step, "until": pending["until"]}
+        elif step == "cancel":
+            removal.cancel_deployment(deployment, request["reason"])
+            result = {"step": step}
+        else:
+            removal.purge_deployment(data, deployment, request["reason"])
+            result = {"step": step, "gpo_deleted": bool(deployment.get("gpo_guid"))}
+    except removal.RemovalError as ex:
+        fail("step", step, ex.code)
+    except (wdcommon.ToolError, ValueError) as ex:
+        print(agent.SD_ERR + f"removing the deployment ({step}) failed: {ex}", file=sys.stderr)
+        sys.exit(1)
 
-    guid = deployment.get("gpo_guid")
-    if guid:
-        try:
-            wdcommon.delete_gpo(guid, deployment.get("link_targets", []))
-        except (wdcommon.ToolError, ValueError) as ex:
-            print(agent.SD_ERR + "removing the deployment failed: " + str(ex), file=sys.stderr)
-            sys.exit(1)
-    data["deployments"] = [d for d in data["deployments"] if d["id"] != request["id"]]
-
-json.dump({"removed": True, "gpo_deleted": bool(guid)}, fp=sys.stdout)
+print(agent.SD_INFO + f"deployment {deployment['name']!r}: removal step {step}", file=sys.stderr)
+json.dump(result, fp=sys.stdout)

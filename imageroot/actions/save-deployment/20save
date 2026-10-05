@@ -79,6 +79,8 @@ with wdcommon.deployments_locked() as data:
         old = next((d for d in current if d["id"] == request["id"]), None)
         if old is None:
             fail("id", request["id"], "deployment_not_found")
+        if old.get("pending_delete"):
+            fail("id", request["id"], "removal_pending")
     for d in current:
         if d["name"].lower() == request["name"].lower() and d["id"] != request.get("id"):
             fail("name", request["name"], "name_in_use")
