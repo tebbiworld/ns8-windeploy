@@ -67,6 +67,12 @@
             "type": "string",
             "enum": ["sysvol", "embedded"]
         },
+        "delete_grace_days": {
+            "description": "Default waiting period in days between starting the removal of a deployment or policy profile and deleting its GPO",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365
+        },
         "skip_check": {
             "description": "Store the settings without the bind test (restore-module: the DC may not be reachable yet)",
             "type": "boolean"

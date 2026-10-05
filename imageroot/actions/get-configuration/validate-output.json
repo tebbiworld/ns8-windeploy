@@ -13,6 +13,7 @@
         "username": {"type": "string"},
         "password_set": {"type": "boolean", "description": "The password itself is never returned"},
         "default_delivery": {"type": "string", "enum": ["sysvol", "embedded"]},
+        "delete_grace_days": {"type": "integer", "minimum": 1, "maximum": 365},
         "domains": {"type": "array"},
         "effective": {"type": "object"},
         "rights": {"type": ["object", "null"]},

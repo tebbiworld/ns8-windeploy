@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Daily (timer windeploy-purge): delete the GPOs of deployments and policy
+# profiles whose waiting period is over. An item that fails (DC down)
+# stays pending and is tried again the next day.
+
+import sys
+
+import agent
+import removal
+import wdcommon
+
+failed = 0
+with wdcommon.deployments_locked() as data:
+    for deployment in [d for d in data["deployments"] if wdcommon.pending_due(d)]:
+        try:
+            removal.purge_deployment(data, deployment, deployment["pending_delete"]["reason"], by="timer")
+            print(agent.SD_NOTICE + f"deployment {deployment['name']!r} deleted, waiting period over", file=sys.stderr)
+        except Exception as ex:
+            failed += 1
+            print(agent.SD_ERR + f"deployment {deployment['name']!r} not deleted: {ex}", file=sys.stderr)
+
+with wdcommon.policies_locked() as data:
+    for profile in [p for p in data["profiles"] if wdcommon.pending_due(p)]:
+        try:
+            removal.purge_profile(data, profile, profile["pending_delete"]["reason"], by="timer")
+            print(agent.SD_NOTICE + f"policy profile {profile['name']!r} deleted, waiting period over", file=sys.stderr)
+        except Exception as ex:
+            failed += 1
+            print(agent.SD_ERR + f"policy profile {profile['name']!r} not deleted: {ex}", file=sys.stderr)
+
+sys.exit(1 if failed else 0)

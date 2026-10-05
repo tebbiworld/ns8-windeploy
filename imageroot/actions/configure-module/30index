@@ -6,9 +6,11 @@
 #
 
 # Keep the winget package index fresh: daily timer, first download now.
+# Delete the GPOs whose waiting period is over: daily timer.
 
 exec 1>&2
 systemctl --user enable --now windeploy-index.timer
+systemctl --user enable --now windeploy-purge.timer
 if [[ ! -f wingetindex/index.db ]]; then
     systemctl --user start --no-block windeploy-index.service
 fi
