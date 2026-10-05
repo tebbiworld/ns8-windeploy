@@ -35,7 +35,7 @@ A rule applies exactly as long as it exists.
   * A computer deletes the task of a package at its next policy refresh when the package leaves the deployment, the GPO is removed, or the computer moves to an organizational unit the GPO does not apply to. Installed software is never uninstalled.
   * A computer that was switched off at the scheduled time catches up after its next start.
   * Removing a deployment deletes its GPO. Removing the module deletes the GPOs of all its deployments and policy profiles. Moving the module to another node keeps them.
-  * Policy settings that stay on the computers when a GPO is gone (audit settings, NTLMv2) are reset to the Windows defaults first; the profile is deleted in a second step.
+  * Policy settings that stay on the computers when a GPO is gone (audit settings, NTLMv2) are reset to the Windows defaults first; the GPO is deleted after a waiting period (default 14 days), which can be cancelled until then. Deployments are removed the same way.
 
 =====DNS rights=====
 Reading the zones works with the service account as it is. For writing, a domain admin gives the group ''windeploy-admins'' rights on a zone, once, from the DNS page. Creating and deleting zones asks for domain admin credentials each time; they are not stored. The zone of the domain and ''_msdcs'' are never deleted. Records that Active Directory needs (the zone itself, ''_msdcs'', ''_sites'', the AD services below ''_tcp'' and ''_udp'', the domain controllers) and records the computers register themselves are shown, not changed.

@@ -53,8 +53,8 @@ GPO is gone was measured with Windows 11 25H2:
 
 Settings that stay have a *reset* state: switching them off, or
 removing the profile, first changes the GPO to write the Windows
-default. The GPO is deleted in a second step, when the computers have
-applied it. The advanced audit policy file (`audit.csv`) is not used on
+default. The GPO is deleted after the waiting period of the removal (see
+below), when the computers have applied it. The advanced audit policy file (`audit.csv`) is not used on
 purpose: when such a GPO is removed, Windows clears all auditing, also
 what a fresh installation audits.
 
@@ -136,7 +136,16 @@ A rule applies exactly as long as it exists:
   `HKLM\SOFTWARE\windeploy`. A computer that was switched off catches up
   after its next start. On a computer that sees a deployment for the
   first time the script waits for the next scheduled time.
-- Removing a deployment deletes its GPO.
+- Removing a deployment or a policy profile has a waiting period
+  (default 14 days, set in the settings and for each removal). When the
+  removal starts, the GPO stays linked and is changed so that the
+  computers remove what it left on them: the tasks of a deployment get the
+  action "delete", a profile writes the Windows defaults for the settings
+  that stay and drops the others. Computers that are rarely connected see
+  the change during the waiting period; the removal can be cancelled until
+  then. Afterwards a daily timer (`windeploy-purge.timer`) unlinks and
+  deletes the GPO, or the admin does it from the page. Each step needs a
+  reason and is logged (`deployment-log.jsonl`, `policy-log.jsonl`).
 - Removing the module deletes the GPOs of all its deployments and policy
   profiles; settings in the table above that stay are not reset then (the UI
   says so on the Status page). A DC that cannot be reached does not block
