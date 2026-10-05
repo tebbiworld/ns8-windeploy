@@ -29,7 +29,7 @@ try:
 except wdcommon.ToolError as ex:
     field = "admin_password" if ex.bad_credentials or ex.code == "admin_not_allowed" else (
         "confirm" if ex.code == "confirm_mismatch" else "zone")
-    wdcommon.dns_failed(ex, field)
+    wdcommon.dns_failed(ex, field, account=request["admin_user"])
 except ValueError as ex:
     wdcommon.dns_failed(ex, "zone")
 

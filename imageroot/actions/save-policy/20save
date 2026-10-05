@@ -100,8 +100,10 @@ with wdcommon.policies_locked() as data:
             profile["gpo_guid"] = res["guid"]
             created = True
         agent.set_progress(40)
+        # the display name follows a renamed profile (LDAP and GPT.INI)
         res = wdcommon.run_tool({"op": "apply", "guid": profile["gpo_guid"], "files": files, "backup_dir": "/backup",
-                                 "machine_extensions": extensions}, settings=settings)
+                                 "machine_extensions": extensions,
+                                 "display_name": "windeploy policy: " + profile["name"]}, settings=settings)
         profile["version"] = res["version"]
         wdcommon.prune_backups(profile["gpo_guid"])
         agent.set_progress(70)
@@ -126,7 +128,7 @@ with wdcommon.policies_locked() as data:
     profile["changed"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     data["profiles"] = [p for p in current if p["id"] != profile["id"]] + [profile]
     wdcommon.log_policy_change(profile["name"], "created" if old is None else "changed", request["reason"],
-                               before, profile["settings"])
+                               before, profile["settings"], renamed_from=old["name"] if old else None)
 
 agent.set_progress(100)
 print(agent.SD_INFO + f"policy profile {profile['name']!r} saved in GPO {profile['gpo_guid']} version {profile.get('version')}", file=sys.stderr)

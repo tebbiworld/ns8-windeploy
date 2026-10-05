@@ -593,6 +593,7 @@
             :label="$t('dns.admin_user')"
             v-model.trim="admin.user"
             autocomplete="off"
+            :helper-text="$t('dns.admin_user_helper')"
           />
           <NsTextInput
             :label="$t('dns.admin_password')"
@@ -631,6 +632,7 @@
             :label="$t('dns.admin_user')"
             v-model.trim="admin.user"
             autocomplete="off"
+            :helper-text="$t('dns.admin_user_helper')"
           />
           <NsTextInput
             :label="$t('dns.admin_password')"
@@ -669,6 +671,7 @@
             :label="$t('dns.admin_user')"
             v-model.trim="grant.user"
             autocomplete="off"
+            :helper-text="$t('dns.admin_user_helper')"
           />
           <NsTextInput
             :label="$t('dns.admin_password')"

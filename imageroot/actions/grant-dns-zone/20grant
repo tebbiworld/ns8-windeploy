@@ -26,7 +26,7 @@ try:
 except wdcommon.ToolError as ex:
     if ex.access_denied:
         ex.code = "admin_not_allowed"
-    wdcommon.dns_failed(ex, "admin_password")
+    wdcommon.dns_failed(ex, "admin_password", account=request["admin_user"])
 except ValueError as ex:
     wdcommon.dns_failed(ex, "zone")
 

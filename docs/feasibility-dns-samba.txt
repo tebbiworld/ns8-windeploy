@@ -1,0 +1,276 @@
+MACHBARKEIT: VERWALTUNG DER INTERNEN DNS-ZONEN DES SAMBA-AD AUS NS8
+Stand 29.09.2026 - nur Recherche, es wurde nichts verändert
+
+Kennzeichnung: [Beleg] = selbst geprüft (Befehl genannt),
+[Quelle] = Dokumentation/Quelltext, [Annahme] = nicht geprüft.
+
+== 1. KURZFAZIT ==
+
+- Machbar: ja. Lesen und Schreiben von Records sowie das Anlegen von
+  Zonen gehen über die DNS-Verwaltungs-RPC (dieselbe Schnittstelle wie
+  samba-tool dns und die Windows-DNS-Konsole).
+- Empfohlene Form: eigene Seite "DNS" in windeploy, technisch als
+  getrennter Baustein (tool/dnswrite.py, eigene Actions), damit sie sich
+  später als eigenes Modul herauslösen lässt. Dienstkonto, Gruppe
+  windeploy-admins, Domänenwahl und Laufzeit-Image sind schon da.
+- Kein Beitrag zu dnshelper: anderes Ziel (öffentliche Zonen bei
+  DNS-Anbietern), andere Technik (Go/libdns). Sein RFC-2136-Anbieter
+  passt nicht zu Samba (Abschnitt 6). Getrennt lassen, Aufrufvertrag
+  aber abschauen.
+- Aufwand: Stufe A 1 Sitzung, Stufe B 2-3, Stufe C 2, Tests und
+  Übersetzungen 1. Zusammen 6-7 Arbeitssitzungen, etwa 4-6 Personentage.
+- Größte Risiken: (1) AD-eigene Records liegen in derselben Zone wie
+  die Rechnernamen, der Schutz muss im Code liegen; (2) das kleinste
+  Recht (ACE statt DnsAdmins) ist aus ACL und Quelltext abgeleitet, aber
+  noch nicht mit dem Dienstkonto erprobt; (3) Split-DNS: eine interne
+  Zone verdeckt gleichnamige öffentliche Namen.
+
+== 2. IST-ZUSTAND DEV-DOMÄNE (ad.example.test) ==
+
+Befehle liefen im Container samba-dc des Moduls samba1, jeweils
+"runagent -m samba1 podman exec samba-dc ...".
+
+- Samba 4.19.5-Ubuntu, NS8-Modul samba 3.5.0.
+  [Beleg: samba --version; state/environment]
+- Backend: Samba INTERNAL. "server services" enthält dns und dnsupdate,
+  kein BIND9_DLZ. [Beleg: testparm -s --parameter-name="server services"]
+- Zonen: ad.example.test (Partition DomainDnsZones) und
+  _msdcs.ad.example.test (ForestDnsZones), beide AD-integriert,
+  primär. Dazu das technische Objekt RootDNSServers (Root-Hinweise).
+  [Beleg: samba-tool dns zonelist 127.0.0.1 -P; ldbsearch dnsZone]
+- Umfang [Beleg: Python-Auswertung der dnsRecord-Werte in sam.ldb]:
+
+  Zone                         Knoten  Records  Typen
+  ad.example.test              19       21  SRV 13, A 5, NS 2, SOA 1
+  _msdcs.ad.example.test       11       12  SRV 8, CNAME 1, A 1,
+                                                NS 1, SOA 1
+  RootDNSServers                   14       26  A 13, NS 13
+
+- Eigene Records: praktisch keine. Außer dem DC gibt es einen Rechner
+  (TESTCLIENT, A 192.0.2.140), von ihm selbst dynamisch eingetragen; das
+  ist der einzige Record mit Zeitstempel. Keine Tombstones.
+  [Beleg: samba-tool dns query 127.0.0.1 ad.example.test @ ALL -P]
+- Reverse-Zonen: keine. Deshalb gibt es auch keine PTR-Records.
+  [Beleg: zonelist]
+- Dynamische Updates: nur gesichert (DNS_ZONE_UPDATE_SECURE, "allow dns
+  updates = secure only"). [Beleg: zoneinfo; testparm]
+- Aging/Scavenging: aus (fAging FALSE, "dns zone scavenging = No").
+  [Beleg: zoneinfo; testparm]
+- Forwarder: keiner eingetragen (aipForwarders leer, "dns forwarder"
+  leer). [Beleg: serverinfo; testparm]
+- Zonentransfer: aus (DNS_ZONE_SECSECURE_NO_XFER); das interne Backend
+  kann ihn gar nicht. [Beleg: zoneinfo] [Quelle: Samba-Wiki]
+- Gruppen: DnsAdmins und DnsUpdateProxy sind leer; windeploy-admins hat
+  das Mitglied svc-gpodeploy. [Beleg: samba-tool group listmembers]
+- Verwaltung in NS8 heute: gar nicht. Das Samba-Modul hat 30 Actions
+  (Benutzer, Gruppen, Freigaben, Kennwortregeln), keine für DNS; in der
+  Oberfläche kommt DNS nur beim Einrichten vor. Bleibt die Kommandozeile
+  oder RSAT unter Windows. [Beleg: ls /home/samba1/.config/actions]
+
+== 3. TECHNISCHE WEGE ==
+
+(a) DNS-Verwaltungs-RPC (dnsserver) - EMPFOHLEN
+- Werkzeuge: samba-tool dns; in Python samba.dcerpc.dnsserver und
+  samba.dnsserver. Im windeploy-Image (Samba 4.22.11) vorhanden.
+  [Beleg: podman run ... python3 -c "import samba.dcerpc.dnsserver"]
+- Kann: Zonen auflisten, anlegen, löschen; Records abfragen, anlegen,
+  ändern, löschen; Aging-Optionen. Typen: A, AAAA, CNAME, MX, NS, PTR,
+  SOA, SRV, TXT. [Beleg: samba-tool dns --help; samba/dnsserver.py]
+  Nicht möglich: CAA, HTTPS/SVCB, DNSSEC-Typen.
+- Rechte: der Server öffnet die AD-Datenbank im Namen des angemeldeten
+  Benutzers (dcesrv_samdb_connect_as_user), eine feste Prüfung auf
+  DnsAdmins gibt es nicht. Es zählen die ACLs der dnsZone- und
+  dnsNode-Objekte. [Quelle: Samba 4.19.5, dcerpc_dnsserver.c Zeile 129]
+  Ein delegiertes Dienstkonto reicht demnach. [Annahme: noch nicht mit
+  dem Dienstkonto ausprobiert]
+- Netz: RPC über TCP 135 und 49152-49154 auf der DC-Adresse, die Ports
+  lauschen. [Beleg: ss -ltn] Verbindung signiert/verschlüsselt nötig;
+  ältere Fehler mit RSAT siehe Samba-Bug 12807. [Quelle]
+- Einschränkungen: TXT mit Anführungszeichen und über 255 Byte sowie
+  Wildcard-Namen müssen getestet werden. [Annahme] Forwarder stehen in
+  smb.conf und sind per RPC nicht änderbar. [Quelle: Samba-Wiki]
+- Mehrere DCs: geschrieben wird auf einem DC, die Verteilung übernimmt
+  die AD-Replikation. Kurzzeitig abweichende Antworten sind normal.
+  [Quelle: MS-DNSP] In der Dev-Domäne gibt es nur einen DC.
+
+(b) Direkter LDAP-Zugriff auf dnsNode-Objekte
+- Lesen: gut geeignet für Übersicht, Suche und Besitzer. Das Attribut
+  dnsRecord ist binär (NDR), python3-samba entpackt es.
+  [Beleg: Auswertung oben mit ndr_unpack(dnsp.DnssrvRpcRecord)]
+- Schreiben: nicht empfohlen. Man müsste Seriennummer, SOA-Zähler,
+  Zeitstempel und Tombstones (dNSTombstoned) selbst pflegen; Fehler
+  ergeben Records, die der DNS-Dienst ignoriert oder falsch ausliefert.
+  [Quelle: MS-DNSP, dnsRecord/dnsProperty]
+
+(c) Dynamische Updates (nsupdate -g, GSS-TSIG mit Kerberos)
+- Geht: Records der Typen A, AAAA, NS, CNAME, SRV, PTR, MX, TXT anlegen
+  und löschen; andere Typen beantwortet Samba mit NOTIMP. SOA und NS am
+  Zonenkopf sind geschützt. [Quelle: Samba 4.19.5, dns_update.c]
+  Die Rechte folgen auch hier den ACLs des angemeldeten Kontos.
+- Geht nicht: Zonen anlegen oder löschen, Zonen auflisten, Zone lesen
+  (kein AXFR), Eigenschaften ändern. Schlüssel-TSIG (HMAC) kann das
+  interne Backend nicht. [Quelle: Samba-Wiki, Internal DNS Back End]
+- Bewertung: als alleiniger Weg zu wenig, neben (a) unnötig.
+
+(d) samba-tool im Samba-Modul über eine NS8-Action
+- Das Samba-Modul hat keine DNS-Action. [Beleg] windeploy läuft
+  rootless und darf nicht in fremde Container greifen. Nötig wäre eine
+  Änderung am offiziellen Samba-Modul; darauf haben wir keinen Einfluss.
+  Außerdem liefe alles mit vollen Rechten des DC. Nicht empfohlen.
+
+Übersicht:
+
+  Weg             Lesen  Records  Zonen  Rechte             Urteil
+  (a) RPC         ja     ja       ja     ACL/delegiert      nehmen
+  (b) LDAP        ja     riskant  nein   ACL/delegiert      nur lesen
+  (c) nsupdate    nein   ja       nein   ACL/delegiert      entbehrlich
+  (d) NS8-Action  ja     ja       ja     volle DC-Rechte    nein
+
+== 4. RECHTEKONZEPT ==
+
+Gelesene ACLs [Beleg: nTSecurityDescriptor aus sam.ldb, als SDDL]:
+- DnsAdmins (RID 1101) hat Vollzugriff auf CN=MicrosoftDNS in
+  DomainDnsZones, vererbt auf ad.example.test und alle Knoten.
+  Im Container von ForestDnsZones und auf _msdcs fehlt dieser Eintrag.
+- Angemeldete Benutzer dürfen in den Zonen Kindobjekte anlegen (CC).
+  So tragen sich Rechner selbst ein; der Anleger wird Besitzer mit
+  Vollzugriff (Knoten TESTCLIENT gehört dem Maschinenkonto).
+- Folge: das Dienstkonto kann schon heute NEUE Namen anlegen und diese
+  ändern, aber keine fremden Records. [Annahme aus der ACL abgeleitet]
+
+Empfehlung (kleinstes Recht):
+- Keine Mitgliedschaft in DnsAdmins. Die Gruppe darf alle Zonen der
+  Domänenpartition ändern und löschen und gilt unter Windows-DCs als
+  Weg zur Rechteausweitung. [Quelle: adsecurity.org]
+- Stattdessen je verwalteter Zone eine ACE für windeploy-admins auf dem
+  dnsZone-Objekt: Kindobjekte dnsNode anlegen/löschen (CC, DC), vererbt
+  auf dnsNode Lesen und Schreiben der Eigenschaften (RP, WP), Auflisten
+  (LC). Die Einrichtung setzt das wie bei den GPO-Rechten einmalig mit
+  Domänen-Admin-Daten, die nicht gespeichert werden.
+- _msdcs bekommt nie eine ACE.
+- Zonen anlegen (Stufe C): entweder CC auf CN=MicrosoftDNS der
+  Domänenpartition für die Gruppe oder jedes Mal einmalige
+  Admin-Anmeldung. Empfehlung: einmalige Anmeldung, Zonen legt man
+  selten an.
+- Erster Arbeitsschritt: in der Dev-Domäne prüfen, ob die RPC mit genau
+  dieser ACE liest und schreibt. Falls Samba mehr verlangt, bleibt
+  DnsAdmins als Rückfall, dann mit deutlichem Hinweis in der Oberfläche.
+
+== 5. FUNKTIONSUMFANG IN STUFEN ==
+
+Stufe A - Ansehen (1 Sitzung)
+- Zonenliste mit Art, Partition, Update-Modus, Aging.
+- Records je Zone, Suche über Name/Typ/Wert, Kennzeichen statisch oder
+  dynamisch, Besitzer, Kennzeichen "AD-eigen".
+- Braucht keine neuen Rechte.
+
+Stufe B - Records pflegen (2-3 Sitzungen)
+- A, AAAA, CNAME, PTR, TXT, MX, SRV anlegen, ändern, löschen.
+- Zu A/AAAA wahlweise den PTR mit anlegen und wieder entfernen, wenn
+  die Reverse-Zone existiert.
+- Prüfungen vor dem Schreiben: CNAME nicht neben anderen Typen, Ziel
+  auflösbar, Name doppelt, TTL sinnvoll.
+- Änderungsprotokoll mit altem und neuem Wert, "Rückgängig" je Eintrag.
+
+Stufe C - Zonen und Pflege (2 Sitzungen)
+- Zonen und Reverse-Zonen anlegen und löschen.
+- Export/Import als JSON oder Zonendatei-Text.
+- Prüfberichte: verwaiste PTR, A ohne PTR, doppelte Namen oder
+  Adressen, Records von Rechnern ohne Konto im AD, alte dynamische
+  Einträge (Zeitstempel).
+
+Schutz der AD-eigenen Records (nur anzeigen, in allen Stufen):
+- ganze Zone _msdcs.<Domäne> und RootDNSServers,
+- in der Domänenzone: @ (SOA, NS, A), _msdcs, _sites, _tcp, _udp,
+  DomainDnsZones, ForestDnsZones, gc, Host-Records der DCs,
+- Durchsetzung im Werkzeug (feste Sperrliste plus DC-Namen aus dem AD),
+  nicht nur in der Oberfläche. Die ACL allein schützt nicht, weil die
+  vererbte ACE auch diese Knoten trifft.
+
+== 6. VERHÄLTNIS ZU DNSHELPER (danb35) ==
+
+Im Code bzw. in der Doku gelesen [Beleg: /home/dnshelper1/.config,
+README und USER-GUIDE des Repos]:
+- Zweck: Hilfsmodul, über das ANDERE NS8-Module Records in öffentlichen
+  Zonen bei DNS-Anbietern setzen (DKIM/SPF fürs Mailmodul, ACME DNS-01,
+  Web). Beschreibung des Repos: "control public DNS records".
+- Technik: Go-Programm bin/dnshelper auf Basis von libdns, liest JSON
+  von stdin. Python-Actions rufen es auf. 18 Anbieter, darunter
+  Cloudflare, Hetzner, IONOS, deSEC, Route 53, PowerDNS, RFC 2136.
+- Einbindung: kein Traefik, kein Dienst, kein Container. Rollen
+  dnsreader/dnswriter über das Label org.nethserver.authorizations,
+  Dienstschlüssel module/<id>/srv/api/dnshelper, Ereignis
+  service-dnshelper-changed. Dazu eine Regeltabelle (Standard: alles
+  verboten), Audit-Zeilen im Journal, Zugangsdaten nur im state-Ordner.
+- NS und SOA ändert dnshelper grundsätzlich nicht.
+- Installiert ist 0.4.0, aktuell ist 0.4.1. Lizenz GPL-3.0 (wie
+  windeploy). Autor laut metadata.json: Dan Brown (GitHub danb35),
+  Kontakt über die Issues des Repos. Repo aktiv (letzter Push 28.09.).
+
+Bewertung:
+- Überschneidung: fachlich keine (extern gegen intern), in der
+  Oberfläche ähnlich (Zonen, Records).
+- Samba als Anbieter in dnshelper: passt schlecht. Der RFC-2136-Anbieter
+  verlangt einen TSIG-Schlüssel und AXFR zum Lesen; Samba intern kann
+  beides nicht, nur Kerberos (GSS-TSIG). [Quelle: README; Samba-Wiki]
+  Ein eigener Samba-Anbieter in Go müsste Kerberos und das binäre
+  dnsRecord-Format selbst umsetzen. [Annahme: hoher Aufwand]
+  Eine dokumentierte Anleitung "Anbieter hinzufügen" steht laut README
+  in DESIGN.md; die Datei ließ sich nicht abrufen (leer). [Beleg: curl]
+- Sinnvolle Zusammenarbeit: unsere Actions im selben Format anbieten
+  (get-records, set-records, delete-records mit name/type/ttl/data).
+  Dann könnte ein Modul später interne und externe Zonen gleich
+  ansprechen. Das ist ein Angebot an danb35, keine Voraussetzung.
+
+== 7. RISIKEN ==
+
+- AD beschädigen: falsche oder gelöschte SRV-/DC-Records legen Anmeldung
+  und Replikation lahm. Gegenmittel: Sperrliste, keine Rechte auf
+  _msdcs, Probelauf vor dem Schreiben.
+- Split-DNS: leitet der Router Anfragen für bestimmte Zonen an den DC,
+  so antwortet der DC für die ganze Zone. Ein interner Eintrag verdeckt
+  den öffentlichen, ein fehlender führt zu "gibt es nicht". Die
+  Oberfläche sollte beim Anlegen einer Zone davor warnen und
+  vorhandene öffentliche Einträge zum Vergleich zeigen.
+- Dynamische Records: von Hand geänderte Einträge eines Rechners
+  überschreibt dieser beim nächsten Update. Solche Einträge nur
+  anzeigen oder deutlich kennzeichnen.
+- Mehrere DCs: Replikationsverzug, selten Konfliktobjekte (CNF), wenn
+  auf zwei DCs gleichzeitig geändert wird. Immer denselben DC nutzen.
+- Rückbau: Entfernen des Moduls darf keine Records löschen (anders als
+  bei den GPOs). Nur die ACEs der Gruppe werden entfernt; dafür ist
+  wieder eine Admin-Anmeldung nötig, sonst bleiben sie stehen.
+- Protokoll: Samba selbst protokolliert DNS-Änderungen nur grob. Das
+  Modul braucht ein eigenes Protokoll (wer, wann, alt, neu), in der
+  Modulsicherung enthalten, analog zum vorhandenen Richtlinien-Protokoll.
+- Versionen: DC mit 4.19, Werkzeug mit 4.22. Für die GPOs läuft diese
+  Mischung bereits, für die DNS-RPC ist sie ungeprüft. [Annahme]
+- Windows-DCs: gleiche Schnittstelle, aber nicht getestet. [Annahme]
+
+== 8. QUELLEN ==
+
+Samba
+- https://wiki.samba.org/index.php/DNS_Administration
+- https://wiki.samba.org/index.php/Samba_Internal_DNS_Back_End
+- https://www.samba.org/samba/docs/current/man-html/samba-tool.8.html
+- https://www.samba.org/samba/docs/current/man-html/smb.conf.5.html
+- https://github.com/samba-team/samba/blob/samba-4.19.5/source4/
+  rpc_server/dnsserver/dcerpc_dnsserver.c
+- https://github.com/samba-team/samba/blob/samba-4.19.5/source4/
+  dns_server/dns_update.c
+- https://bugzilla.samba.org/show_bug.cgi?id=12807
+
+Microsoft
+- https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dnsp/
+
+dnshelper
+- https://github.com/danb35/ns8-dnshelper
+- https://github.com/danb35/ns8-dnshelper/blob/master/docs/USER-GUIDE.md
+- https://github.com/danb35/ns8-repomd
+- https://github.com/libdns/rfc2136
+
+Sicherheit DnsAdmins
+- https://adsecurity.org/?p=4064
+
+windeploy
+- https://github.com/tebbiworld/ns8-windeploy

@@ -56,7 +56,7 @@ try:
         "guids": wdcommon.gpo_guids(),
     }, settings=settings, timeout=300)
 except wdcommon.ToolError as ex:
-    msg = str(ex)
+    msg = ex.login_reason(request["admin_user"]) if ex.bad_credentials else str(ex)
     print(agent.SD_ERR + "service account setup failed: " + msg, file=sys.stderr)
     agent.set_status("validation-failed")
     if ex.bad_credentials:

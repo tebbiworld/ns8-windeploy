@@ -31,7 +31,8 @@ try:
         "admin_user": request["admin_user"], "admin_password": request["admin_password"],
     }, timeout=120)
 except wdcommon.ToolError as ex:
-    wdcommon.dns_failed(ex, "admin_password" if ex.bad_credentials or ex.code == "admin_not_allowed" else "zone")
+    wdcommon.dns_failed(ex, "admin_password" if ex.bad_credentials or ex.code == "admin_not_allowed" else "zone",
+                        account=request["admin_user"])
 except ValueError as ex:
     wdcommon.dns_failed(ex, "zone")
 

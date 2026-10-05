@@ -29,9 +29,11 @@ Requests (field "op"):
                           on the given (existing) GPOs of the module
   list    {guids}         attributes of the given GPOs
   create  {display_name}  new empty GPO, returns its GUID
-  apply   {guid, files, add_cse, backup_dir}
+  apply   {guid, files, add_cse, backup_dir, display_name}
                           write files below the GPO folder, register the
-                          scheduled task CSE, bump the computer version
+                          scheduled task CSE, bump the computer version;
+                          a new display_name renames the GPO (LDAP and
+                          GPT.INI)
   link    {guid, target_dn}      append the GPO to gPLink of target_dn
   unlink  {guid, target_dn}
   delete  {guid}          remove links are the caller's job; removes the
@@ -315,8 +317,7 @@ class Session:
         return [str(r.dn) for r in res]
 
     def create(self, display_name):
-        if not display_name or len(display_name) > 200 or any(c in display_name for c in "\r\n\0"):
-            raise GpoError("invalid display name")
+        _check_display_name(display_name)
         guid = "{" + str(uuid.uuid4()).upper() + "}"
         dn = self.gpo_dn(guid)
         sid = self.account_sid()
@@ -361,12 +362,16 @@ class Session:
         log(f"created GPO {guid} {display_name!r}")
         return {"guid": guid}
 
-    def apply(self, guid, files, backup_dir=None, add_cse=True, machine_extensions=None):
+    def apply(self, guid, files, backup_dir=None, add_cse=True, machine_extensions=None, display_name=None):
         """files: {relative path: base64 content or null to delete}.
         machine_extensions replaces gPCMachineExtensionNames (policy GPOs:
         the module owns the whole GPO and knows which extensions it uses);
-        without it the scheduled tasks extension is added (add_cse)."""
+        without it the scheduled tasks extension is added (add_cse).
+        display_name renames the GPO in the same LDAP change; without it
+        the name stays as it is."""
         _check_guid(guid)
+        if display_name is not None:
+            _check_display_name(display_name)
         for rel in files:
             if not ALLOWED_FILE_RE.match(rel):
                 raise GpoError(f"path not allowed: {rel}")
@@ -375,7 +380,8 @@ class Session:
                               attrs=["versionNumber", "gPCMachineExtensionNames", "displayName"])[0]
         old_version = str(m.get("versionNumber", [b"0"])[0])
         old_ext = str(m["gPCMachineExtensionNames"][0]) if "gPCMachineExtensionNames" in m else None
-        display_name = str(m.get("displayName", [b""])[0])
+        old_name = str(m.get("displayName", [b""])[0])
+        new_name = old_name if display_name is None else display_name
 
         # 1. keep the previous state of every touched file (and GPT.INI)
         previous = {}
@@ -410,6 +416,8 @@ class Session:
             if new_ext != old_ext:
                 # an empty list of values removes the attribute
                 msg["e"] = ldb.MessageElement(new_ext or [], ldb.FLAG_MOD_REPLACE, "gPCMachineExtensionNames")
+            if new_name != old_name:
+                msg["n"] = ldb.MessageElement(new_name, ldb.FLAG_MOD_REPLACE, "displayName")
             self.samdb.modify(msg)
         except Exception:
             log(f"apply {guid} failed, restoring the previous files")
@@ -422,7 +430,9 @@ class Session:
             raise
         # 4. GPT.INI last, same number as LDAP
         self.write_file(self.share_path(guid, "GPT.INI"),
-                        gpogen.build_gpt_ini(new_version, display_name or None).encode("utf-8"))
+                        gpogen.build_gpt_ini(new_version, new_name or None).encode("utf-8"))
+        if new_name != old_name:
+            log(f"renamed {guid} {old_name!r} -> {new_name!r}")
         log(f"applied {len(files)} file(s) to {guid}, version {old_version} -> {new_version}")
         return {"guid": guid, "version": new_version, "machine_extensions": new_ext}
 
@@ -751,6 +761,11 @@ def _check_guid(guid):
         raise GpoError(f"invalid GPO GUID {guid!r}")
 
 
+def _check_display_name(name):
+    if not isinstance(name, str) or not name or len(name) > 200 or any(c in name for c in "\r\n\0"):
+        raise GpoError("invalid display name")
+
+
 def _quiet(fn):
     try:
         fn()
@@ -805,7 +820,8 @@ def main():
         elif op == "apply":
             result = s.apply(request["guid"], request.get("files", {}),
                              backup_dir=request.get("backup_dir"), add_cse=request.get("add_cse", True),
-                             machine_extensions=request.get("machine_extensions"))
+                             machine_extensions=request.get("machine_extensions"),
+                             display_name=request.get("display_name"))
         elif op == "domain_info":
             result = s.domain_info()
         elif op == "link":
@@ -822,6 +838,12 @@ def main():
             raise GpoError(f"unknown op {op!r}")
         json.dump({"ok": True, "result": result}, sys.stdout)
     except (GpoError, ldb.LdbError) as ex:
+        reason = _bind_reason(ex)
+        if reason:
+            # a refused login is no program error: one line, no traceback
+            log(f"login refused by the domain controller (AD reason {reason})")
+            json.dump({"ok": False, "error": "login refused", "ad_reason": reason, **_error_code(ex)}, sys.stdout)
+            sys.exit(2)
         log(traceback.format_exc())
         json.dump({"ok": False, "error": str(ex), **_error_code(ex)}, sys.stdout)
         sys.exit(2)
@@ -839,6 +861,20 @@ def _error_code(ex):
     if werr == 5:
         return {"code": "access_denied"}
     return _result_code(ex)
+
+
+LDAP_INVALID_CREDENTIALS = 49
+# "AcceptSecurityContext error, data 533, v..." in the message of LDAP 49
+BIND_REASON_RE = re.compile(r"\bdata ([0-9a-fA-F]{1,8})\b")
+
+
+def _bind_reason(ex):
+    """The AD sub-code of a refused LDAP login ("52e", "533", ...), "" when
+    the error is something else or carries no sub-code ("49")."""
+    if not (isinstance(ex, ldb.LdbError) and ex.args and ex.args[0] == LDAP_INVALID_CREDENTIALS):
+        return ""
+    m = BIND_REASON_RE.search(str(ex.args[1]) if len(ex.args) > 1 else "")
+    return m.group(1).lower() if m else "49"
 
 
 def _result_code(ex):

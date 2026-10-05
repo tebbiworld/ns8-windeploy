@@ -237,6 +237,7 @@
               :label="$t('guide.admin_user')"
               v-model.trim="setup.admin_user"
               placeholder="administrator"
+              :helper-text="$t('guide.admin_user_helper')"
               :invalid-message="error.admin_user"
               ref="admin_user"
             />
