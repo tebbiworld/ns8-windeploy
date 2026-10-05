@@ -125,8 +125,10 @@ with wdcommon.deployments_locked() as data:
             created = True
         agent.set_progress(40)
         files = wdcommon.build_files(deployment, settings)
+        # the display name follows a renamed deployment (LDAP and GPT.INI)
         res = wdcommon.run_tool({"op": "apply", "guid": deployment["gpo_guid"], "files": files,
-                                 "backup_dir": "/backup"}, settings=settings)
+                                 "backup_dir": "/backup", "display_name": "windeploy: " + deployment["name"]},
+                                settings=settings)
         deployment["version"] = res["version"]
         wdcommon.prune_backups(deployment["gpo_guid"])
         agent.set_progress(70)

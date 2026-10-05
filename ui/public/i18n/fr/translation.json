@@ -335,6 +335,7 @@
         "change_changed": "Modifié",
         "change_reset": "Remis aux valeurs par défaut de Windows",
         "change_deleted": "Supprimé",
+        "renamed_from": "Renommé, auparavant « {name} »",
         "edit_title": "Modifier le profil de stratégies",
         "new_title": "Nouveau profil de stratégies",
         "stays_hint": "Reste sur les ordinateurs après la désactivation, jusqu'à ce que le profil l'ait réinitialisé.",

@@ -335,6 +335,7 @@
         "change_changed": "Geändert",
         "change_reset": "Auf Windows-Standard zurückgesetzt",
         "change_deleted": "Gelöscht",
+        "renamed_from": "Umbenannt, vorher „{name}“",
         "edit_title": "Richtlinienprofil bearbeiten",
         "new_title": "Neues Richtlinienprofil",
         "stays_hint": "Bleibt nach dem Abschalten auf den Rechnern, bis das Profil sie zurückgesetzt hat.",

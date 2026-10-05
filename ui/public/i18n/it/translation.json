@@ -335,6 +335,7 @@
         "change_changed": "Modificato",
         "change_reset": "Riportato ai valori predefiniti di Windows",
         "change_deleted": "Eliminato",
+        "renamed_from": "Rinominato, prima \"{name}\"",
         "edit_title": "Modifica profilo di criteri",
         "new_title": "Nuovo profilo di criteri",
         "stays_hint": "Resta sui computer dopo la disattivazione, finché il profilo non l'ha ripristinata.",

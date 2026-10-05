@@ -185,6 +185,9 @@
                 <td>{{ l.profile }}</td>
                 <td>
                   {{ $t("policies.change_" + l.change) }}
+                  <div v-if="l.renamed_from" class="muted small">
+                    {{ $t("policies.renamed_from", { name: l.renamed_from }) }}
+                  </div>
                   <div v-for="d in logDiff(l)" :key="d" class="muted small">
                     {{ d }}
                   </div>

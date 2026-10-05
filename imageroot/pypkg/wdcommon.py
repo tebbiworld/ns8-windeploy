@@ -245,7 +245,7 @@ def read_policies():
         return {"profiles": []}
 
 
-def log_policy_change(profile, change, reason, before, after):
+def log_policy_change(profile, change, reason, before, after, renamed_from=None):
     """One line per change of a policy profile: what was set before and
     after, and why. Shown on the policy page."""
     entry = {
@@ -253,6 +253,8 @@ def log_policy_change(profile, change, reason, before, after):
         "profile": profile, "change": change, "reason": reason,
         "before": before, "after": after,
     }
+    if renamed_from and renamed_from != profile:
+        entry["renamed_from"] = renamed_from
     with open(os.path.join(state_dir(), POLICY_LOG), "a") as f:
         f.write(json.dumps(entry, sort_keys=True) + "\n")
 

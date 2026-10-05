@@ -335,6 +335,7 @@
         "change_changed": "Changed",
         "change_reset": "Reset to the Windows defaults",
         "change_deleted": "Deleted",
+        "renamed_from": "Renamed, previously \"{name}\"",
         "edit_title": "Edit policy profile",
         "new_title": "New policy profile",
         "stays_hint": "Stays on the computers when switched off, until the profile has reset it.",
