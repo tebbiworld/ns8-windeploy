@@ -125,6 +125,17 @@
                 $t("delivery.embedded")
               }}</cv-dropdown-item>
             </cv-dropdown>
+            <NsTextInput
+              :label="$t('settings.grace_days')"
+              v-model.number="delete_grace_days"
+              type="number"
+              min="1"
+              max="365"
+              :helper-text="$t('settings.grace_days_help')"
+              :invalid-message="error.delete_grace_days"
+              :disabled="busy"
+              ref="delete_grace_days"
+            />
             <NsInlineNotification
               v-if="error.configureModule"
               kind="error"
@@ -325,6 +336,7 @@ export default {
       password: "",
       password_set: false,
       default_delivery: "sysvol",
+      delete_grace_days: 14,
       rights: null,
       index: {},
       setup: {
@@ -341,6 +353,7 @@ export default {
         setup: false,
       },
       error: {
+        delete_grace_days: "",
         getConfiguration: "",
         configureModule: "",
         refreshIndex: "",
@@ -434,6 +447,7 @@ export default {
         this.password = "";
         this.password_set = c.password_set;
         this.default_delivery = c.default_delivery || "sysvol";
+        this.delete_grace_days = c.delete_grace_days || 14;
         this.rights = c.rights;
         this.index = c.index || {};
         const own = this.internalDomains.find((d) => d.name === this.domain);
@@ -459,6 +473,12 @@ export default {
           ok = false;
         }
       }
+      const days = Number(this.delete_grace_days);
+      if (!(Number.isInteger(days) && days >= 1 && days <= 365)) {
+        this.error.delete_grace_days = this.$t("removal.days_range");
+        if (ok) this.focusElement("delete_grace_days");
+        ok = false;
+      }
       return ok;
     },
     async configureModule() {
@@ -478,6 +498,7 @@ export default {
             username: this.username,
             password: this.password,
             default_delivery: this.default_delivery,
+            delete_grace_days: this.delete_grace_days,
           },
           {
             title: this.$t("settings.configure_instance", {

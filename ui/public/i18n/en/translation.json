@@ -72,7 +72,9 @@
         "optional": "optional",
         "right_can_manage_gpos": "Change the existing GPOs of the module",
         "foreign_gpos": "One deployment has a GPO this account may not change (an earlier service account created it). To fix it, run the automatic setup under Settings again: it hands the GPOs over to the group {group}. | {n} deployments have GPOs this account may not change (an earlier service account created them). To fix it, run the automatic setup under Settings again: it hands the GPOs over to the group {group}.",
-        "not_in_group": "The account is not a member of the group {group}: a later service account cannot take over the GPOs it creates."
+        "not_in_group": "The account is not a member of the group {group}: a later service account cannot take over the GPOs it creates.",
+        "grace_days": "Waiting period for removals (days)",
+        "grace_days_help": "Time between starting the removal of a deployment or profile and deleting its GPO. Default 14 days."
     },
     "about": {
         "title": "About"
@@ -179,11 +181,6 @@
         "error_deployment_not_found": "The deployment does not exist any more",
         "error_name_in_use": "The name is already used",
         "error_generation_failed": "The GPO files could not be generated",
-        "remove_title": "Remove deployment",
-        "remove_desc": "The deployment {name} and its GPO are deleted from Active Directory.",
-        "remove_clients_title": "Tasks on the computers",
-        "remove_clients_desc": "Each computer deletes the scheduled tasks of this deployment at its next policy refresh (start-up, about every 90 minutes, or gpupdate), even if it is switched on only months later. Installed software stays.",
-        "removing": "Removing deployment {name}",
         "remove_failed": "Removing failed, see the module log",
         "run_now": "Run now",
         "run_now_task": "Run {name} now",
@@ -206,7 +203,8 @@
         "error_ou_create_failed": "The OU {dn} could not be created, see the module log.",
         "error_user_scope_only": "{value} only installs per user and cannot be deployed as SYSTEM",
         "scope_machine": "Machine-wide installer available: the deployment asks for it (--scope machine).",
-        "scope_user": "Per-user installation only: cannot be deployed as SYSTEM, the module refuses the package when saving."
+        "scope_user": "Per-user installation only: cannot be deployed as SYSTEM, the module refuses the package when saving.",
+        "error_removal_pending": "The removal is running; cancel it first"
     },
     "mode": {
         "upgrade": "Update if installed",
@@ -326,7 +324,6 @@
         "empty": "No policy profiles",
         "empty_desc": "Create a profile, pick its settings and link it to the domain or to organizational units.",
         "settings": "Settings",
-        "resetting": "Being removed: writes the Windows defaults",
         "reset_tag": "reset",
         "log_title": "Changes",
         "log_time": "Time",
@@ -349,18 +346,17 @@
         "reason_help": "Kept in the list of changes.",
         "reason_required": "Enter a reason (at least 3 characters)",
         "saving": "Saving policy profile {name}",
-        "removing": "Removing policy profile {name}",
         "remove_title": "Remove policy profile",
-        "remove_delete": "The profile {name} and its GPO are deleted. The computers return to their own settings at the next policy refresh.",
-        "remove_reset": "These settings of {name} stay on the computers when the GPO is deleted. The profile is changed to write the Windows defaults instead:",
-        "remove_reset_next": "Leave it linked until all computers have been switched on and refreshed their policies, then remove the profile again to delete it.",
-        "remove_button_reset": "Reset settings",
         "error_not_configured": "Connect the module to a domain first (Settings)",
         "error_invalid_setting": "Check the setting: {value}",
         "error_link_target_not_found": "Not found in the directory: {value}",
         "error_profile_not_found": "The profile does not exist any more",
         "error_name_in_use": "Another profile has the name {value}",
-        "error_setting_required": "Tick at least one setting"
+        "error_setting_required": "Tick at least one setting",
+        "change_removal_started": "Removal started",
+        "change_removal_cancelled": "Removal cancelled",
+        "change_deleted_by_timer": "Deleted after the waiting period",
+        "error_removal_pending": "The removal is running; cancel it first"
     },
     "policy_group": {
         "logon": "Logon and lock",
@@ -632,5 +628,35 @@
         "error_no_public_record": "The public DNS has no such record any more",
         "compare_dnshelper": "To change the public side instead, use the DNS helper of this cluster:",
         "compare_no_dnshelper": "Changes here only touch the internal zone. The public side is changed at the DNS provider, or from this cluster with the module dnshelper."
+    },
+    "removal": {
+        "title_start": "Start removal",
+        "title_cancel": "Cancel removal",
+        "title_delete": "Delete now",
+        "button_start": "Start removal",
+        "button_cancel": "Cancel removal",
+        "button_delete": "Delete now",
+        "deployment_start": "The computers delete the scheduled tasks of {name} at their next policy refresh. The GPO stays linked for the waiting period, so that computers that are rarely connected see the change too; then it is deleted. Installed software stays.",
+        "policy_start": "The settings of {name} are lifted on the computers. The GPO stays linked for the waiting period, so that computers that are rarely connected see the change too; then it is deleted.",
+        "policy_stays": "Windows does not remove these settings by itself. During the waiting period the profile writes the Windows defaults for them:",
+        "deployment_cancel": "The tasks of {name} are written to the GPO again as they were before the removal started.",
+        "policy_cancel": "The settings of {name} are written to the GPO again as they were before the removal started.",
+        "deployment_delete": "The waiting period is over. The GPO of {name} is unlinked and deleted.",
+        "policy_delete": "The waiting period is over. The GPO of {name} is unlinked and deleted.",
+        "days_label": "Waiting period in days",
+        "days_help": "Afterwards the module deletes the GPO by itself (daily around 3 am). Default from the settings.",
+        "days_range": "A whole number from 1 to 365",
+        "pending": "Deletion pending until {date}",
+        "task_start": "Start removal of {name}",
+        "task_cancel": "Cancel removal of {name}",
+        "task_delete": "Delete {name}",
+        "error_removal_pending": "The removal is already running; cancel it first",
+        "error_removal_not_pending": "No removal is running for this item",
+        "error_removal_not_due": "The waiting period is not over yet",
+        "log_title": "Removed deployments",
+        "change_removal_started": "Removal started",
+        "change_removal_cancelled": "Removal cancelled",
+        "change_deleted": "Deleted",
+        "change_deleted_by_timer": "Deleted after the waiting period"
     }
 }

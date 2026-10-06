@@ -18,3 +18,4 @@ if not os.path.exists("deployments.json"):
     with open("deployments.json", "w") as f:
         json.dump({"deployments": []}, f)
 agent.set_env("DEFAULT_DELIVERY", "sysvol")
+agent.set_env("DELETE_GRACE_DAYS", "14")

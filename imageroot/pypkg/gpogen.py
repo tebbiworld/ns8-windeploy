@@ -313,7 +313,11 @@ def build_task(task):
     (measured: also with action "update") and creates the task again at
     every policy refresh, losing its history - a missed start is not made
     up for. Therefore the task also starts when it is registered; the
-    script decides whether a scheduled time is due."""
+    script decides whether a scheduled time is due.
+
+    delete makes the item delete the task of the same name on the
+    computers (action "D"): the first phase of removing a deployment, while
+    its GPO still applies."""
     name = task["name"]
     if not TASK_NAME_RE.match(name):
         raise GenError(f"invalid task name {name!r}")
@@ -321,15 +325,16 @@ def build_task(task):
     if not GUID_RE.fullmatch(uid):
         raise GenError(f"invalid task uid {uid!r}")
     changed = task["changed"].strftime("%Y-%m-%d %H:%M:%S")
-    remove = bool(task.get("remove_policy"))
+    delete = bool(task.get("delete"))
+    remove = bool(task.get("remove_policy")) and not delete
     triggers = _trigger(task["schedule"])
     if remove:
         triggers += f"<RegistrationTrigger><Enabled>true</Enabled><Delay>{REGISTRATION_DELAY}</Delay></RegistrationTrigger>"
     return (
         f'<TaskV2 clsid="{{D8896631-B747-47a7-84A6-C155337F3BC8}}" name={quoteattr(name)} '
-        f'image="{1 if remove else 2}" changed="{changed}" uid="{uid}"'
+        f'image="{3 if delete else 1 if remove else 2}" changed="{changed}" uid="{uid}"'
         + (' removePolicy="1"' if remove else "") + ">"
-        f'<Properties action="{"R" if remove else "U"}" name={quoteattr(name)} runAs="NT AUTHORITY\\System" logonType="S4U">'
+        f'<Properties action="{"D" if delete else "R" if remove else "U"}" name={quoteattr(name)} runAs="NT AUTHORITY\\System" logonType="S4U">'
         '<Task version="1.3">'
         f'<RegistrationInfo><Author>{escape(task.get("author", ""))}</Author><Description>{escape(task.get("description", ""))}</Description></RegistrationInfo>'
         '<Principals><Principal id="Author"><UserId>NT AUTHORITY\\System</UserId>'

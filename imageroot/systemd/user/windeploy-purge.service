@@ -1,0 +1,13 @@
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+[Unit]
+Description=Delete the GPOs of %u whose waiting period is over
+
+[Service]
+Type=oneshot
+WorkingDirectory=%S/state
+ExecStart=runagent %S/bin/purge-pending
+SyslogIdentifier=%u

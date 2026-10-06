@@ -121,7 +121,9 @@
         "optional": "facultatif",
         "right_can_manage_gpos": "Modifier les GPO existantes du module",
         "foreign_gpos": "Un déploiement a une GPO que ce compte ne peut pas modifier (créée par un ancien compte de service). Solution : relancer la configuration automatique dans Paramètres, elle confie les GPO au groupe {group}. | {n} déploiements ont des GPO que ce compte ne peut pas modifier (créées par un ancien compte de service). Solution : relancer la configuration automatique dans Paramètres, elle confie les GPO au groupe {group}.",
-        "not_in_group": "Le compte n'est pas membre du groupe {group} : un futur compte de service ne pourra pas reprendre les GPO qu'il crée."
+        "not_in_group": "Le compte n'est pas membre du groupe {group} : un futur compte de service ne pourra pas reprendre les GPO qu'il crée.",
+        "grace_days": "Délai d'attente des suppressions (jours)",
+        "grace_days_help": "Temps entre le lancement de la suppression d'un déploiement ou d'un profil et la suppression de son GPO. Par défaut 14 jours."
     },
     "deployments": {
         "title": "Déploiements",
@@ -179,11 +181,6 @@
         "error_deployment_not_found": "Le déploiement n'existe plus",
         "error_name_in_use": "Ce nom est déjà utilisé",
         "error_generation_failed": "Impossible de générer les fichiers de la GPO",
-        "remove_title": "Supprimer le déploiement",
-        "remove_desc": "Le déploiement {name} et sa GPO sont supprimés d'Active Directory.",
-        "remove_clients_title": "Tâches sur les ordinateurs",
-        "remove_clients_desc": "Chaque ordinateur supprime les tâches planifiées de ce déploiement à sa prochaine actualisation des stratégies (démarrage, environ toutes les 90 minutes ou gpupdate), même s'il n'est allumé que des mois plus tard. Les logiciels installés restent.",
-        "removing": "Suppression du déploiement {name}",
         "remove_failed": "Échec de la suppression, voir le journal du module",
         "run_now": "Exécuter maintenant",
         "run_now_task": "Exécuter {name} maintenant",
@@ -206,7 +203,8 @@
         "error_ou_create_failed": "Impossible de créer l'unité d'organisation {dn}, voir le journal du module.",
         "error_user_scope_only": "{value} ne s'installe que par utilisateur et ne peut pas être déployé en tant que SYSTEM",
         "scope_machine": "Programme d'installation pour l'ordinateur disponible : le déploiement le demande (--scope machine).",
-        "scope_user": "Installation par utilisateur uniquement : non déployable en tant que SYSTEM, le module refuse le paquet à l'enregistrement."
+        "scope_user": "Installation par utilisateur uniquement : non déployable en tant que SYSTEM, le module refuse le paquet à l'enregistrement.",
+        "error_removal_pending": "La suppression est en cours ; l'annuler d'abord"
     },
     "mode": {
         "upgrade": "Mettre à jour si installé",
@@ -326,7 +324,6 @@
         "empty": "Aucun profil de stratégies",
         "empty_desc": "Créer un profil, choisir ses paramètres et le lier au domaine ou à des unités d'organisation.",
         "settings": "Paramètres",
-        "resetting": "En cours de suppression : écrit les valeurs par défaut de Windows",
         "reset_tag": "réinitialisé",
         "log_title": "Modifications",
         "log_time": "Heure",
@@ -349,18 +346,17 @@
         "reason_help": "Conservé dans la liste des modifications.",
         "reason_required": "Saisir un motif (au moins 3 caractères)",
         "saving": "Enregistrement du profil de stratégies {name}",
-        "removing": "Suppression du profil de stratégies {name}",
         "remove_title": "Supprimer le profil de stratégies",
-        "remove_delete": "Le profil {name} et sa GPO sont supprimés. Les ordinateurs reviennent à leurs propres paramètres à la prochaine actualisation des stratégies.",
-        "remove_reset": "Ces paramètres de {name} restent sur les ordinateurs quand la GPO est supprimée. Le profil est donc modifié pour écrire les valeurs par défaut de Windows :",
-        "remove_reset_next": "Le laisser lié jusqu'à ce que tous les ordinateurs aient été allumés et aient actualisé leurs stratégies ; supprimer ensuite le profil à nouveau pour l'effacer.",
-        "remove_button_reset": "Réinitialiser les paramètres",
         "error_not_configured": "Connecter d'abord le module à un domaine (Paramètres)",
         "error_invalid_setting": "Vérifier le paramètre : {value}",
         "error_link_target_not_found": "Introuvable dans l'annuaire : {value}",
         "error_profile_not_found": "Le profil n'existe plus",
         "error_name_in_use": "Un autre profil s'appelle déjà {value}",
-        "error_setting_required": "Cocher au moins un paramètre"
+        "error_setting_required": "Cocher au moins un paramètre",
+        "change_removal_started": "Suppression lancée",
+        "change_removal_cancelled": "Suppression annulée",
+        "change_deleted_by_timer": "Supprimé après le délai d'attente",
+        "error_removal_pending": "La suppression est en cours ; l'annuler d'abord"
     },
     "policy_group": {
         "logon": "Connexion et verrouillage",
@@ -632,5 +628,35 @@
         "error_no_public_record": "Le DNS public n'a plus cet enregistrement",
         "compare_dnshelper": "Pour modifier plutôt le côté public, utiliser le DNS helper de ce cluster :",
         "compare_no_dnshelper": "Les modifications ici ne concernent que la zone interne. Le côté public se modifie chez le fournisseur DNS, ou depuis ce cluster avec le module dnshelper."
+    },
+    "removal": {
+        "title_start": "Lancer la suppression",
+        "title_cancel": "Annuler la suppression",
+        "title_delete": "Supprimer maintenant",
+        "button_start": "Lancer la suppression",
+        "button_cancel": "Annuler la suppression",
+        "button_delete": "Supprimer maintenant",
+        "deployment_start": "Les ordinateurs suppriment les tâches planifiées de {name} lors de leur prochaine actualisation des stratégies. Le GPO reste lié pendant le délai d'attente, afin que les ordinateurs rarement connectés reçoivent aussi la modification ; ensuite il est supprimé. Les logiciels installés restent.",
+        "policy_start": "Les paramètres de {name} sont levés sur les ordinateurs. Le GPO reste lié pendant le délai d'attente, afin que les ordinateurs rarement connectés reçoivent aussi la modification ; ensuite il est supprimé.",
+        "policy_stays": "Windows ne supprime pas ces paramètres de lui-même. Pendant le délai d'attente, le profil y écrit les valeurs par défaut de Windows :",
+        "deployment_cancel": "Les tâches de {name} sont réécrites dans le GPO comme avant le lancement de la suppression.",
+        "policy_cancel": "Les paramètres de {name} sont réécrits dans le GPO comme avant le lancement de la suppression.",
+        "deployment_delete": "Le délai d'attente est écoulé. Le GPO de {name} est délié et supprimé.",
+        "policy_delete": "Le délai d'attente est écoulé. Le GPO de {name} est délié et supprimé.",
+        "days_label": "Délai d'attente en jours",
+        "days_help": "Ensuite, le module supprime le GPO de lui-même (chaque jour vers 3 h). Valeur par défaut des paramètres.",
+        "days_range": "Un nombre entier de 1 à 365",
+        "pending": "Suppression prévue le {date}",
+        "task_start": "Lancer la suppression de {name}",
+        "task_cancel": "Annuler la suppression de {name}",
+        "task_delete": "Supprimer {name}",
+        "error_removal_pending": "La suppression est déjà en cours ; l'annuler d'abord",
+        "error_removal_not_pending": "Aucune suppression en cours pour cet élément",
+        "error_removal_not_due": "Le délai d'attente n'est pas encore écoulé",
+        "log_title": "Déploiements supprimés",
+        "change_removal_started": "Suppression lancée",
+        "change_removal_cancelled": "Suppression annulée",
+        "change_deleted": "Supprimé",
+        "change_deleted_by_timer": "Supprimé après le délai d'attente"
     }
 }

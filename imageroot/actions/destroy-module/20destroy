@@ -24,7 +24,8 @@ import agent
 import policygen
 import wdcommon
 
-subprocess.run(["systemctl", "--user", "disable", "--now", "windeploy-index.timer"], check=False)
+for timer in ("windeploy-index.timer", "windeploy-purge.timer"):
+    subprocess.run(["systemctl", "--user", "disable", "--now", timer], check=False)
 
 
 def moved():

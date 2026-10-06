@@ -30,6 +30,10 @@ with wdcommon.deployments_locked() as data:
         json.dump([{"field": "id", "parameter": "id", "value": request["id"], "error": "deployment_not_found"}], fp=sys.stdout)
         sys.exit(3)
 
+    if old.get("pending_delete"):
+        agent.set_status("validation-failed")
+        json.dump([{"field": "id", "parameter": "id", "value": request["id"], "error": "removal_pending"}], fp=sys.stdout)
+        sys.exit(3)
     deployment = copy.deepcopy(old)
     deployment.pop("run_now_id", None)  # one id per deployment: before 0.1
     for pkg in deployment["packages"]:

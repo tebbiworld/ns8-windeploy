@@ -29,4 +29,5 @@ for d in deployments:
     item = {k: v for k, v in d.items() if not k.startswith("_")}
     item["gpo"] = live.get(d.get("gpo_guid"))
     out.append(item)
-json.dump({"deployments": out, "error": error}, fp=sys.stdout)
+json.dump({"deployments": out, "error": error, "log": wdcommon.read_deployment_log(),
+           "grace_days": wdcommon.grace_days_default()}, fp=sys.stdout)

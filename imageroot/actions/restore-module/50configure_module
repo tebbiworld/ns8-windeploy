@@ -29,6 +29,7 @@ data = {
     "username": env["GPO_USER"],
     "password": "",
     "default_delivery": env.get("DEFAULT_DELIVERY", "sysvol"),
+    "delete_grace_days": int(env.get("DELETE_GRACE_DAYS") or 14),
     "skip_check": True,
 }
 response = agent.tasks.run(agent_id=env["AGENT_ID"], action="configure-module", data=data)

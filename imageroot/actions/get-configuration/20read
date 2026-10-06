@@ -30,6 +30,7 @@ json.dump({
     "username": env.get("GPO_USER", ""),
     "password_set": bool(modsecrets.get("GPO_PASSWORD")),
     "default_delivery": env.get("DEFAULT_DELIVERY", "sysvol"),
+    "delete_grace_days": wdcommon.grace_days_default(),
     "domains": wdcommon.ns8_domains(),
     "effective": wdcommon.connection_settings(),
     "rights": rights,

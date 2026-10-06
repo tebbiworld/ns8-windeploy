@@ -66,6 +66,8 @@ if not request.get("skip_check"):
 agent.mset_env(env)
 if request.get("default_delivery"):
     agent.set_env("DEFAULT_DELIVERY", request["default_delivery"])
+if request.get("delete_grace_days"):
+    agent.set_env("DELETE_GRACE_DAYS", str(request["delete_grace_days"]))
 if request.get("password"):
     modsecrets.write({"GPO_PASSWORD": request["password"]})
 

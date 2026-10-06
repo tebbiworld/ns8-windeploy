@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Up to 0.2.0 a profile was removed in two manual steps; the first one
+# left it in the state "resetting". Such a profile now gets the waiting
+# period of the new removal, counted from its last change; the timer
+# deletes it when the period is over.
+
+import datetime
+import sys
+
+import agent
+import wdcommon
+
+with wdcommon.policies_locked() as data:
+    for profile in data["profiles"]:
+        if profile.get("state") != "resetting" or profile.get("pending_delete"):
+            continue
+        try:
+            since = datetime.datetime.fromisoformat(profile.get("changed", ""))
+        except ValueError:
+            since = None
+        if since and since.tzinfo is None:
+            since = since.replace(tzinfo=datetime.timezone.utc)
+        pending = wdcommon.new_pending("reset before the update to the removal with waiting period", now=since)
+        pending["previous_settings"] = profile["settings"]
+        pending["previous_state"] = "active"
+        profile["pending_delete"] = pending
+        profile["state"] = "pending_delete"
+        print(agent.SD_NOTICE + f"policy profile {profile['name']!r}: removal pending until {pending['until']}",
+              file=sys.stderr)

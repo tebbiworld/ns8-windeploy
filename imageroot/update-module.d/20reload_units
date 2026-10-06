@@ -10,4 +10,6 @@ exec 1>&2
 systemctl --user daemon-reload
 if systemctl --user is-enabled --quiet windeploy-index.timer; then
     systemctl --user restart windeploy-index.timer
+    # new in 0.3.0: a configured module also gets the removal timer
+    systemctl --user enable --now windeploy-purge.timer
 fi

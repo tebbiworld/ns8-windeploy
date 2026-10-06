@@ -72,7 +72,9 @@
         "optional": "facoltativo",
         "right_can_manage_gpos": "Modificare i GPO esistenti del modulo",
         "foreign_gpos": "Una distribuzione ha un GPO che questo account non può modificare (creato da un account di servizio precedente). Rimedio: esegui di nuovo la configurazione automatica in Impostazioni, che consegna i GPO al gruppo {group}. | {n} distribuzioni hanno GPO che questo account non può modificare (creati da un account di servizio precedente). Rimedio: esegui di nuovo la configurazione automatica in Impostazioni, che consegna i GPO al gruppo {group}.",
-        "not_in_group": "L'account non è membro del gruppo {group}: un account di servizio successivo non potrà subentrare nei GPO che crea."
+        "not_in_group": "L'account non è membro del gruppo {group}: un account di servizio successivo non potrà subentrare nei GPO che crea.",
+        "grace_days": "Periodo di attesa per le rimozioni (giorni)",
+        "grace_days_help": "Tempo tra l'avvio della rimozione di una distribuzione o di un profilo e l'eliminazione del suo GPO. Predefinito 14 giorni."
     },
     "error": {
         "error": "Errore",
@@ -179,11 +181,6 @@
         "error_deployment_not_found": "La distribuzione non esiste più",
         "error_name_in_use": "Il nome è già in uso",
         "error_generation_failed": "Impossibile generare i file del GPO",
-        "remove_title": "Rimuovi distribuzione",
-        "remove_desc": "La distribuzione {name} e il suo GPO vengono eliminati da Active Directory.",
-        "remove_clients_title": "Operazioni sui computer",
-        "remove_clients_desc": "Ogni computer elimina le operazioni pianificate di questa distribuzione al successivo aggiornamento dei criteri (avvio, circa ogni 90 minuti o gpupdate), anche se viene acceso solo mesi dopo. Il software installato resta.",
-        "removing": "Rimozione della distribuzione {name}",
         "remove_failed": "Rimozione non riuscita, vedi il log del modulo",
         "run_now": "Esegui subito",
         "run_now_task": "Esegui subito {name}",
@@ -206,7 +203,8 @@
         "error_ou_create_failed": "Impossibile creare l'unità organizzativa {dn}, vedi il log del modulo.",
         "error_user_scope_only": "{value} si installa solo per utente e non può essere distribuito come SYSTEM",
         "scope_machine": "Programma di installazione per il computer disponibile: la distribuzione lo richiede (--scope machine).",
-        "scope_user": "Solo installazione per utente: non distribuibile come SYSTEM, il modulo rifiuta il pacchetto al salvataggio."
+        "scope_user": "Solo installazione per utente: non distribuibile come SYSTEM, il modulo rifiuta il pacchetto al salvataggio.",
+        "error_removal_pending": "La rimozione è in corso; annullarla prima"
     },
     "mode": {
         "upgrade": "Aggiorna se installato",
@@ -326,7 +324,6 @@
         "empty": "Nessun profilo di criteri",
         "empty_desc": "Creare un profilo, scegliere le impostazioni e collegarlo al dominio o a unità organizzative.",
         "settings": "Impostazioni",
-        "resetting": "In rimozione: scrive i valori predefiniti di Windows",
         "reset_tag": "ripristinata",
         "log_title": "Modifiche",
         "log_time": "Ora",
@@ -349,18 +346,17 @@
         "reason_help": "Viene riportato nell'elenco delle modifiche.",
         "reason_required": "Inserire un motivo (almeno 3 caratteri)",
         "saving": "Salvataggio del profilo di criteri {name}",
-        "removing": "Rimozione del profilo di criteri {name}",
         "remove_title": "Rimuovi profilo di criteri",
-        "remove_delete": "Il profilo {name} e il suo GPO vengono eliminati. I computer tornano alle proprie impostazioni al successivo aggiornamento dei criteri.",
-        "remove_reset": "Queste impostazioni di {name} restano sui computer quando il GPO viene eliminato. Il profilo viene quindi modificato per scrivere i valori predefiniti di Windows:",
-        "remove_reset_next": "Lasciarlo collegato finché tutti i computer sono stati accesi e hanno aggiornato i criteri; poi rimuovere di nuovo il profilo per eliminarlo.",
-        "remove_button_reset": "Ripristina impostazioni",
         "error_not_configured": "Collegare prima il modulo a un dominio (Impostazioni)",
         "error_invalid_setting": "Controllare l'impostazione: {value}",
         "error_link_target_not_found": "Non trovato nella directory: {value}",
         "error_profile_not_found": "Il profilo non esiste più",
         "error_name_in_use": "Un altro profilo si chiama già {value}",
-        "error_setting_required": "Selezionare almeno un'impostazione"
+        "error_setting_required": "Selezionare almeno un'impostazione",
+        "change_removal_started": "Rimozione avviata",
+        "change_removal_cancelled": "Rimozione annullata",
+        "change_deleted_by_timer": "Eliminato al termine del periodo di attesa",
+        "error_removal_pending": "La rimozione è in corso; annullarla prima"
     },
     "policy_group": {
         "logon": "Accesso e blocco",
@@ -632,5 +628,35 @@
         "error_no_public_record": "Il DNS pubblico non ha più questo record",
         "compare_dnshelper": "Per modificare invece il lato pubblico, usare il DNS helper di questo cluster:",
         "compare_no_dnshelper": "Le modifiche qui riguardano solo la zona interna. Il lato pubblico si modifica presso il provider DNS, oppure da questo cluster con il modulo dnshelper."
+    },
+    "removal": {
+        "title_start": "Avvia rimozione",
+        "title_cancel": "Annulla rimozione",
+        "title_delete": "Elimina ora",
+        "button_start": "Avvia rimozione",
+        "button_cancel": "Annulla rimozione",
+        "button_delete": "Elimina ora",
+        "deployment_start": "I computer eliminano le attività pianificate di {name} al prossimo aggiornamento dei criteri. Il GPO resta collegato per il periodo di attesa, così anche i computer collegati raramente ricevono la modifica; poi viene eliminato. Il software installato resta.",
+        "policy_start": "Le impostazioni di {name} vengono revocate sui computer. Il GPO resta collegato per il periodo di attesa, così anche i computer collegati raramente ricevono la modifica; poi viene eliminato.",
+        "policy_stays": "Windows non rimuove da solo queste impostazioni. Durante il periodo di attesa il profilo scrive per esse i valori predefiniti di Windows:",
+        "deployment_cancel": "Le attività di {name} vengono riscritte nel GPO come erano prima dell'avvio della rimozione.",
+        "policy_cancel": "Le impostazioni di {name} vengono riscritte nel GPO come erano prima dell'avvio della rimozione.",
+        "deployment_delete": "Il periodo di attesa è terminato. Il GPO di {name} viene scollegato ed eliminato.",
+        "policy_delete": "Il periodo di attesa è terminato. Il GPO di {name} viene scollegato ed eliminato.",
+        "days_label": "Periodo di attesa in giorni",
+        "days_help": "Dopo, il modulo elimina il GPO da solo (ogni giorno verso le 3). Valore predefinito dalle impostazioni.",
+        "days_range": "Un numero intero da 1 a 365",
+        "pending": "Eliminazione prevista il {date}",
+        "task_start": "Avvia rimozione di {name}",
+        "task_cancel": "Annulla rimozione di {name}",
+        "task_delete": "Elimina {name}",
+        "error_removal_pending": "La rimozione è già in corso; annullarla prima",
+        "error_removal_not_pending": "Nessuna rimozione in corso per questo elemento",
+        "error_removal_not_due": "Il periodo di attesa non è ancora terminato",
+        "log_title": "Distribuzioni rimosse",
+        "change_removal_started": "Rimozione avviata",
+        "change_removal_cancelled": "Rimozione annullata",
+        "change_deleted": "Eliminato",
+        "change_deleted_by_timer": "Eliminato al termine del periodo di attesa"
     }
 }
