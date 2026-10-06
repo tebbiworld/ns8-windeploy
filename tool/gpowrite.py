@@ -419,7 +419,9 @@ class Session:
             new_user_ext = gpogen.format_extension_names(gpogen.parse_extension_names(user_extensions)) or None
         else:
             new_user_ext = old_user_ext
-        machine_changed, user_changed = gpogen.changed_parts(files)
+        # deleting a file that is not there changes nothing
+        touched = [rel for rel, content in files.items() if content is not None or previous[rel] is not None]
+        machine_changed, user_changed = gpogen.changed_parts(touched)
         machine_changed = machine_changed or new_ext != old_ext
         user_changed = user_changed or new_user_ext != old_user_ext
         if not (machine_changed or user_changed):
