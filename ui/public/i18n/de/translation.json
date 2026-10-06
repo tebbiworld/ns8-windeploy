@@ -125,7 +125,10 @@
         "save-logon-rule": "Anmelderegel speichern",
         "remove-logon-rule": "Anmelderegel entfernen",
         "search-principals": "Benutzer und Gruppen suchen",
-        "check-logon-conflicts": "Anmelderechte auf Konflikte prüfen"
+        "check-logon-conflicts": "Anmelderechte auf Konflikte prüfen",
+        "list-scripts": "Skripte auflisten",
+        "save-scripts": "Skriptgruppe speichern",
+        "remove-scripts": "Skriptgruppe entfernen"
     },
     "task": {
         "cannot_create_task": "Aufgabe {action} kann nicht erstellt werden"
@@ -670,7 +673,10 @@
         "change_deleted_by_timer": "Gelöscht nach Ablauf der Wartefrist",
         "logon_start": "{name} setzt keine Rechte mehr; jeder Rechner stellt bei der nächsten Richtlinienaktualisierung die Anmelderechte von vorher wieder her. Das GPO bleibt während der Wartefrist verknüpft; danach wird es gelöscht.",
         "logon_cancel": "Die Anmelderechte von {name} werden wieder ins GPO geschrieben.",
-        "logon_delete": "Die Wartefrist ist abgelaufen. Das GPO von {name} wird entknüpft und gelöscht."
+        "logon_delete": "Die Wartefrist ist abgelaufen. Das GPO von {name} wird entknüpft und gelöscht.",
+        "scripts_start": "Statt der Skripte von {name} laufen die Aufräumskripte; Skripte ohne Aufräumskript laufen nicht mehr. Das GPO bleibt während der Wartefrist verknüpft; danach wird es gelöscht.",
+        "scripts_cancel": "Die Skripte von {name} werden wieder ins GPO geschrieben.",
+        "scripts_delete": "Die Wartefrist ist abgelaufen. Das GPO von {name} wird entknüpft und gelöscht."
     },
     "logon": {
         "title": "Anmeldung",
@@ -724,6 +730,42 @@
         "error_deny_admins": "Administratoren lassen sich nicht aussperren",
         "error_invalid_right": "Unbekanntes Recht {value}",
         "error_invalid_rights": "Ungültige Rechte",
+        "error_not_configured": "Das Modul ist mit keiner Domäne verbunden"
+    },
+    "scripts": {
+        "title": "Skripte",
+        "help": "PowerShell-Skripte, die bei jeder Anmeldung eines Benutzers oder bei jedem Start eines Rechners laufen. Jede Skriptgruppe ist ein GPO; die Skripte liegen im Ordner des GPO. Zum Entfernen kann je Skript ein Aufräumskript hinterlegt werden, das während der Wartefrist statt des Skripts läuft.",
+        "new": "Neue Skriptgruppe",
+        "empty": "Keine Skripte",
+        "empty_desc": "Skriptgruppe anlegen, Skript eintragen und mit der Domäne oder OUs verknüpfen.",
+        "parts": "Skripte",
+        "part_logon": "Anmeldeskript (Benutzer)",
+        "part_startup": "Startskript (Rechner)",
+        "part_logon_help": "Läuft bei jeder Anmeldung als der angemeldete Benutzer. Gilt für Benutzerkonten im Bereich der Verknüpfung: Konten im Standardcontainer „Users“ erreicht nur eine Verknüpfung mit der ganzen Domäne.",
+        "part_startup_help": "Läuft bei jedem Start des Rechners als SYSTEM, vor der Anmeldung. Gilt für die Rechner im Bereich der Verknüpfung.",
+        "with_cleanup": "mit Aufräumskript",
+        "lines": "{n} Zeile | {n} Zeilen",
+        "version": "Computer {c} / Benutzer {u}",
+        "log_help": "Die Liste hält Größe und SHA-256 jedes Skripts fest; den Text vor jeder Änderung bewahren die GPO-Sicherungen des Moduls auf.",
+        "edit_title": "Skriptgruppe bearbeiten",
+        "new_title": "Neue Skriptgruppe",
+        "sysvol_title": "Für alle Domänenbenutzer lesbar",
+        "sysvol_desc": "Skripte liegen im SYSVOL. Jeder angemeldete Benutzer der Domäne kann sie lesen: keine Kennwörter oder anderen Geheimnisse hineinschreiben.",
+        "script_label": "Skript",
+        "cleanup_label": "Aufräumskript (optional)",
+        "cleanup_help": "Läuft während der Wartefrist beim Entfernen statt des Skripts, z. B. um angelegte Netzwerkadressen wieder zu löschen. Ohne Aufräumskript läuft das Skript dann einfach nicht mehr.",
+        "secret_title": "Sieht nach einem Kennwort aus",
+        "secret_desc": "{where}, Zeile {line}: Diese Zeile scheint ein Kennwort zu enthalten. Es wäre für alle Domänenbenutzer lesbar. Speichern ist trotzdem möglich.",
+        "links_help": "Anmeldeskripte wirken auf die Benutzerkonten, Startskripte auf die Rechner unter dem verknüpften Ziel.",
+        "saving": "Skriptgruppe {name} wird gespeichert",
+        "error_script_required": "Mindestens ein Skript eintragen",
+        "error_script_too_large": "Ein Skript darf höchstens 64 KiB groß sein",
+        "error_invalid_script": "Ungültiger Skripttext",
+        "error_invalid_part": "Unbekannter Skripttyp {value}",
+        "error_name_in_use": "Der Name ist schon vergeben",
+        "error_set_not_found": "Die Skriptgruppe gibt es nicht mehr",
+        "error_removal_pending": "Das Entfernen läuft; zuerst abbrechen",
+        "error_link_target_not_found": "Verknüpfungsziel {value} gibt es nicht",
         "error_not_configured": "Das Modul ist mit keiner Domäne verbunden"
     }
 }

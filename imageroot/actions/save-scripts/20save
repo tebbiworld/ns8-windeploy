@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Create or update a script set: one GPO "windeploy scripts: <name>" with
+# a PowerShell logon script and/or startup script (pypkg/scriptgen.py).
+# The texts are stored in the GPO folder, readable by every domain user:
+# lines that look like a password are reported as a warning (log and
+# output), not refused. Order as in save-policy, under the lock of
+# scripts.json.
+
+import copy
+import datetime
+import json
+import sys
+
+import agent
+import scriptgen
+import wdcommon
+
+request = json.load(sys.stdin)
+
+
+def fail(field, value, error):
+    agent.set_status("validation-failed")
+    json.dump([{"field": field, "parameter": field, "value": value, "error": error}], fp=sys.stdout)
+    sys.exit(3)
+
+
+settings = wdcommon.connection_settings()
+try:
+    wdcommon.validate_connection(settings)
+except ValueError as ex:
+    print(agent.SD_ERR + str(ex), file=sys.stderr)
+    fail("domain", settings.get("domain", ""), "not_configured")
+
+try:
+    parts = scriptgen.check_parts(request["parts"])
+except scriptgen.ScriptError as ex:
+    fail("parts", str(ex).partition(": ")[2], str(ex).partition(":")[0])
+secrets = scriptgen.find_secrets(parts)
+for part, kind, line in secrets:
+    print(agent.SD_WARNING + f"script set {request['name']!r}: {part} {kind} line {line} looks like a password "
+          "(SYSVOL is readable by every domain user)", file=sys.stderr)
+
+wanted = list({dn.lower(): dn for dn in request["link_targets"]}.values())
+if wanted:
+    try:
+        valid = {t["dn"].lower() for t in wdcommon.run_tool({"op": "targets"}, settings=settings, timeout=120)}
+    except (wdcommon.ToolError, ValueError) as ex:
+        print(agent.SD_ERR + "cannot read the link targets: " + str(ex), file=sys.stderr)
+        sys.exit(1)
+    for dn in wanted:
+        if dn.lower() not in valid:
+            fail("link_targets", dn, "link_target_not_found")
+
+with wdcommon.scripts_locked() as data:
+    current = data["sets"]
+    old = None
+    if request.get("id"):
+        old = next((s for s in current if s["id"] == request["id"]), None)
+        if old is None:
+            fail("id", request["id"], "set_not_found")
+        if old.get("pending_delete"):
+            fail("id", request["id"], "removal_pending")
+    for s in current:
+        if s["name"].lower() == request["name"].lower() and s["id"] != request.get("id"):
+            fail("name", request["name"], "name_in_use")
+
+    item = copy.deepcopy(old) if old else {"id": wdcommon.new_id(), "gpo_guid": "", "link_targets": [], "parts": {}}
+    before = scriptgen.summary(item["parts"])
+    item["name"] = request["name"]
+    item["parts"] = parts
+    wanted_keys = {dn.lower() for dn in wanted}
+    linked_keys = {dn.lower() for dn in item["link_targets"]}
+    created = False
+    try:
+        agent.set_progress(10)
+        if not item["gpo_guid"]:
+            res = wdcommon.run_tool({"op": "create", "display_name": "windeploy scripts: " + item["name"]}, settings=settings)
+            item["gpo_guid"] = res["guid"]
+            created = True
+        agent.set_progress(40)
+        files, machine, user = wdcommon.build_script_files(item)
+        res = wdcommon.run_tool({"op": "apply", "guid": item["gpo_guid"], "files": files, "backup_dir": "/backup",
+                                 "machine_extensions": machine, "user_extensions": user,
+                                 "display_name": "windeploy scripts: " + item["name"]}, settings=settings)
+        item["version"] = res["version"]
+        wdcommon.prune_backups(item["gpo_guid"])
+        agent.set_progress(70)
+        for dn in wanted:
+            if dn.lower() not in linked_keys:
+                wdcommon.run_tool({"op": "link", "guid": item["gpo_guid"], "target_dn": dn}, settings=settings)
+        for dn in item["link_targets"]:
+            if dn.lower() not in wanted_keys:
+                wdcommon.run_tool({"op": "unlink", "guid": item["gpo_guid"], "target_dn": dn}, settings=settings)
+        item["link_targets"] = wanted
+    except Exception as ex:
+        print(agent.SD_ERR + f"saving the script set failed: {type(ex).__name__}: {ex}", file=sys.stderr)
+        if created:
+            try:
+                wdcommon.delete_gpo(item["gpo_guid"], wanted, settings=settings)
+            except Exception as cleanup:
+                print(agent.SD_ERR + f"could not remove the new GPO {item['gpo_guid']}: {cleanup}", file=sys.stderr)
+        if isinstance(ex, (wdcommon.ToolError, ValueError)):
+            sys.exit(1)
+        raise
+
+    item["changed"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    data["sets"] = [s for s in current if s["id"] != item["id"]] + [item]
+    wdcommon.log_policy_change(item["name"], "created" if old is None else "changed", request["reason"],
+                               before, scriptgen.summary(parts), renamed_from=old["name"] if old else None,
+                               log=wdcommon.SCRIPTS_LOG)
+
+agent.set_progress(100)
+print(agent.SD_INFO + f"script set {item['name']!r} saved in GPO {item['gpo_guid']} version {item.get('version')}", file=sys.stderr)
+json.dump({"id": item["id"], "gpo_guid": item["gpo_guid"], "version": item.get("version"),
+           "secrets": [{"part": p, "kind": k, "line": n} for p, k, n in secrets]}, fp=sys.stdout)

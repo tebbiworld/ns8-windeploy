@@ -40,7 +40,8 @@ def moved():
 
 gpos = ([d for d in wdcommon.read_deployments()["deployments"] if d.get("gpo_guid")]
         + [p for p in wdcommon.read_policies()["profiles"] if p.get("gpo_guid")]
-        + [r for r in wdcommon.read_logon()["rules"] if r.get("gpo_guid")])
+        + [r for r in wdcommon.read_logon()["rules"] if r.get("gpo_guid")]
+        + [s for s in wdcommon.read_scripts()["sets"] if s.get("gpo_guid")])
 if not gpos:
     sys.exit(0)
 if moved():

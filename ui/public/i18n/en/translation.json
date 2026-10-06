@@ -116,7 +116,10 @@
         "save-logon-rule": "Save logon rule",
         "remove-logon-rule": "Remove logon rule",
         "search-principals": "Search users and groups",
-        "check-logon-conflicts": "Check logon rights for conflicts"
+        "check-logon-conflicts": "Check logon rights for conflicts",
+        "list-scripts": "List scripts",
+        "save-scripts": "Save script set",
+        "remove-scripts": "Remove script set"
     },
     "error": {
         "error": "Error",
@@ -670,7 +673,10 @@
         "change_deleted_by_timer": "Deleted after the waiting period",
         "logon_start": "{name} stops setting rights; at its next policy refresh every computer restores the logon rights of before. The GPO stays linked for the waiting period; then it is deleted.",
         "logon_cancel": "The logon rights of {name} are written to the GPO again.",
-        "logon_delete": "The waiting period is over. The GPO of {name} is unlinked and deleted."
+        "logon_delete": "The waiting period is over. The GPO of {name} is unlinked and deleted.",
+        "scripts_start": "The cleanup scripts run instead of the scripts of {name}; scripts without cleanup script stop running. The GPO stays linked for the waiting period; then it is deleted.",
+        "scripts_cancel": "The scripts of {name} are written to the GPO again.",
+        "scripts_delete": "The waiting period is over. The GPO of {name} is unlinked and deleted."
     },
     "logon": {
         "title": "Logon",
@@ -724,6 +730,42 @@
         "error_deny_admins": "Administrators cannot be locked out",
         "error_invalid_right": "Unknown right {value}",
         "error_invalid_rights": "Invalid rights",
+        "error_not_configured": "The module is not connected to a domain"
+    },
+    "scripts": {
+        "title": "Scripts",
+        "help": "PowerShell scripts that run at every logon of a user or at every start of a computer. Each script set is a GPO; the scripts are stored in the folder of the GPO. For the removal, each script can have a cleanup script that runs instead of it during the waiting period.",
+        "new": "New script set",
+        "empty": "No scripts",
+        "empty_desc": "Create a script set, enter a script and link it to the domain or to OUs.",
+        "parts": "Scripts",
+        "part_logon": "Logon script (users)",
+        "part_startup": "Startup script (computers)",
+        "part_logon_help": "Runs at every logon as the user who logs on. Applies to the user accounts in the scope of the link: accounts in the default container \"Users\" are only reached by a link to the whole domain.",
+        "part_startup_help": "Runs at every start of the computer as SYSTEM, before the logon. Applies to the computers in the scope of the link.",
+        "with_cleanup": "with cleanup script",
+        "lines": "{n} line | {n} lines",
+        "version": "computer {c} / user {u}",
+        "log_help": "The list keeps size and SHA-256 of each script; the text before every change is kept in the GPO backups of the module.",
+        "edit_title": "Edit script set",
+        "new_title": "New script set",
+        "sysvol_title": "Readable by all domain users",
+        "sysvol_desc": "Scripts are stored in SYSVOL. Every authenticated user of the domain can read them: do not put passwords or other secrets in them.",
+        "script_label": "Script",
+        "cleanup_label": "Cleanup script (optional)",
+        "cleanup_help": "Runs instead of the script during the waiting period of a removal, e.g. to delete network places it created. Without a cleanup script the script simply stops running.",
+        "secret_title": "Looks like a password",
+        "secret_desc": "{where}, line {line}: this line seems to hold a password. It would be readable by all domain users. Saving is possible anyway.",
+        "links_help": "Logon scripts act on the user accounts, startup scripts on the computers below the linked target.",
+        "saving": "Saving script set {name}",
+        "error_script_required": "Enter at least one script",
+        "error_script_too_large": "A script can be at most 64 KiB",
+        "error_invalid_script": "Invalid script text",
+        "error_invalid_part": "Unknown script kind {value}",
+        "error_name_in_use": "The name is already in use",
+        "error_set_not_found": "The script set does not exist any more",
+        "error_removal_pending": "The removal is running; cancel it first",
+        "error_link_target_not_found": "Link target {value} does not exist",
         "error_not_configured": "The module is not connected to a domain"
     }
 }

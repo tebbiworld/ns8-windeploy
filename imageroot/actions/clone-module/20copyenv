@@ -28,7 +28,8 @@ agent.mset_env({k: env[k] for k in KEEP if k in env})
 
 if not request.get("replace"):
     for name in (wdcommon.DEPLOYMENTS, wdcommon.POLICIES, wdcommon.POLICY_LOG, wdcommon.DNS_LOG,
-                 wdcommon.DEPLOYMENT_LOG, wdcommon.LOGON, wdcommon.LOGON_LOG, "rights.json"):
+                 wdcommon.DEPLOYMENT_LOG, wdcommon.LOGON, wdcommon.LOGON_LOG,
+                 wdcommon.SCRIPTS, wdcommon.SCRIPTS_LOG, "rights.json"):
         try:
             os.remove(name)
         except FileNotFoundError:

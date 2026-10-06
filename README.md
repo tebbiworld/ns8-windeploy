@@ -91,6 +91,28 @@ Desktop Users) are always offered.
 - Windows restores the rights of before when the rule no longer
   applies; removing a rule has the same waiting period as profiles.
 
+## Scripts
+
+The page "Scripts" rolls out free PowerShell scripts: a *script set* is
+one GPO with a logon script (runs at every logon as the user) and/or a
+startup script (runs at every start of the computer as SYSTEM). The
+texts are stored in the GPO folder (`User/Scripts/Logon`,
+`Machine/Scripts/Startup`) and registered in `psscripts.ini`; Windows
+runs them also when the PowerShell execution policy is not set (measured
+on Windows 11 25H2).
+
+- SYSVOL is readable by every domain user. The page says so and warns
+  about lines that look like a password; it does not refuse them.
+- A logon script applies to the user accounts below the link target:
+  accounts in the default container "Users" are only reached by a link
+  to the whole domain.
+- Each script can have a cleanup script. While a set is being removed,
+  the cleanup scripts run instead (e.g. to delete network places a logon
+  script created); a script without cleanup stops running. Then the GPO
+  is deleted after the waiting period.
+- The change log keeps size and SHA-256 of each script with the reason;
+  the text before each change is in the GPO backups of the module.
+
 ## DNS
 
 The page "DNS" shows the internal DNS zones of the domain and changes

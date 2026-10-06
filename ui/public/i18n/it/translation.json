@@ -122,7 +122,10 @@
         "save-logon-rule": "Salva regola di accesso",
         "remove-logon-rule": "Rimuovi regola di accesso",
         "search-principals": "Cerca utenti e gruppi",
-        "check-logon-conflicts": "Verifica conflitti dei diritti di accesso"
+        "check-logon-conflicts": "Verifica conflitti dei diritti di accesso",
+        "list-scripts": "Elenca script",
+        "save-scripts": "Salva gruppo di script",
+        "remove-scripts": "Rimuovi gruppo di script"
     },
     "task": {
         "cannot_create_task": "Impossibile eseguire il task {action}"
@@ -670,7 +673,10 @@
         "change_deleted_by_timer": "Eliminato al termine del periodo di attesa",
         "logon_start": "{name} non imposta più diritti; al prossimo aggiornamento dei criteri ogni computer ripristina i diritti di accesso precedenti. Il GPO resta collegato per il periodo di attesa; poi viene eliminato.",
         "logon_cancel": "I diritti di accesso di {name} vengono riscritti nel GPO.",
-        "logon_delete": "Il periodo di attesa è terminato. Il GPO di {name} viene scollegato ed eliminato."
+        "logon_delete": "Il periodo di attesa è terminato. Il GPO di {name} viene scollegato ed eliminato.",
+        "scripts_start": "Al posto degli script di {name} vengono eseguiti gli script di pulizia; gli script senza pulizia non vengono più eseguiti. Il GPO resta collegato per il periodo di attesa; poi viene eliminato.",
+        "scripts_cancel": "Gli script di {name} vengono riscritti nel GPO.",
+        "scripts_delete": "Il periodo di attesa è terminato. Il GPO di {name} viene scollegato ed eliminato."
     },
     "logon": {
         "title": "Accesso",
@@ -724,6 +730,42 @@
         "error_deny_admins": "Gli Administrators non possono essere esclusi",
         "error_invalid_right": "Diritto sconosciuto {value}",
         "error_invalid_rights": "Diritti non validi",
+        "error_not_configured": "Il modulo non è collegato a un dominio"
+    },
+    "scripts": {
+        "title": "Script",
+        "help": "Script PowerShell eseguiti a ogni accesso di un utente o a ogni avvio di un computer. Ogni gruppo di script è un GPO; gli script si trovano nella cartella del GPO. Per la rimozione, ogni script può avere uno script di pulizia che durante il periodo di attesa viene eseguito al suo posto.",
+        "new": "Nuovo gruppo di script",
+        "empty": "Nessuno script",
+        "empty_desc": "Creare un gruppo di script, inserire uno script e collegarlo al dominio o a OU.",
+        "parts": "Script",
+        "part_logon": "Script di accesso (utenti)",
+        "part_startup": "Script di avvio (computer)",
+        "part_logon_help": "Viene eseguito a ogni accesso come l'utente che accede. Vale per gli account utente nell'ambito del collegamento: gli account nel contenitore predefinito \"Users\" sono raggiunti solo da un collegamento all'intero dominio.",
+        "part_startup_help": "Viene eseguito a ogni avvio del computer come SYSTEM, prima dell'accesso. Vale per i computer nell'ambito del collegamento.",
+        "with_cleanup": "con script di pulizia",
+        "lines": "{n} riga | {n} righe",
+        "version": "computer {c} / utente {u}",
+        "log_help": "L'elenco conserva dimensione e SHA-256 di ogni script; il testo prima di ogni modifica è conservato nei backup dei GPO del modulo.",
+        "edit_title": "Modifica gruppo di script",
+        "new_title": "Nuovo gruppo di script",
+        "sysvol_title": "Leggibili da tutti gli utenti del dominio",
+        "sysvol_desc": "Gli script si trovano in SYSVOL. Ogni utente autenticato del dominio può leggerli: non inserire password o altri segreti.",
+        "script_label": "Script",
+        "cleanup_label": "Script di pulizia (facoltativo)",
+        "cleanup_help": "Durante il periodo di attesa di una rimozione viene eseguito al posto dello script, ad es. per eliminare i percorsi di rete creati. Senza script di pulizia lo script semplicemente non viene più eseguito.",
+        "secret_title": "Sembra una password",
+        "secret_desc": "{where}, riga {line}: questa riga sembra contenere una password. Sarebbe leggibile da tutti gli utenti del dominio. Il salvataggio è comunque possibile.",
+        "links_help": "Gli script di accesso agiscono sugli account utente, gli script di avvio sui computer sotto la destinazione collegata.",
+        "saving": "Salvataggio del gruppo di script {name}",
+        "error_script_required": "Inserire almeno uno script",
+        "error_script_too_large": "Uno script può essere al massimo di 64 KiB",
+        "error_invalid_script": "Testo dello script non valido",
+        "error_invalid_part": "Tipo di script sconosciuto {value}",
+        "error_name_in_use": "Il nome è già in uso",
+        "error_set_not_found": "Il gruppo di script non esiste più",
+        "error_removal_pending": "La rimozione è in corso; annullarla prima",
+        "error_link_target_not_found": "La destinazione {value} non esiste",
         "error_not_configured": "Il modulo non è collegato a un dominio"
     }
 }
