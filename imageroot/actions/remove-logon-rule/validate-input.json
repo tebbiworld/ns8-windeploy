@@ -1,0 +1,47 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "remove-logon-rule input",
+    "$id": "http://schema.nethserver.org/windeploy/remove-logon-rule-input.json",
+    "description": "Remove a logon rule in steps. start: the GPO stops setting the rights, Windows restores the rights of before; the GPO stays linked for the waiting period. cancel: the rights come back. delete: after the waiting period, unlink and delete the GPO.",
+    "examples": [
+        {
+            "id": "0123456789ab",
+            "step": "start",
+            "reason": "Laptops handed back",
+            "days": 14
+        }
+    ],
+    "type": "object",
+    "required": [
+        "id",
+        "step",
+        "reason"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{12}$"
+        },
+        "step": {
+            "type": "string",
+            "enum": [
+                "start",
+                "cancel",
+                "delete"
+            ]
+        },
+        "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500,
+            "pattern": "^[^\\x00]+$"
+        },
+        "days": {
+            "description": "Waiting period of this removal (start only); default from the settings",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365
+        }
+    }
+}

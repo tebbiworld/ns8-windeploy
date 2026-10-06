@@ -1,0 +1,13 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "search-principals input",
+    "$id": "http://schema.nethserver.org/windeploy/search-principals-input.json",
+    "description": "Users and groups whose account name or common name starts with query",
+    "examples": [{"query": "priva"}],
+    "type": "object",
+    "required": ["query"],
+    "additionalProperties": false,
+    "properties": {
+        "query": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[A-Za-z0-9 ._-]+$"}
+    }
+}

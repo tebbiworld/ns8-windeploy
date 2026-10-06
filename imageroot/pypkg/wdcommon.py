@@ -36,6 +36,8 @@ POLICIES = "policies.json"
 POLICY_LOG = "policy-log.jsonl"
 DNS_LOG = "dns-log.jsonl"
 DEPLOYMENT_LOG = "deployment-log.jsonl"
+LOGON = "logon.json"
+LOGON_LOG = "logon-log.jsonl"
 GRACE_DAYS_DEFAULT = 14
 GRACE_DAYS_MAX = 365
 DNS_BACKUP_DIR = "dns-backups"
@@ -263,6 +265,51 @@ def deployments_locked():
     return _locked(DEPLOYMENTS, read_deployments)
 
 
+def logon_locked():
+    """Read-modify-write of state/logon.json under an exclusive lock."""
+    return _locked(LOGON, read_logon)
+
+
+def read_logon():
+    try:
+        with open(os.path.join(state_dir(), LOGON)) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"rules": []}
+
+
+def build_logon_files(rule):
+    """Files of a logon rule GPO, base64 encoded for gpowrite, and its
+    machine extension names. A rule in removal writes no rights: Windows
+    restores the rights of before."""
+    import logongen
+    files, extensions = logongen.build_files({} if rule.get("pending_delete") else rule["rights"])
+    out = {rel: None if data is None else base64.b64encode(data).decode() for rel, data in files.items()}
+    description = json.dumps({
+        "generator": "NethServer module windeploy",
+        "module_uuid": os.environ.get("MODULE_UUID", ""),
+        "kind": "logon",
+        "name": rule["name"],
+        "rights": rule["rights"],
+        "pending_delete": rule.get("pending_delete"),
+    }, indent=1) + "\n"
+    out[DESCRIPTION_FILE] = base64.b64encode(description.encode("utf-8")).decode()
+    return out, extensions
+
+
+def logon_conflicts(guid, rights, targets, settings=None):
+    """Other GPOs on the path of each target that set a right of a logon
+    rule (logongen.conflicts), with the target they were found for."""
+    import logongen
+    out = []
+    for dn in targets:
+        res = run_tool({"op": "rights_on_path", "target_dn": dn}, settings=settings, timeout=120)
+        for c in logongen.conflicts(res["containers"], res["gpos"], guid, rights):
+            c["target"] = dn
+            out.append(c)
+    return out
+
+
 def policies_locked():
     """Read-modify-write of state/policies.json under an exclusive lock."""
     return _locked(POLICIES, read_policies)
@@ -276,7 +323,7 @@ def read_policies():
         return {"profiles": []}
 
 
-def log_policy_change(profile, change, reason, before, after, renamed_from=None):
+def log_policy_change(profile, change, reason, before, after, renamed_from=None, log=POLICY_LOG):
     """One line per change of a policy profile: what was set before and
     after, and why. Shown on the policy page."""
     entry = {
@@ -286,7 +333,7 @@ def log_policy_change(profile, change, reason, before, after, renamed_from=None)
     }
     if renamed_from and renamed_from != profile:
         entry["renamed_from"] = renamed_from
-    with open(os.path.join(state_dir(), POLICY_LOG), "a") as f:
+    with open(os.path.join(state_dir(), log), "a") as f:
         f.write(json.dumps(entry, sort_keys=True) + "\n")
 
 
@@ -347,9 +394,9 @@ def pending_due(item, now=None):
     return datetime.datetime.fromisoformat(pending["until"]) <= now
 
 
-def read_policy_log(limit=50):
+def read_policy_log(limit=50, log=POLICY_LOG):
     try:
-        with open(os.path.join(state_dir(), POLICY_LOG)) as f:
+        with open(os.path.join(state_dir(), log)) as f:
             lines = f.readlines()[-limit:]
     except FileNotFoundError:
         return []
@@ -464,7 +511,8 @@ def read_deployments():
 def gpo_guids():
     """GUIDs of the GPOs this module instance made."""
     return ([d["gpo_guid"] for d in read_deployments()["deployments"] if d.get("gpo_guid")]
-            + [p["gpo_guid"] for p in read_policies()["profiles"] if p.get("gpo_guid")])
+            + [p["gpo_guid"] for p in read_policies()["profiles"] if p.get("gpo_guid")]
+            + [r["gpo_guid"] for r in read_logon()["rules"] if r.get("gpo_guid")])
 
 
 def update_scopes(deployment):

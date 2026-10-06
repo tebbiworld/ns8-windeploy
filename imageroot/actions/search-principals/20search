@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Users and groups of the domain by name prefix, with their SIDs.
+
+import json
+import sys
+
+import agent
+import wdcommon
+
+request = json.load(sys.stdin)
+try:
+    result = wdcommon.run_tool({"op": "principals", "query": request["query"]}, timeout=120)
+except (wdcommon.ToolError, ValueError) as ex:
+    print(agent.SD_ERR + "searching users and groups failed: " + str(ex), file=sys.stderr)
+    sys.exit(1)
+json.dump({"principals": result}, fp=sys.stdout)

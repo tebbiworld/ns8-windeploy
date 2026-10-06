@@ -5,8 +5,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-# Daily (timer windeploy-purge): delete the GPOs of deployments and policy
-# profiles whose waiting period is over. An item that fails (DC down)
+# Daily (timer windeploy-purge): delete the GPOs of deployments, policy
+# profiles and logon rules whose waiting period is over. An item that fails (DC down)
 # stays pending and is tried again the next day.
 
 import sys
@@ -33,5 +33,14 @@ with wdcommon.policies_locked() as data:
         except Exception as ex:
             failed += 1
             print(agent.SD_ERR + f"policy profile {profile['name']!r} not deleted: {ex}", file=sys.stderr)
+
+with wdcommon.logon_locked() as data:
+    for rule in [r for r in data["rules"] if wdcommon.pending_due(r)]:
+        try:
+            removal.purge_logon(data, rule, rule["pending_delete"]["reason"], by="timer")
+            print(agent.SD_NOTICE + f"logon rule {rule['name']!r} deleted, waiting period over", file=sys.stderr)
+        except Exception as ex:
+            failed += 1
+            print(agent.SD_ERR + f"logon rule {rule['name']!r} not deleted: {ex}", file=sys.stderr)
 
 sys.exit(1 if failed else 0)
