@@ -23,11 +23,12 @@ import wdcommon
 
 request = json.load(sys.stdin)
 env = agent.read_envfile("environment.clone-module")
-KEEP = ["GPO_DOMAIN", "GPO_DC_HOST", "GPO_DC_IP", "GPO_REALM", "GPO_WORKGROUP", "GPO_USER", "DEFAULT_DELIVERY"]
+KEEP = ["GPO_DOMAIN", "GPO_DC_HOST", "GPO_DC_IP", "GPO_REALM", "GPO_WORKGROUP", "GPO_USER", "DEFAULT_DELIVERY", "DELETE_GRACE_DAYS"]
 agent.mset_env({k: env[k] for k in KEEP if k in env})
 
 if not request.get("replace"):
-    for name in (wdcommon.DEPLOYMENTS, wdcommon.POLICIES, wdcommon.POLICY_LOG, wdcommon.DNS_LOG, "rights.json"):
+    for name in (wdcommon.DEPLOYMENTS, wdcommon.POLICIES, wdcommon.POLICY_LOG, wdcommon.DNS_LOG,
+                 wdcommon.DEPLOYMENT_LOG, "rights.json"):
         try:
             os.remove(name)
         except FileNotFoundError:
