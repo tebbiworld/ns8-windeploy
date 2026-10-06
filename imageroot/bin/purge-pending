@@ -6,7 +6,7 @@
 #
 
 # Daily (timer windeploy-purge): delete the GPOs of deployments, policy
-# profiles and logon rules whose waiting period is over. An item that fails (DC down)
+# profiles, logon rules and script sets whose waiting period is over. An item that fails (DC down)
 # stays pending and is tried again the next day.
 
 import sys
@@ -42,5 +42,14 @@ with wdcommon.logon_locked() as data:
         except Exception as ex:
             failed += 1
             print(agent.SD_ERR + f"logon rule {rule['name']!r} not deleted: {ex}", file=sys.stderr)
+
+with wdcommon.scripts_locked() as data:
+    for item in [s for s in data["sets"] if wdcommon.pending_due(s)]:
+        try:
+            removal.purge_scripts(data, item, item["pending_delete"]["reason"], by="timer")
+            print(agent.SD_NOTICE + f"script set {item['name']!r} deleted, waiting period over", file=sys.stderr)
+        except Exception as ex:
+            failed += 1
+            print(agent.SD_ERR + f"script set {item['name']!r} not deleted: {ex}", file=sys.stderr)
 
 sys.exit(1 if failed else 0)

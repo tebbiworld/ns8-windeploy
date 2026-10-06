@@ -86,7 +86,9 @@ ALLOWED_FILE_RE = re.compile(
     r"^(windeploy\.json"
     r"|Machine/(Preferences/ScheduledTasks/ScheduledTasks\.xml|Scripts/windeploy/[A-Za-z0-9._-]{1,120}\.ps1"
     r"|Registry\.pol|Microsoft/Windows NT/SecEdit/GptTmpl\.inf)"
-    r"|User/Registry\.pol)$")
+    r"|User/Registry\.pol"
+    r"|Machine/Scripts/(psscripts\.ini|Startup/windeploy-startup\.ps1)"
+    r"|User/Scripts/(psscripts\.ini|Logon/windeploy-logon\.ps1))$")
 
 SCHEMA_GPC = "f30e3bc2-9ff0-11d1-b603-0000f80367c1"      # groupPolicyContainer
 ATTR_GPLINK = "f30e3bbe-9ff0-11d1-b603-0000f80367c1"

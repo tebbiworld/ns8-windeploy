@@ -1,0 +1,91 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "save-scripts input",
+    "$id": "http://schema.nethserver.org/windeploy/save-scripts-input.json",
+    "description": "Create or update a script set: one GPO with a PowerShell logon script (users) and/or startup script (computers), each with an optional cleanup script that runs while the set is being removed",
+    "examples": [
+        {
+            "name": "Network places",
+            "parts": {
+                "logon": {
+                    "script": "New-Item -ItemType Directory -Force $env:APPDATA\\\\Example | Out-Null",
+                    "cleanup": "Remove-Item -Recurse -Force $env:APPDATA\\\\Example"
+                }
+            },
+            "link_targets": [
+                "DC=ad,DC=example,DC=com"
+            ],
+            "reason": "Network places for all users"
+        }
+    ],
+    "type": "object",
+    "required": [
+        "name",
+        "parts",
+        "link_targets",
+        "reason"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{12}$"
+        },
+        "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[^\\r\\n\\x00]+$"
+        },
+        "parts": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "logon": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "script": {
+                            "type": "string",
+                            "maxLength": 65536
+                        },
+                        "cleanup": {
+                            "type": "string",
+                            "maxLength": 65536
+                        }
+                    }
+                },
+                "startup": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "script": {
+                            "type": "string",
+                            "maxLength": 65536
+                        },
+                        "cleanup": {
+                            "type": "string",
+                            "maxLength": 65536
+                        }
+                    }
+                }
+            }
+        },
+        "link_targets": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024,
+                "pattern": "^[^\\r\\n\\x00]+$"
+            }
+        },
+        "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500,
+            "pattern": "^[^\\x00]+$"
+        }
+    }
+}

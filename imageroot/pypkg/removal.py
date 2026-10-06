@@ -216,3 +216,62 @@ def purge_logon(data, rule, reason, by="admin", settings=None):
     data["rules"] = [r for r in data["rules"] if r["id"] != rule["id"]]
     wdcommon.log_policy_change(rule["name"], "deleted" if by == "admin" else "deleted_by_timer", reason,
                                {}, {}, log=wdcommon.LOGON_LOG)
+
+
+# ---------------------------------------------------------- script sets ---
+
+def write_scripts(item, settings):
+    files, machine, user = wdcommon.build_script_files(item)
+    res = wdcommon.run_tool({"op": "apply", "guid": item["gpo_guid"], "files": files, "backup_dir": "/backup",
+                             "machine_extensions": machine, "user_extensions": user}, settings=settings)
+    item["version"] = res["version"]
+    wdcommon.prune_backups(item["gpo_guid"])
+
+
+def start_scripts(item, reason, days=None, settings=None):
+    """The cleanup scripts run instead of the scripts; a part without
+    cleanup script stops running."""
+    import scriptgen
+    if item.get("pending_delete"):
+        raise RemovalError("removal_pending")
+    settings = settings or wdcommon.connection_settings()
+    pending = wdcommon.new_pending(reason, days)
+    item["pending_delete"] = pending
+    try:
+        if item.get("gpo_guid"):
+            write_scripts(item, settings)
+    except Exception:
+        del item["pending_delete"]
+        raise
+    item["changed"] = _now().isoformat(timespec="seconds")
+    wdcommon.log_policy_change(item["name"], "removal_started", reason, scriptgen.summary(item["parts"]), {},
+                               log=wdcommon.SCRIPTS_LOG)
+    return pending
+
+
+def cancel_scripts(item, reason, settings=None):
+    import scriptgen
+    pending = item.get("pending_delete")
+    if not pending:
+        raise RemovalError("removal_not_pending")
+    settings = settings or wdcommon.connection_settings()
+    del item["pending_delete"]
+    try:
+        if item.get("gpo_guid"):
+            write_scripts(item, settings)
+    except Exception:
+        item["pending_delete"] = pending
+        raise
+    item["changed"] = _now().isoformat(timespec="seconds")
+    wdcommon.log_policy_change(item["name"], "removal_cancelled", reason, {}, scriptgen.summary(item["parts"]),
+                               log=wdcommon.SCRIPTS_LOG)
+
+
+def purge_scripts(data, item, reason, by="admin", settings=None):
+    if not wdcommon.pending_due(item):
+        raise RemovalError("removal_not_due")
+    if item.get("gpo_guid"):
+        wdcommon.delete_gpo(item["gpo_guid"], item.get("link_targets", []), settings=settings)
+    data["sets"] = [s for s in data["sets"] if s["id"] != item["id"]]
+    wdcommon.log_policy_change(item["name"], "deleted" if by == "admin" else "deleted_by_timer", reason,
+                               {}, {}, log=wdcommon.SCRIPTS_LOG)

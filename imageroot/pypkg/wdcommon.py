@@ -38,6 +38,8 @@ DNS_LOG = "dns-log.jsonl"
 DEPLOYMENT_LOG = "deployment-log.jsonl"
 LOGON = "logon.json"
 LOGON_LOG = "logon-log.jsonl"
+SCRIPTS = "scripts.json"
+SCRIPTS_LOG = "scripts-log.jsonl"
 GRACE_DAYS_DEFAULT = 14
 GRACE_DAYS_MAX = 365
 DNS_BACKUP_DIR = "dns-backups"
@@ -297,6 +299,38 @@ def build_logon_files(rule):
     return out, extensions
 
 
+def scripts_locked():
+    """Read-modify-write of state/scripts.json under an exclusive lock."""
+    return _locked(SCRIPTS, read_scripts)
+
+
+def read_scripts():
+    try:
+        with open(os.path.join(state_dir(), SCRIPTS)) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"sets": []}
+
+
+def build_script_files(item):
+    """Files of a script set GPO, base64 encoded for gpowrite, and its
+    machine and user extension names. While the set is being removed the
+    cleanup scripts run instead (scriptgen.build_files)."""
+    import scriptgen
+    files, machine, user = scriptgen.build_files(item["parts"], removing=bool(item.get("pending_delete")))
+    out = {rel: None if data is None else base64.b64encode(data).decode() for rel, data in files.items()}
+    description = json.dumps({
+        "generator": "NethServer module windeploy",
+        "module_uuid": os.environ.get("MODULE_UUID", ""),
+        "kind": "scripts",
+        "name": item["name"],
+        "scripts": scriptgen.summary(item["parts"]),
+        "pending_delete": item.get("pending_delete"),
+    }, indent=1) + "\n"
+    out[DESCRIPTION_FILE] = base64.b64encode(description.encode("utf-8")).decode()
+    return out, machine, user
+
+
 def logon_conflicts(guid, rights, targets, settings=None):
     """Other GPOs on the path of each target that set a right of a logon
     rule (logongen.conflicts), with the target they were found for."""
@@ -512,7 +546,8 @@ def gpo_guids():
     """GUIDs of the GPOs this module instance made."""
     return ([d["gpo_guid"] for d in read_deployments()["deployments"] if d.get("gpo_guid")]
             + [p["gpo_guid"] for p in read_policies()["profiles"] if p.get("gpo_guid")]
-            + [r["gpo_guid"] for r in read_logon()["rules"] if r.get("gpo_guid")])
+            + [r["gpo_guid"] for r in read_logon()["rules"] if r.get("gpo_guid")]
+            + [s["gpo_guid"] for s in read_scripts()["sets"] if s.get("gpo_guid")])
 
 
 def update_scopes(deployment):

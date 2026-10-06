@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# The scripts page in one request: the script sets with their texts, the
+# change log and the default waiting period of a removal.
+
+import json
+import sys
+
+import wdcommon
+
+sets = []
+for s in wdcommon.read_scripts()["sets"]:
+    sets.append({k: s.get(k) for k in ("id", "name", "gpo_guid", "version", "link_targets", "parts", "changed",
+                                       "pending_delete")})
+json.dump({
+    "sets": sorted(sets, key=lambda s: s["name"].lower()),
+    "log": wdcommon.read_policy_log(log=wdcommon.SCRIPTS_LOG),
+    "grace_days": wdcommon.grace_days_default(),
+}, fp=sys.stdout)
