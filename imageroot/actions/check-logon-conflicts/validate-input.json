@@ -1,0 +1,119 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "check-logon-conflicts input",
+    "$id": "http://schema.nethserver.org/windeploy/check-logon-conflicts-input.json",
+    "description": "Other GPOs on the path of the link targets that set the same rights",
+    "examples": [
+        {
+            "rights": {
+                "interactive": [
+                    {
+                        "sid": "S-1-5-21-1-2-3-1105",
+                        "name": "priva-user"
+                    }
+                ]
+            },
+            "link_targets": [
+                "OU=Laptops,DC=ad,DC=example,DC=com"
+            ]
+        }
+    ],
+    "type": "object",
+    "required": [
+        "rights",
+        "link_targets"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{12}$"
+        },
+        "rights": {
+            "description": "Users and groups per right (SIDs); the local Administrators are added to the rights that grant a logon",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "interactive": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "sid"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "sid": {
+                                "type": "string",
+                                "maxLength": 64,
+                                "pattern": "^S-1-5-[0-9-]+$"
+                            },
+                            "name": {
+                                "type": "string",
+                                "maxLength": 256,
+                                "pattern": "^[^\\r\\n\\x00]*$"
+                            }
+                        }
+                    }
+                },
+                "remote": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "sid"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "sid": {
+                                "type": "string",
+                                "maxLength": 64,
+                                "pattern": "^S-1-5-[0-9-]+$"
+                            },
+                            "name": {
+                                "type": "string",
+                                "maxLength": 256,
+                                "pattern": "^[^\\r\\n\\x00]*$"
+                            }
+                        }
+                    }
+                },
+                "deny_interactive": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "sid"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "sid": {
+                                "type": "string",
+                                "maxLength": 64,
+                                "pattern": "^S-1-5-[0-9-]+$"
+                            },
+                            "name": {
+                                "type": "string",
+                                "maxLength": 256,
+                                "pattern": "^[^\\r\\n\\x00]*$"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "link_targets": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024,
+                "pattern": "^[^\\r\\n\\x00]+$"
+            }
+        }
+    }
+}

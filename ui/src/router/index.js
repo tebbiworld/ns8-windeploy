@@ -9,6 +9,7 @@ import Settings from "../views/Settings.vue";
 import Deployments from "../views/Deployments.vue";
 import Guide from "../views/Guide.vue";
 import Policies from "../views/Policies.vue";
+import Logon from "../views/Logon.vue";
 import Dns from "../views/Dns.vue";
 
 Vue.use(VueRouter);
@@ -29,6 +30,11 @@ const routes = [
     path: "/policies",
     name: "Policies",
     component: Policies,
+  },
+  {
+    path: "/logon",
+    name: "Logon",
+    component: Logon,
   },
   {
     path: "/dns",

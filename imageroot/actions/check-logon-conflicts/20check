@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Other GPOs on the path of the link targets that set a right of the
+# rule. Shown before saving; for each right only the GPO applied last
+# counts on a computer.
+
+import json
+import sys
+
+import agent
+import logongen
+import wdcommon
+
+request = json.load(sys.stdin)
+
+
+def fail(field, value, error):
+    agent.set_status("validation-failed")
+    json.dump([{"field": field, "parameter": field, "value": value, "error": error}], fp=sys.stdout)
+    sys.exit(3)
+
+
+try:
+    rights = logongen.check_rights(request["rights"])
+except logongen.LogonError as ex:
+    fail("rights", str(ex).partition(": ")[2], str(ex).partition(":")[0])
+guid = next((r.get("gpo_guid") for r in wdcommon.read_logon()["rules"] if r["id"] == request.get("id")), None)
+try:
+    valid = {t["dn"].lower() for t in wdcommon.run_tool({"op": "targets"}, timeout=120)}
+    targets = [dn for dn in request["link_targets"] if dn.lower() in valid]
+    for dn in request["link_targets"]:
+        if dn.lower() not in valid:
+            fail("link_targets", dn, "link_target_not_found")
+    conflicts = wdcommon.logon_conflicts(guid, rights, targets)
+except (wdcommon.ToolError, ValueError) as ex:
+    print(agent.SD_ERR + "conflict check failed: " + str(ex), file=sys.stderr)
+    sys.exit(1)
+json.dump({"conflicts": conflicts, "rights": rights}, fp=sys.stdout)

@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# The logon rights page in one request: the rules, the well known groups,
+# the change log and the default waiting period of a removal.
+
+import json
+import sys
+
+import logongen
+import wdcommon
+
+rules = []
+for r in wdcommon.read_logon()["rules"]:
+    rules.append({k: r.get(k) for k in ("id", "name", "gpo_guid", "version", "link_targets", "rights", "changed",
+                                        "pending_delete")})
+json.dump({
+    "rules": sorted(rules, key=lambda r: r["name"].lower()),
+    "well_known": [{"sid": sid, "name": name} for sid, name in logongen.WELL_KNOWN.items()],
+    "admins": logongen.ADMINS,
+    "log": wdcommon.read_policy_log(log=wdcommon.LOGON_LOG),
+    "grace_days": wdcommon.grace_days_default(),
+}, fp=sys.stdout)

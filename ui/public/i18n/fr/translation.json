@@ -71,7 +71,12 @@
         "create-dns-zone": "Créer une zone DNS",
         "remove-dns-zone": "Supprimer une zone DNS",
         "compare-dns-zone": "Comparer la zone DNS avec le DNS public",
-        "adopt-dns-record": "Aligner l'enregistrement DNS"
+        "adopt-dns-record": "Aligner l'enregistrement DNS",
+        "list-logon-rules": "Lister les règles d'ouverture de session",
+        "save-logon-rule": "Enregistrer la règle d'ouverture de session",
+        "remove-logon-rule": "Supprimer la règle d'ouverture de session",
+        "search-principals": "Rechercher des utilisateurs et des groupes",
+        "check-logon-conflicts": "Vérifier les conflits des droits d'ouverture de session"
     },
     "settings": {
         "title": "Paramètres",
@@ -463,6 +468,11 @@
         "powershell_logging": {
             "title": "Journaliser les scripts PowerShell",
             "desc": "Consigne le texte des scripts PowerShell exécutés dans le journal des événements."
+        },
+        "domain_pin_logon": {
+            "title": "Autoriser la connexion par code PIN pratique",
+            "desc": "Les utilisateurs du domaine peuvent se connecter avec un code PIN au lieu du mot de passe. S'applique à tous les ordinateurs des OU liées ; impossible de le limiter à certains utilisateurs.",
+            "caution": "Windows conserve pour cela le mot de passe du domaine dans le coffre de l'ordinateur. Des référentiels de sécurité comme le DISA STIG pour Windows 11 (WN11-CC-000370) exigent de laisser l'option désactivée. Windows Hello for Business n'est pas une alternative : il nécessite les services de certificats AD, que Samba ne propose pas."
         }
     },
     "dns": {
@@ -657,6 +667,63 @@
         "change_removal_started": "Suppression lancée",
         "change_removal_cancelled": "Suppression annulée",
         "change_deleted": "Supprimé",
-        "change_deleted_by_timer": "Supprimé après le délai d'attente"
+        "change_deleted_by_timer": "Supprimé après le délai d'attente",
+        "logon_start": "{name} ne définit plus de droits ; lors de sa prochaine actualisation des stratégies, chaque ordinateur rétablit les droits d'ouverture de session d'avant. Le GPO reste lié pendant le délai d'attente ; ensuite il est supprimé.",
+        "logon_cancel": "Les droits d'ouverture de session de {name} sont réécrits dans le GPO.",
+        "logon_delete": "Le délai d'attente est écoulé. Le GPO de {name} est délié et supprimé."
+    },
+    "logon": {
+        "title": "Ouverture de session",
+        "help": "Définit qui peut ouvrir une session sur les ordinateurs d'une OU : localement, par Bureau à distance, ou explicitement pas. Chaque règle est un GPO avec des droits utilisateur. Un droit utilisateur n'est pas fusionné entre plusieurs GPO : la liste du GPO appliqué en dernier compte. Les Administrateurs locaux gardent toujours l'ouverture de session.",
+        "new": "Nouvelle règle",
+        "empty": "Aucune règle d'ouverture de session",
+        "empty_desc": "Créer une règle, choisir des utilisateurs ou des groupes et la lier à une OU.",
+        "rights": "Droits d'ouverture de session",
+        "rights_help": "Un droit défini remplace entièrement la liste sur les ordinateurs. Les droits non définis restent tels quels.",
+        "right_interactive": "Ouvrir une session localement",
+        "right_interactive_help": "Qui peut ouvrir une session au clavier et à l'écran de l'ordinateur (par défaut Windows : Administrateurs, Utilisateurs, Opérateurs de sauvegarde).",
+        "right_remote": "Ouvrir une session par Bureau à distance",
+        "right_remote_help": "Qui peut ouvrir une session par Bureau à distance (par défaut Windows : Administrateurs, Utilisateurs du Bureau à distance).",
+        "right_deny_interactive": "Interdire l'ouverture de session locale",
+        "right_deny_interactive_help": "Qui ne peut pas ouvrir de session localement, même avec le droit ci-dessus. Les Administrateurs et les Domain Admins ne peuvent pas être exclus.",
+        "admins_kept": "Les Administrateurs restent toujours dans la liste",
+        "right_unset": "non défini (par défaut Windows ou autres GPO)",
+        "add_title": "Ajouter un utilisateur ou un groupe",
+        "search_label": "Le nom commence par",
+        "search": "Rechercher",
+        "search_invalid": "Lettres, chiffres, espace, point, tiret et tiret bas, de 1 à 64 caractères",
+        "search_none": "Aucun résultat",
+        "search_failed": "Échec de la recherche, voir le journal du module",
+        "kind_group": "groupe",
+        "kind_user": "utilisateur",
+        "kind_builtin": "groupe local",
+        "add_interactive": "Local",
+        "add_remote": "Bureau à distance",
+        "add_deny_interactive": "Interdire",
+        "links_help": "Lier aux OU qui contiennent les ordinateurs. Le domaine entier touche tous les ordinateurs et serveurs sauf les contrôleurs de domaine.",
+        "domain_title": "Domaine entier",
+        "domain_desc": "La règle s'applique alors à chaque ordinateur et serveur du domaine. Une liste erronée peut empêcher les utilisateurs de se connecter partout.",
+        "domain_confirm": "Oui, lier au domaine entier",
+        "conflicts_title": "D'autres GPO définissent les mêmes droits",
+        "conflicts_desc": "Pour chaque droit, seule la liste du GPO appliqué en dernier compte. L'ordre est calculé à partir des liaisons ; les filtres de sécurité et WMI ne sont pas pris en compte.",
+        "conflicts_confirm": "Vérifié, enregistrer quand même",
+        "other_wins": "l'emporte sur cette règle",
+        "rule_wins": "est remplacé par cette règle",
+        "edit_title": "Modifier la règle d'ouverture de session",
+        "new_title": "Nouvelle règle d'ouverture de session",
+        "saving": "Enregistrement de la règle d'ouverture de session {name}",
+        "error_right_required": "Définir au moins un droit avec un utilisateur ou un groupe",
+        "error_domain_confirm_required": "Confirmer la liaison au domaine entier",
+        "error_conflicts_unconfirmed": "D'autres GPO définissent les mêmes droits ; vérifier et confirmer",
+        "error_name_in_use": "Le nom est déjà utilisé",
+        "error_rule_not_found": "La règle n'existe plus",
+        "error_removal_pending": "La suppression est en cours ; l'annuler d'abord",
+        "error_link_target_not_found": "La cible {value} n'existe pas",
+        "error_invalid_sid": "SID non valide {value}",
+        "error_invalid_name": "Nom non valide {value}",
+        "error_deny_admins": "Les Administrateurs ne peuvent pas être exclus",
+        "error_invalid_right": "Droit inconnu {value}",
+        "error_invalid_rights": "Droits non valides",
+        "error_not_configured": "Le module n'est relié à aucun domaine"
     }
 }

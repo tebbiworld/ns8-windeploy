@@ -1,0 +1,143 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "save-logon-rule input",
+    "$id": "http://schema.nethserver.org/windeploy/save-logon-rule-input.json",
+    "description": "Create or update a logon rule: a GPO that sets who may log on to the computers of the linked OUs",
+    "examples": [
+        {
+            "name": "Laptops restricted",
+            "rights": {
+                "interactive": [
+                    {
+                        "sid": "S-1-5-21-1-2-3-1105",
+                        "name": "priva-user"
+                    }
+                ]
+            },
+            "link_targets": [
+                "OU=Laptops,DC=ad,DC=example,DC=com"
+            ],
+            "reason": "Only process users on these laptops"
+        }
+    ],
+    "type": "object",
+    "required": [
+        "name",
+        "rights",
+        "link_targets",
+        "reason"
+    ],
+    "additionalProperties": false,
+    "properties": {
+        "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{12}$"
+        },
+        "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[^\\r\\n\\x00]+$"
+        },
+        "rights": {
+            "description": "Users and groups per right (SIDs); the local Administrators are added to the rights that grant a logon",
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "interactive": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "sid"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "sid": {
+                                "type": "string",
+                                "maxLength": 64,
+                                "pattern": "^S-1-5-[0-9-]+$"
+                            },
+                            "name": {
+                                "type": "string",
+                                "maxLength": 256,
+                                "pattern": "^[^\\r\\n\\x00]*$"
+                            }
+                        }
+                    }
+                },
+                "remote": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "sid"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "sid": {
+                                "type": "string",
+                                "maxLength": 64,
+                                "pattern": "^S-1-5-[0-9-]+$"
+                            },
+                            "name": {
+                                "type": "string",
+                                "maxLength": 256,
+                                "pattern": "^[^\\r\\n\\x00]*$"
+                            }
+                        }
+                    }
+                },
+                "deny_interactive": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "sid"
+                        ],
+                        "additionalProperties": false,
+                        "properties": {
+                            "sid": {
+                                "type": "string",
+                                "maxLength": 64,
+                                "pattern": "^S-1-5-[0-9-]+$"
+                            },
+                            "name": {
+                                "type": "string",
+                                "maxLength": 256,
+                                "pattern": "^[^\\r\\n\\x00]*$"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "link_targets": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024,
+                "pattern": "^[^\\r\\n\\x00]+$"
+            }
+        },
+        "reason": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 500,
+            "pattern": "^[^\\x00]+$"
+        },
+        "confirm_domain": {
+            "description": "Linking to the whole domain is confirmed",
+            "type": "boolean"
+        },
+        "confirm_conflicts": {
+            "description": "Other GPOs that set the same rights were shown and are accepted",
+            "type": "boolean"
+        }
+    }
+}

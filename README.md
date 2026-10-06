@@ -34,8 +34,9 @@ Samba (or Windows) Active Directory.
 The page "Policies" rolls out security settings for the computers: a
 *policy profile* is one GPO with settings picked from a catalog
 (`imageroot/pypkg/policygen.py`), linked like a deployment. Computer
-side only; 20 settings in six groups: lock idle sessions, logon notice,
-removable media, BitLocker recovery keys into the directory, time
+side only; 21 settings in six groups: lock idle sessions, logon notice,
+convenience PIN sign-in (with a caution: Windows keeps the domain
+password on the computer for it), removable media, BitLocker recovery keys into the directory, time
 source, who may set the clock, Defender, firewall, print spooler,
 OneDrive, NTLMv2, auditing, event log sizes, PowerShell logging.
 
@@ -66,6 +67,29 @@ directory can store BitLocker recovery keys.
 
 Not part of the module yet: user side settings (wallpaper, screen
 saver), switching BitLocker on, reading recovery keys, Windows LAPS.
+
+## Logon rules
+
+The page "Logon" sets who may log on to the computers of an OU: a *logon
+rule* is one GPO whose `GptTmpl.inf` sets the user rights "log on
+locally", "log on through Remote Desktop" and "deny local logon" with
+SIDs. Users and groups are picked by a directory search; the local
+well known groups (Administrators, Users, Backup Operators, Remote
+Desktop Users) are always offered.
+
+- A right that is set replaces the whole list on the computers. The
+  local Administrators always stay in the rights that grant a logon, and
+  Administrators and Domain Admins can never be denied.
+- User rights are not merged across GPOs: for each right the GPO applied
+  last wins. Before saving, the page lists the other GPOs on the path of
+  every link target that set the same right and tells which one wins,
+  computed like Windows does ([MS-GPOL]: domain before OU, the gPLink
+  entries of a container from the first to the last, blocked
+  inheritance, enforced links last; security and WMI filters are not
+  taken into account). Saving with such conflicts needs a confirmation,
+  and so does a link to the whole domain.
+- Windows restores the rights of before when the rule no longer
+  applies; removing a rule has the same waiting period as profiles.
 
 ## DNS
 

@@ -41,6 +41,10 @@ Requests (field "op"):
   delete  {guid}          remove links are the caller's job; removes the
                           GPO object and its SYSVOL folder
   targets                 domain root and organizational units (link targets)
+  principals {query}      users and groups by name prefix, with SIDs
+  rights_on_path {target_dn}
+                          GPO links from target_dn up to the domain root and
+                          the GptTmpl.inf of each linked GPO
   create_ou {dn}          create an organizational unit below the domain root
                           or an existing OU (optional delegated right)
   provision {admin_user, admin_password, username, password, link_targets}
@@ -75,6 +79,7 @@ from samba.samdb import SamDB
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gpogen  # noqa: E402
 
+GUID_IN_DN_RE = re.compile(r"\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}")
 GUID_RE = re.compile(r"^\{[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\}$")
 # Relative paths the module may write below a GPO folder
 ALLOWED_FILE_RE = re.compile(
@@ -307,11 +312,11 @@ class Session:
                 continue
             out.append({
                 "guid": guid, "exists": True,
-                "display_name": str(m.get("displayName", [b""])[0]),
-                "version": int(str(m.get("versionNumber", [b"0"])[0])),
-                "machine_extensions": str(m.get("gPCMachineExtensionNames", [b""])[0]),
-                "user_extensions": str(m.get("gPCUserExtensionNames", [b""])[0]),
-                "flags": int(str(m.get("flags", [b"0"])[0])),
+                "display_name": _attr(m, "displayName", ""),
+                "version": int(_attr(m, "versionNumber", "0")),
+                "machine_extensions": _attr(m, "gPCMachineExtensionNames", ""),
+                "user_extensions": _attr(m, "gPCUserExtensionNames", ""),
+                "flags": int(_attr(m, "flags", "0")),
                 "links": self._links_of(guid),
             })
         return out
@@ -392,10 +397,10 @@ class Session:
         m = self.samdb.search(dn, scope=ldb.SCOPE_BASE,
                               attrs=["versionNumber", "gPCMachineExtensionNames", "gPCUserExtensionNames",
                                      "displayName"])[0]
-        old_version = str(m.get("versionNumber", [b"0"])[0])
+        old_version = _attr(m, "versionNumber", "0")
         old_ext = str(m["gPCMachineExtensionNames"][0]) if "gPCMachineExtensionNames" in m else None
         old_user_ext = str(m["gPCUserExtensionNames"][0]) if "gPCUserExtensionNames" in m else None
-        old_name = str(m.get("displayName", [b""])[0])
+        old_name = _attr(m, "displayName", "")
         new_name = old_name if display_name is None else display_name
 
         # 1. keep the previous state of every touched file (and GPT.INI)
@@ -484,8 +489,9 @@ class Session:
         entry = f"[LDAP://{self.gpo_dn(guid)};0]"
         if old and guid.lower() in old.lower():
             return {"linked": True, "changed": False}
-        # Appended entries have the lowest precedence, like "Link an
-        # existing GPO" in the editor.
+        # Appended entries are applied last within the container, so they
+        # win over the other links there ([MS-GPOL]; Samba's get_gpo_list
+        # walks gPLink the same way). The editor puts a new link first.
         self._set_gplink(target_dn, old, (old or "") + entry)
         return {"linked": True, "changed": True}
 
@@ -498,6 +504,70 @@ class Session:
         keep = "".join(e for e in entries if guid.lower() not in e.lower())
         self._set_gplink(target_dn, old, keep)
         return {"linked": False, "changed": True}
+
+    def principals(self, query):
+        """Users and groups whose account name or common name starts with
+        query (logon rights page), at most 30, with their SIDs."""
+        if not isinstance(query, str) or not re.fullmatch(r"[A-Za-z0-9 ._-]{1,64}", query):
+            raise GpoError("invalid search text")
+        q = ldb.binary_encode(query)
+        res = self.samdb.search(
+            self.domain_dn, scope=ldb.SCOPE_SUBTREE,
+            expression=f"(&(|(objectClass=group)(&(objectClass=user)(!(objectClass=computer))))"
+                       f"(|(sAMAccountName={q}*)(cn={q}*)))",
+            attrs=["sAMAccountName", "objectSid", "objectClass"], controls=["paged_results:1:30"])
+        out = []
+        for r in res:
+            if "objectSid" not in r:
+                continue
+            classes = [str(c).lower() for c in r["objectClass"]]
+            out.append({"name": _attr(r, "sAMAccountName"),
+                        "sid": str(ndr_unpack(security.dom_sid, r["objectSid"][0])),
+                        "kind": "group" if "group" in classes else "user"})
+        return sorted(out, key=lambda e: e["name"].lower())[:30]
+
+    def rights_on_path(self, target_dn):
+        """The GPO links on the way from target_dn up to the domain root,
+        child first: {containers: [{dn, block, links: [{guid, enforced,
+        disabled}]}], gpos: {guid: {name, template}}} with the text of each
+        GPO's GptTmpl.inf, for the conflict check of logon rights."""
+        dn = ldb.Dn(self.samdb, target_dn)
+        root = ldb.Dn(self.samdb, self.domain_dn)
+        containers, gpos = [], {}
+        while True:
+            m = self.samdb.search(dn, scope=ldb.SCOPE_BASE, attrs=["gPLink", "gPOptions"])[0]
+            gplink = str(m["gPLink"][0]) if "gPLink" in m else ""
+            options = int(str(m["gPOptions"][0])) if "gPOptions" in m else 0
+            links = []
+            for entry in re.findall(r"\[LDAP://([^;\]]*);(\d+)\]", gplink):
+                found = GUID_IN_DN_RE.search(entry[0])
+                if not found:
+                    continue
+                opts = int(entry[1])
+                links.append({"guid": found.group(0).upper(), "disabled": bool(opts & 1), "enforced": bool(opts & 2)})
+            containers.append({"dn": str(dn), "block": options & 1 == 1,
+                               "links": links})
+            if str(dn).lower() == str(root).lower():
+                break
+            dn = dn.parent()
+            if dn is None or not str(dn).lower().endswith(str(root).lower()):
+                break
+        for c in containers:
+            for link in c["links"]:
+                guid = link["guid"]
+                if guid in gpos:
+                    continue
+                try:
+                    g = self.samdb.search(self.gpo_dn(guid), scope=ldb.SCOPE_BASE, attrs=["displayName"])[0]
+                    name = str(g["displayName"][0]) if "displayName" in g else ""
+                except ldb.LdbError:
+                    name = ""
+                data = self.read_file(self.share_path(guid, "Machine/Microsoft/Windows NT/SecEdit/GptTmpl.inf"))
+                text = None
+                if data:
+                    text = data[2:].decode("utf-16-le", "replace") if data[:2] == b"\xff\xfe" else data.decode("utf-8", "replace")
+                gpos[guid] = {"name": name, "template": text}
+        return {"containers": containers, "gpos": gpos}
 
     def domain_info(self):
         """What the policy page shows about the domain, read only: the
@@ -541,7 +611,7 @@ class Session:
             # servers, not Windows computers).
             if str(r.dn).lower() == dcs:
                 continue
-            out.append({"dn": str(r.dn), "name": str(r.get("name", [b""])[0]), "kind": "ou"})
+            out.append({"dn": str(r.dn), "name": _attr(r, "name"), "kind": "ou"})
         return out
 
     def provision(self, username, password, link_targets, guids=None):
@@ -787,6 +857,12 @@ def _check_guid(guid):
         raise GpoError(f"invalid GPO GUID {guid!r}")
 
 
+def _attr(msg, name, default=""):
+    """First value of an LDAP attribute as text, default when it is missing
+    (str() of a missing value's bytes default would give "b''")."""
+    return str(msg[name][0]) if name in msg else default
+
+
 def _check_display_name(name):
     if not isinstance(name, str) or not name or len(name) > 200 or any(c in name for c in "\r\n\0"):
         raise GpoError("invalid display name")
@@ -857,6 +933,10 @@ def main():
             result = s.unlink(request["guid"], request["target_dn"])
         elif op == "create_ou":
             result = s.create_ou(request["dn"])
+        elif op == "principals":
+            result = s.principals(request.get("query", ""))
+        elif op == "rights_on_path":
+            result = s.rights_on_path(request["target_dn"])
         elif op == "targets":
             result = s.targets()
         elif op == "delete":

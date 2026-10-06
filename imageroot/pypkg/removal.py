@@ -161,3 +161,58 @@ def purge_profile(data, profile, reason, by="admin", settings=None):
     data["profiles"] = [p for p in data["profiles"] if p["id"] != profile["id"]]
     wdcommon.log_policy_change(profile["name"], "deleted" if by == "admin" else "deleted_by_timer", reason,
                                profile["settings"], {})
+
+
+# ---------------------------------------------------------- logon rules ---
+
+def _write_logon(rule, settings):
+    files, extensions = wdcommon.build_logon_files(rule)
+    res = wdcommon.run_tool({"op": "apply", "guid": rule["gpo_guid"], "files": files, "backup_dir": "/backup",
+                             "machine_extensions": extensions}, settings=settings)
+    rule["version"] = res["version"]
+    wdcommon.prune_backups(rule["gpo_guid"])
+
+
+def start_logon(rule, reason, days=None, settings=None):
+    """The GPO stops setting the rights; Windows restores the rights of
+    before on each computer that applies the change."""
+    if rule.get("pending_delete"):
+        raise RemovalError("removal_pending")
+    settings = settings or wdcommon.connection_settings()
+    pending = wdcommon.new_pending(reason, days)
+    rule["pending_delete"] = pending
+    try:
+        if rule.get("gpo_guid"):
+            _write_logon(rule, settings)
+    except Exception:
+        del rule["pending_delete"]
+        raise
+    rule["changed"] = _now().isoformat(timespec="seconds")
+    wdcommon.log_policy_change(rule["name"], "removal_started", reason, rule["rights"], {}, log=wdcommon.LOGON_LOG)
+    return pending
+
+
+def cancel_logon(rule, reason, settings=None):
+    pending = rule.get("pending_delete")
+    if not pending:
+        raise RemovalError("removal_not_pending")
+    settings = settings or wdcommon.connection_settings()
+    del rule["pending_delete"]
+    try:
+        if rule.get("gpo_guid"):
+            _write_logon(rule, settings)
+    except Exception:
+        rule["pending_delete"] = pending
+        raise
+    rule["changed"] = _now().isoformat(timespec="seconds")
+    wdcommon.log_policy_change(rule["name"], "removal_cancelled", reason, {}, rule["rights"], log=wdcommon.LOGON_LOG)
+
+
+def purge_logon(data, rule, reason, by="admin", settings=None):
+    if not wdcommon.pending_due(rule):
+        raise RemovalError("removal_not_due")
+    if rule.get("gpo_guid"):
+        wdcommon.delete_gpo(rule["gpo_guid"], rule.get("link_targets", []), settings=settings)
+    data["rules"] = [r for r in data["rules"] if r["id"] != rule["id"]]
+    wdcommon.log_policy_change(rule["name"], "deleted" if by == "admin" else "deleted_by_timer", reason,
+                               {}, {}, log=wdcommon.LOGON_LOG)

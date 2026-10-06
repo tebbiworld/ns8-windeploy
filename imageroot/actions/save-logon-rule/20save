@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Create or update a logon rule: one GPO "windeploy logon: <name>" whose
+# GptTmpl.inf sets the logon rights with SIDs (see pypkg/logongen.py).
+#
+# Linking to the whole domain needs confirm_domain; other GPOs on the path
+# that set the same rights need confirm_conflicts (the page shows them
+# first with check-logon-conflicts). Order as in save-policy: validate
+# offline, create the GPO if needed, write the files, adjust the links,
+# store the rule, all under the lock of logon.json.
+
+import copy
+import datetime
+import json
+import sys
+
+import agent
+import logongen
+import wdcommon
+
+request = json.load(sys.stdin)
+
+
+def fail(field, value, error):
+    agent.set_status("validation-failed")
+    json.dump([{"field": field, "parameter": field, "value": value, "error": error}], fp=sys.stdout)
+    sys.exit(3)
+
+
+settings = wdcommon.connection_settings()
+try:
+    wdcommon.validate_connection(settings)
+except ValueError as ex:
+    print(agent.SD_ERR + str(ex), file=sys.stderr)
+    fail("domain", settings.get("domain", ""), "not_configured")
+
+try:
+    rights = logongen.check_rights(request["rights"])
+except logongen.LogonError as ex:
+    print(agent.SD_ERR + str(ex), file=sys.stderr)
+    fail("rights", str(ex).partition(": ")[2], str(ex).partition(":")[0])
+
+wanted = list({dn.lower(): dn for dn in request["link_targets"]}.values())
+if wanted:
+    try:
+        targets = {t["dn"].lower(): t for t in wdcommon.run_tool({"op": "targets"}, settings=settings, timeout=120)}
+    except (wdcommon.ToolError, ValueError) as ex:
+        print(agent.SD_ERR + "cannot read the link targets: " + str(ex), file=sys.stderr)
+        sys.exit(1)
+    for dn in wanted:
+        if dn.lower() not in targets:
+            fail("link_targets", dn, "link_target_not_found")
+        if targets[dn.lower()]["kind"] == "domain" and not request.get("confirm_domain"):
+            fail("link_targets", dn, "domain_confirm_required")
+
+with wdcommon.logon_locked() as data:
+    current = data["rules"]
+    old = None
+    if request.get("id"):
+        old = next((r for r in current if r["id"] == request["id"]), None)
+        if old is None:
+            fail("id", request["id"], "rule_not_found")
+        if old.get("pending_delete"):
+            fail("id", request["id"], "removal_pending")
+    for r in current:
+        if r["name"].lower() == request["name"].lower() and r["id"] != request.get("id"):
+            fail("name", request["name"], "name_in_use")
+
+    rule = copy.deepcopy(old) if old else {"id": wdcommon.new_id(), "gpo_guid": "", "link_targets": [], "rights": {}}
+    before = copy.deepcopy(rule["rights"])
+    rule["name"] = request["name"]
+    rule["rights"] = rights
+
+    if wanted and not request.get("confirm_conflicts"):
+        try:
+            conflicts = wdcommon.logon_conflicts(rule["gpo_guid"], rights, wanted, settings=settings)
+        except (wdcommon.ToolError, ValueError) as ex:
+            print(agent.SD_ERR + "conflict check failed: " + str(ex), file=sys.stderr)
+            sys.exit(1)
+        if conflicts:
+            fail("rights", str(len(conflicts)), "conflicts_unconfirmed")
+
+    files, extensions = wdcommon.build_logon_files(rule)
+    wanted_keys = {dn.lower() for dn in wanted}
+    linked_keys = {dn.lower() for dn in rule["link_targets"]}
+    created = False
+    try:
+        agent.set_progress(10)
+        if not rule["gpo_guid"]:
+            res = wdcommon.run_tool({"op": "create", "display_name": "windeploy logon: " + rule["name"]}, settings=settings)
+            rule["gpo_guid"] = res["guid"]
+            created = True
+        agent.set_progress(40)
+        res = wdcommon.run_tool({"op": "apply", "guid": rule["gpo_guid"], "files": files, "backup_dir": "/backup",
+                                 "machine_extensions": extensions,
+                                 "display_name": "windeploy logon: " + rule["name"]}, settings=settings)
+        rule["version"] = res["version"]
+        wdcommon.prune_backups(rule["gpo_guid"])
+        agent.set_progress(70)
+        for dn in wanted:
+            if dn.lower() not in linked_keys:
+                wdcommon.run_tool({"op": "link", "guid": rule["gpo_guid"], "target_dn": dn}, settings=settings)
+        for dn in rule["link_targets"]:
+            if dn.lower() not in wanted_keys:
+                wdcommon.run_tool({"op": "unlink", "guid": rule["gpo_guid"], "target_dn": dn}, settings=settings)
+        rule["link_targets"] = wanted
+    except Exception as ex:
+        print(agent.SD_ERR + f"saving the logon rule failed: {type(ex).__name__}: {ex}", file=sys.stderr)
+        if created:
+            try:
+                wdcommon.delete_gpo(rule["gpo_guid"], wanted, settings=settings)
+            except Exception as cleanup:
+                print(agent.SD_ERR + f"could not remove the new GPO {rule['gpo_guid']}: {cleanup}", file=sys.stderr)
+        if isinstance(ex, (wdcommon.ToolError, ValueError)):
+            sys.exit(1)
+        raise
+
+    rule["changed"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    data["rules"] = [r for r in current if r["id"] != rule["id"]] + [rule]
+    wdcommon.log_policy_change(rule["name"], "created" if old is None else "changed", request["reason"],
+                               before, rule["rights"], renamed_from=old["name"] if old else None,
+                               log=wdcommon.LOGON_LOG)
+
+agent.set_progress(100)
+print(agent.SD_INFO + f"logon rule {rule['name']!r} saved in GPO {rule['gpo_guid']} version {rule.get('version')}", file=sys.stderr)
+json.dump({"id": rule["id"], "gpo_guid": rule["gpo_guid"], "version": rule.get("version"), "rights": rights}, fp=sys.stdout)

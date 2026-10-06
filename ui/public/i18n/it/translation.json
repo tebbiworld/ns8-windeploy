@@ -117,7 +117,12 @@
         "create-dns-zone": "Crea zona DNS",
         "remove-dns-zone": "Elimina zona DNS",
         "compare-dns-zone": "Confronta zona DNS con il DNS pubblico",
-        "adopt-dns-record": "Allinea record DNS"
+        "adopt-dns-record": "Allinea record DNS",
+        "list-logon-rules": "Elenca regole di accesso",
+        "save-logon-rule": "Salva regola di accesso",
+        "remove-logon-rule": "Rimuovi regola di accesso",
+        "search-principals": "Cerca utenti e gruppi",
+        "check-logon-conflicts": "Verifica conflitti dei diritti di accesso"
     },
     "task": {
         "cannot_create_task": "Impossibile eseguire il task {action}"
@@ -463,6 +468,11 @@
         "powershell_logging": {
             "title": "Registra gli script PowerShell",
             "desc": "Registra nel registro eventi il testo degli script PowerShell eseguiti."
+        },
+        "domain_pin_logon": {
+            "title": "Consenti accesso con PIN di comodità",
+            "desc": "Gli utenti del dominio possono accedere con un PIN invece della password. Vale per tutti i computer delle OU collegate; non si può limitare a singoli utenti.",
+            "caution": "Per questo Windows conserva la password di dominio nell'archivio del computer. Linee guida di sicurezza come il DISA STIG per Windows 11 (WN11-CC-000370) richiedono di lasciare l'opzione disattivata. Windows Hello for Business non è un'alternativa: richiede AD Certificate Services, che Samba non offre."
         }
     },
     "dns": {
@@ -657,6 +667,63 @@
         "change_removal_started": "Rimozione avviata",
         "change_removal_cancelled": "Rimozione annullata",
         "change_deleted": "Eliminato",
-        "change_deleted_by_timer": "Eliminato al termine del periodo di attesa"
+        "change_deleted_by_timer": "Eliminato al termine del periodo di attesa",
+        "logon_start": "{name} non imposta più diritti; al prossimo aggiornamento dei criteri ogni computer ripristina i diritti di accesso precedenti. Il GPO resta collegato per il periodo di attesa; poi viene eliminato.",
+        "logon_cancel": "I diritti di accesso di {name} vengono riscritti nel GPO.",
+        "logon_delete": "Il periodo di attesa è terminato. Il GPO di {name} viene scollegato ed eliminato."
+    },
+    "logon": {
+        "title": "Accesso",
+        "help": "Stabilisce chi può accedere ai computer di una OU: localmente, tramite Desktop remoto, oppure esplicitamente no. Ogni regola è un GPO con diritti utente. Un diritto utente non viene unito tra più GPO: vale l'elenco del GPO applicato per ultimo. Gli Administrators locali mantengono sempre l'accesso.",
+        "new": "Nuova regola",
+        "empty": "Nessuna regola di accesso",
+        "empty_desc": "Creare una regola, scegliere utenti o gruppi e collegarla a una OU.",
+        "rights": "Diritti di accesso",
+        "rights_help": "Un diritto impostato sostituisce completamente l'elenco sui computer. I diritti non impostati restano come sono.",
+        "right_interactive": "Accesso locale",
+        "right_interactive_help": "Chi può accedere da tastiera e schermo del computer (predefinito Windows: Administrators, Users, Backup Operators).",
+        "right_remote": "Accesso tramite Desktop remoto",
+        "right_remote_help": "Chi può accedere tramite Desktop remoto (predefinito Windows: Administrators, Remote Desktop Users).",
+        "right_deny_interactive": "Nega accesso locale",
+        "right_deny_interactive_help": "Chi non può accedere localmente, anche con il diritto sopra. Administrators e Domain Admins non possono essere esclusi.",
+        "admins_kept": "Gli Administrators restano sempre nell'elenco",
+        "right_unset": "non impostato (predefinito Windows o altri GPO)",
+        "add_title": "Aggiungere utente o gruppo",
+        "search_label": "Il nome inizia con",
+        "search": "Cerca",
+        "search_invalid": "Lettere, cifre, spazio, punto, trattino e trattino basso, da 1 a 64 caratteri",
+        "search_none": "Nessun risultato",
+        "search_failed": "Ricerca non riuscita, vedere il log del modulo",
+        "kind_group": "gruppo",
+        "kind_user": "utente",
+        "kind_builtin": "gruppo locale",
+        "add_interactive": "Locale",
+        "add_remote": "Desktop remoto",
+        "add_deny_interactive": "Nega",
+        "links_help": "Collegare alle OU che contengono i computer. L'intero dominio riguarda tutti i computer e i server tranne i domain controller.",
+        "domain_title": "Intero dominio",
+        "domain_desc": "La regola vale allora per ogni computer e server del dominio. Un elenco sbagliato può escludere gli utenti ovunque.",
+        "domain_confirm": "Sì, collegare all'intero dominio",
+        "conflicts_title": "Altri GPO impostano gli stessi diritti",
+        "conflicts_desc": "Per ogni diritto vale solo l'elenco del GPO applicato per ultimo. L'ordine è calcolato dai collegamenti; filtri di sicurezza e WMI non sono considerati.",
+        "conflicts_confirm": "Verificato, salvare comunque",
+        "other_wins": "prevale su questa regola",
+        "rule_wins": "viene sostituito da questa regola",
+        "edit_title": "Modifica regola di accesso",
+        "new_title": "Nuova regola di accesso",
+        "saving": "Salvataggio della regola di accesso {name}",
+        "error_right_required": "Impostare almeno un diritto con un utente o un gruppo",
+        "error_domain_confirm_required": "Confermare il collegamento all'intero dominio",
+        "error_conflicts_unconfirmed": "Altri GPO impostano gli stessi diritti; verificare e confermare",
+        "error_name_in_use": "Il nome è già in uso",
+        "error_rule_not_found": "La regola non esiste più",
+        "error_removal_pending": "La rimozione è in corso; annullarla prima",
+        "error_link_target_not_found": "La destinazione {value} non esiste",
+        "error_invalid_sid": "SID non valido {value}",
+        "error_invalid_name": "Nome non valido {value}",
+        "error_deny_admins": "Gli Administrators non possono essere esclusi",
+        "error_invalid_right": "Diritto sconosciuto {value}",
+        "error_invalid_rights": "Diritti non validi",
+        "error_not_configured": "Il modulo non è collegato a un dominio"
     }
 }

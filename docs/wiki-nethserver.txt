@@ -10,7 +10,8 @@ windeploy is a community application from the [[ns8:tebbiworld_repository|tebbiw
 
 =====What it does=====
   * **Software deployment** — search the [[https://github.com/microsoft/winget-pkgs|winget community repository]] and roll packages out to the computers of the domain or of organizational units. A deployment is one GPO with one scheduled task per package; the task runs winget as SYSTEM, daily or weekly, or once with "run now".
-  * **Policies** — security settings for the computers as GPOs: lock idle sessions, logon notice, removable media, BitLocker recovery keys into the directory, time source, Defender, firewall, print spooler, NTLMv2, auditing, event log sizes, PowerShell logging. 20 settings in six groups.
+  * **Policies** — security settings for the computers as GPOs: lock idle sessions, logon notice, removable media, BitLocker recovery keys into the directory, time source, Defender, firewall, print spooler, NTLMv2, auditing, event log sizes, PowerShell logging, convenience PIN sign-in. 21 settings in six groups.
+  * **Logon** — who may log on to the computers of an organizational unit: locally, through Remote Desktop, or denied. The local Administrators can never be locked out; other GPOs that set the same rights are shown with the one that wins before saving.
   * **DNS** — show the internal DNS zones of the domain and add, change and delete records: A, AAAA, CNAME, MX, SRV, TXT, and PTR in reverse zones. Create and delete zones, reverse zones from their network. Compare a zone with the public DNS and see which internal records differ.
   * No Windows machine is needed to manage any of this, and no domain admin account is stored.
 

@@ -111,7 +111,12 @@
         "create-dns-zone": "Create DNS zone",
         "remove-dns-zone": "Delete DNS zone",
         "compare-dns-zone": "Compare DNS zone with the public DNS",
-        "adopt-dns-record": "Align DNS record"
+        "adopt-dns-record": "Align DNS record",
+        "list-logon-rules": "List logon rules",
+        "save-logon-rule": "Save logon rule",
+        "remove-logon-rule": "Remove logon rule",
+        "search-principals": "Search users and groups",
+        "check-logon-conflicts": "Check logon rights for conflicts"
     },
     "error": {
         "error": "Error",
@@ -463,6 +468,11 @@
         "powershell_logging": {
             "title": "Log PowerShell scripts",
             "desc": "Records the text of executed PowerShell scripts in the event log."
+        },
+        "domain_pin_logon": {
+            "title": "Allow convenience PIN sign-in",
+            "desc": "Domain users can sign in with a PIN instead of the password. Applies to all computers of the linked OUs; it cannot be limited to single users.",
+            "caution": "Windows keeps the domain password in the vault of the computer for it. Security baselines such as the DISA STIG for Windows 11 (WN11-CC-000370) require the option to stay off. Windows Hello for Business is no replacement: it needs AD Certificate Services, which Samba does not offer."
         }
     },
     "dns": {
@@ -657,6 +667,63 @@
         "change_removal_started": "Removal started",
         "change_removal_cancelled": "Removal cancelled",
         "change_deleted": "Deleted",
-        "change_deleted_by_timer": "Deleted after the waiting period"
+        "change_deleted_by_timer": "Deleted after the waiting period",
+        "logon_start": "{name} stops setting rights; at its next policy refresh every computer restores the logon rights of before. The GPO stays linked for the waiting period; then it is deleted.",
+        "logon_cancel": "The logon rights of {name} are written to the GPO again.",
+        "logon_delete": "The waiting period is over. The GPO of {name} is unlinked and deleted."
+    },
+    "logon": {
+        "title": "Logon",
+        "help": "Sets who may log on to the computers of an OU: locally, by Remote Desktop, or explicitly not. Each rule is a GPO with user rights. A user right is not merged across GPOs: the list of the GPO applied last counts. The local Administrators always keep the logon.",
+        "new": "New rule",
+        "empty": "No logon rules",
+        "empty_desc": "Create a rule, pick users or groups and link it to an OU.",
+        "rights": "Logon rights",
+        "rights_help": "A right that is set replaces the whole list on the computers. Rights that are not set stay as they are.",
+        "right_interactive": "Log on locally",
+        "right_interactive_help": "Who may log on at the keyboard and screen of the computer (Windows default: Administrators, Users, Backup Operators).",
+        "right_remote": "Log on through Remote Desktop",
+        "right_remote_help": "Who may log on by Remote Desktop (Windows default: Administrators, Remote Desktop Users).",
+        "right_deny_interactive": "Deny local logon",
+        "right_deny_interactive_help": "Who may not log on locally, even with the right above. Administrators and Domain Admins cannot be locked out.",
+        "admins_kept": "Administrators always stay in the list",
+        "right_unset": "not set (Windows default or other GPOs)",
+        "add_title": "Add a user or group",
+        "search_label": "Name starts with",
+        "search": "Search",
+        "search_invalid": "Letters, digits, space, dot, hyphen and underscore, 1 to 64 characters",
+        "search_none": "Nothing found",
+        "search_failed": "Search failed, see the module log",
+        "kind_group": "group",
+        "kind_user": "user",
+        "kind_builtin": "local group",
+        "add_interactive": "Local",
+        "add_remote": "Remote Desktop",
+        "add_deny_interactive": "Deny",
+        "links_help": "Link to the OUs that hold the computers. The whole domain hits all computers and servers except the domain controllers.",
+        "domain_title": "Whole domain",
+        "domain_desc": "The rule then applies to every computer and server of the domain. A wrong list can lock users out everywhere.",
+        "domain_confirm": "Yes, link to the whole domain",
+        "conflicts_title": "Other GPOs set the same rights",
+        "conflicts_desc": "For each right only the list of the GPO applied last counts. The order is computed from the links; security and WMI filters are not taken into account.",
+        "conflicts_confirm": "Checked, save anyway",
+        "other_wins": "wins over this rule",
+        "rule_wins": "is replaced by this rule",
+        "edit_title": "Edit logon rule",
+        "new_title": "New logon rule",
+        "saving": "Saving logon rule {name}",
+        "error_right_required": "Set at least one right with a user or group",
+        "error_domain_confirm_required": "Confirm the link to the whole domain",
+        "error_conflicts_unconfirmed": "Other GPOs set the same rights; check and confirm",
+        "error_name_in_use": "The name is already in use",
+        "error_rule_not_found": "The rule does not exist any more",
+        "error_removal_pending": "The removal is running; cancel it first",
+        "error_link_target_not_found": "Link target {value} does not exist",
+        "error_invalid_sid": "Invalid SID {value}",
+        "error_invalid_name": "Invalid name {value}",
+        "error_deny_admins": "Administrators cannot be locked out",
+        "error_invalid_right": "Unknown right {value}",
+        "error_invalid_rights": "Invalid rights",
+        "error_not_configured": "The module is not connected to a domain"
     }
 }
