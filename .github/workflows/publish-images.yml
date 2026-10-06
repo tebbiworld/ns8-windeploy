@@ -1,8 +1,9 @@
 name: "Publish images"
 
 # Builds both images of the module (windeploy, windeploy-samba) for every
-# branch and tag. A version tag is also pushed as "latest": the catalog
-# reads the list of versions from that image.
+# branch and tag. A version tag and main are also pushed as "latest", like
+# NethServer's publish-branch: the catalog reads the versions from that
+# image, and the QEMU tests of main install it.
 
 on:
   push:
@@ -41,7 +42,9 @@ jobs:
           echo "$TOKEN" | buildah login -u "${{ github.actor }}" --password-stdin ghcr.io
           for image in windeploy-samba windeploy; do
             buildah push "${REPOBASE,,}/${image}" "docker://${REPOBASE,,}/${image}:${IMAGETAG}"
-            if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            # :latest for release tags and main, like NethServer's
+            # publish-branch: the QEMU tests of main install :latest
+            if [[ "${GITHUB_REF_TYPE}" == "tag" || "${GITHUB_REF_NAME}" == "main" ]]; then
               buildah push "${REPOBASE,,}/${image}" "docker://${REPOBASE,,}/${image}:latest"
             fi
           done

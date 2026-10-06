@@ -10,11 +10,18 @@ Resource    api.resource
 
 *** Test Cases ***
 Fill the state files
+    [Documentation]    Valid content the actions can read, marked with the
+    ...                file name; a logon rule without GPO shows up on the page.
+    &{base} =    Create Dictionary
+    ...    deployments.json=${{ {"deployments": []} }}
+    ...    policies.json=${{ {"profiles": []} }}
+    ...    scripts.json=${{ {"sets": []} }}
+    ...    logon.json=${{ {"rules": [{"id": "0123456789ab", "name": "ci rule", "gpo_guid": "", "link_targets": [], "rights": {}}]} }}
     FOR    ${name}    IN    @{STATE_FILES}
-        Run on node    runagent -m ${module_id} bash -c 'echo "{\\"ci\\": \\"${name}\\"}" > "$AGENT_STATE_DIR/${name}.ci" && mv "$AGENT_STATE_DIR/${name}.ci" "$AGENT_STATE_DIR/${name}"'
+        ${content} =    Evaluate    json.dumps(dict($base.get($name, {}), ci=$name))    modules=json
+        ${b64} =    Evaluate    base64.b64encode($content.encode()).decode()    modules=base64
+        Run on node    runagent -m ${module_id} bash -c 'echo ${b64} | base64 -d > "$AGENT_STATE_DIR/${name}"'
     END
-    # a logon rule without GPO, so that the page shows it after the restore
-    Run on node    runagent -m ${module_id} bash -c 'echo "{\\"rules\\": [{\\"id\\": \\"0123456789ab\\", \\"name\\": \\"ci rule\\", \\"gpo_guid\\": \\"\\", \\"link_targets\\": [], \\"rights\\": {}}]}" > "$AGENT_STATE_DIR/logon.json"'
     ${sums} =    State checksums    ${module_id}
     Set Global Variable    ${SUMS_ORIG}    ${sums}
 
