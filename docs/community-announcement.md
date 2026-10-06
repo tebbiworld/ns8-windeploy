@@ -1,8 +1,8 @@
 Hello everyone,
 
-I would like to show a new community module and ask for testers: **windeploy** brings Windows software, security settings and internal DNS records to the computers of a Samba AD domain, from the cluster admin UI. No Windows machine with RSAT is needed and no domain admin account is stored.
+I would like to show a new community module and ask for testers: **windeploy** brings Windows software, security settings, logon rights, scripts and internal DNS records to the computers of a Samba AD domain, from the cluster admin UI. No Windows machine with RSAT is needed and no domain admin account is stored.
 
-It is an early version (0.2.0). Please try it on a test domain first.
+It is an early version (0.3.0). Please try it on a test domain first.
 
 ## What it does
 
@@ -12,8 +12,16 @@ It is an early version (0.2.0). Please try it on a test domain first.
 - Link it to the whole domain or to organizational units.
 
 **Policies**
-- Security settings for the computers, rolled out as GPOs: lock idle sessions, logon notice, removable media, BitLocker recovery keys into the directory, time source, Defender, firewall, NTLMv2, auditing, PowerShell logging. 20 settings in six groups.
+- Security settings for the computers, rolled out as GPOs: lock idle sessions, logon notice, removable media, BitLocker recovery keys into the directory, time source, Defender, firewall, NTLMv2, auditing, PowerShell logging, convenience PIN sign-in. 21 settings in six groups.
 - Every change needs a reason and is kept in a list of changes.
+
+**Logon**
+- Who may log on to the computers of an OU: locally, through Remote Desktop, or denied. The local Administrators cannot be locked out.
+- Before saving, the page lists other GPOs that set the same rights and tells which one wins.
+
+**Scripts**
+- PowerShell logon scripts for users and startup scripts for computers, each with an optional cleanup script for the removal.
+- A warning for lines that look like a password: SYSVOL is readable by every domain user.
 
 **DNS**
 - Show the internal DNS zones and add, change and delete records. Create and delete zones.
@@ -32,14 +40,14 @@ This took most of the testing. With a Windows 11 25H2 client I measured what hap
 - Scheduled tasks are removed by the client at its next policy refresh. Installed software stays.
 - With "remove this item when it is no longer applied" Windows creates the task again at every refresh, so a start missed while the computer was off would be lost. The module makes up for it after the next start.
 - Removing a GPO with an advanced audit policy file clears **all** auditing on the client, also what a fresh Windows audits. The module sets the audit settings with a task instead.
-- Removing a deployment deletes its GPO. Removing the module deletes its GPOs; moving it to another node keeps them.
+- Removing anything has a waiting period (default 14 days): the GPO stays linked and makes the computers clean up first, then a daily timer deletes it. Removing the module deletes its GPOs; moving it to another node keeps them.
 
 ## Install
 
 Install "GPO based Software Deployment for Windows" from the Software Center. Or:
 
 ```
-add-module ghcr.io/tebbiworld/windeploy:0.2.0 1
+add-module ghcr.io/tebbiworld/windeploy:0.3.0 1
 ```
 
 If you do not have the repository yet:
