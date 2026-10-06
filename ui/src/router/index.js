@@ -10,6 +10,7 @@ import Deployments from "../views/Deployments.vue";
 import Guide from "../views/Guide.vue";
 import Policies from "../views/Policies.vue";
 import Logon from "../views/Logon.vue";
+import Scripts from "../views/Scripts.vue";
 import Dns from "../views/Dns.vue";
 
 Vue.use(VueRouter);
@@ -35,6 +36,11 @@ const routes = [
     path: "/logon",
     name: "Logon",
     component: Logon,
+  },
+  {
+    path: "/scripts",
+    name: "Scripts",
+    component: Scripts,
   },
   {
     path: "/dns",

@@ -76,7 +76,10 @@
         "save-logon-rule": "Enregistrer la règle d'ouverture de session",
         "remove-logon-rule": "Supprimer la règle d'ouverture de session",
         "search-principals": "Rechercher des utilisateurs et des groupes",
-        "check-logon-conflicts": "Vérifier les conflits des droits d'ouverture de session"
+        "check-logon-conflicts": "Vérifier les conflits des droits d'ouverture de session",
+        "list-scripts": "Lister les scripts",
+        "save-scripts": "Enregistrer le groupe de scripts",
+        "remove-scripts": "Supprimer le groupe de scripts"
     },
     "settings": {
         "title": "Paramètres",
@@ -670,7 +673,10 @@
         "change_deleted_by_timer": "Supprimé après le délai d'attente",
         "logon_start": "{name} ne définit plus de droits ; lors de sa prochaine actualisation des stratégies, chaque ordinateur rétablit les droits d'ouverture de session d'avant. Le GPO reste lié pendant le délai d'attente ; ensuite il est supprimé.",
         "logon_cancel": "Les droits d'ouverture de session de {name} sont réécrits dans le GPO.",
-        "logon_delete": "Le délai d'attente est écoulé. Le GPO de {name} est délié et supprimé."
+        "logon_delete": "Le délai d'attente est écoulé. Le GPO de {name} est délié et supprimé.",
+        "scripts_start": "Les scripts de nettoyage s'exécutent à la place des scripts de {name} ; les scripts sans nettoyage ne s'exécutent plus. Le GPO reste lié pendant le délai d'attente ; ensuite il est supprimé.",
+        "scripts_cancel": "Les scripts de {name} sont réécrits dans le GPO.",
+        "scripts_delete": "Le délai d'attente est écoulé. Le GPO de {name} est délié et supprimé."
     },
     "logon": {
         "title": "Ouverture de session",
@@ -724,6 +730,42 @@
         "error_deny_admins": "Les Administrateurs ne peuvent pas être exclus",
         "error_invalid_right": "Droit inconnu {value}",
         "error_invalid_rights": "Droits non valides",
+        "error_not_configured": "Le module n'est relié à aucun domaine"
+    },
+    "scripts": {
+        "title": "Scripts",
+        "help": "Scripts PowerShell exécutés à chaque ouverture de session d'un utilisateur ou à chaque démarrage d'un ordinateur. Chaque groupe de scripts est un GPO ; les scripts sont stockés dans le dossier du GPO. Pour la suppression, chaque script peut avoir un script de nettoyage exécuté à sa place pendant le délai d'attente.",
+        "new": "Nouveau groupe de scripts",
+        "empty": "Aucun script",
+        "empty_desc": "Créer un groupe de scripts, saisir un script et le lier au domaine ou à des OU.",
+        "parts": "Scripts",
+        "part_logon": "Script d'ouverture de session (utilisateurs)",
+        "part_startup": "Script de démarrage (ordinateurs)",
+        "part_logon_help": "S'exécute à chaque ouverture de session sous l'utilisateur qui se connecte. S'applique aux comptes utilisateur dans la portée de la liaison : les comptes du conteneur par défaut « Users » ne sont atteints que par une liaison au domaine entier.",
+        "part_startup_help": "S'exécute à chaque démarrage de l'ordinateur en tant que SYSTEM, avant l'ouverture de session. S'applique aux ordinateurs dans la portée de la liaison.",
+        "with_cleanup": "avec script de nettoyage",
+        "lines": "{n} ligne | {n} lignes",
+        "version": "ordinateur {c} / utilisateur {u}",
+        "log_help": "La liste conserve la taille et le SHA-256 de chaque script ; le texte avant chaque modification est conservé dans les sauvegardes des GPO du module.",
+        "edit_title": "Modifier le groupe de scripts",
+        "new_title": "Nouveau groupe de scripts",
+        "sysvol_title": "Lisible par tous les utilisateurs du domaine",
+        "sysvol_desc": "Les scripts sont stockés dans SYSVOL. Tout utilisateur authentifié du domaine peut les lire : n'y mettez ni mot de passe ni autre secret.",
+        "script_label": "Script",
+        "cleanup_label": "Script de nettoyage (facultatif)",
+        "cleanup_help": "S'exécute à la place du script pendant le délai d'attente d'une suppression, par ex. pour supprimer les emplacements réseau créés. Sans script de nettoyage, le script cesse simplement de s'exécuter.",
+        "secret_title": "Ressemble à un mot de passe",
+        "secret_desc": "{where}, ligne {line} : cette ligne semble contenir un mot de passe. Il serait lisible par tous les utilisateurs du domaine. L'enregistrement reste possible.",
+        "links_help": "Les scripts d'ouverture de session agissent sur les comptes utilisateur, les scripts de démarrage sur les ordinateurs sous la cible liée.",
+        "saving": "Enregistrement du groupe de scripts {name}",
+        "error_script_required": "Saisir au moins un script",
+        "error_script_too_large": "Un script peut faire au plus 64 Kio",
+        "error_invalid_script": "Texte de script non valide",
+        "error_invalid_part": "Type de script inconnu {value}",
+        "error_name_in_use": "Le nom est déjà utilisé",
+        "error_set_not_found": "Le groupe de scripts n'existe plus",
+        "error_removal_pending": "La suppression est en cours ; l'annuler d'abord",
+        "error_link_target_not_found": "La cible {value} n'existe pas",
         "error_not_configured": "Le module n'est relié à aucun domaine"
     }
 }
