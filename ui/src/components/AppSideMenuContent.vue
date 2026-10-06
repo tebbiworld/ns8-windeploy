@@ -50,6 +50,13 @@
         <span>{{ $t("policies.title") }}</span>
       </cv-side-nav-link>
       <cv-side-nav-link
+        @click="goToAppPage(instanceName, 'logon')"
+        :class="{ 'current-page': isLinkActive('logon') }"
+      >
+        <template v-slot:nav-icon><UserAccess20 /></template>
+        <span>{{ $t("logon.title") }}</span>
+      </cv-side-nav-link>
+      <cv-side-nav-link
         @click="goToAppPage(instanceName, 'dns')"
         :class="{ 'current-page': isLinkActive('dns') }"
       >
@@ -73,6 +80,7 @@ import Information20 from "@carbon/icons-vue/es/information/20";
 import Activity20 from "@carbon/icons-vue/es/activity/20";
 import Deploy20 from "@carbon/icons-vue/es/deploy/20";
 import Policy20 from "@carbon/icons-vue/es/policy/20";
+import UserAccess20 from "@carbon/icons-vue/es/user--access/20";
 import Dns20 from "@carbon/icons-vue/es/dns-services/20";
 import Book20 from "@carbon/icons-vue/es/book/20";
 import { mapState } from "vuex";
@@ -86,6 +94,7 @@ export default {
     Activity20,
     Deploy20,
     Policy20,
+    UserAccess20,
     Dns20,
     Book20,
   },
