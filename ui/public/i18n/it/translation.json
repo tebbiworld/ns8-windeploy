@@ -468,6 +468,11 @@
         "powershell_logging": {
             "title": "Registra gli script PowerShell",
             "desc": "Registra nel registro eventi il testo degli script PowerShell eseguiti."
+        },
+        "domain_pin_logon": {
+            "title": "Consenti accesso con PIN di comodità",
+            "desc": "Gli utenti del dominio possono accedere con un PIN invece della password. Vale per tutti i computer delle OU collegate; non si può limitare a singoli utenti.",
+            "caution": "Per questo Windows conserva la password di dominio nell'archivio del computer. Linee guida di sicurezza come il DISA STIG per Windows 11 (WN11-CC-000370) richiedono di lasciare l'opzione disattivata. Windows Hello for Business non è un'alternativa: richiede AD Certificate Services, che Samba non offre."
         }
     },
     "dns": {

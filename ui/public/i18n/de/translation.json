@@ -468,6 +468,11 @@
         "powershell_logging": {
             "title": "PowerShell-Skripte protokollieren",
             "desc": "Schreibt den Text ausgeführter PowerShell-Skripte ins Ereignisprotokoll."
+        },
+        "domain_pin_logon": {
+            "title": "Komfortable PIN-Anmeldung erlauben",
+            "desc": "Domänenbenutzer können sich mit einer PIN statt mit dem Kennwort anmelden. Gilt für alle Rechner der verknüpften OUs; auf einzelne Benutzer lässt es sich nicht eingrenzen.",
+            "caution": "Windows legt dafür das Domänenkennwort im Tresor des Rechners ab. Sicherheitsvorgaben wie der DISA-STIG für Windows 11 (WN11-CC-000370) verlangen, die Option abgeschaltet zu lassen. Windows Hello for Business ist kein Ersatz: es braucht AD-Zertifikatdienste, die Samba nicht bietet."
         }
     },
     "dns": {

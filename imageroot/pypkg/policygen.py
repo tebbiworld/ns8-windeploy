@@ -113,6 +113,13 @@ CATALOG = {
         "reg": [(SYSTEM, "NoConnectedUser", REG_DWORD, 3)],
         "risk": 1,
     },
+    "domain_pin_logon": {
+        # convenience PIN: Windows keeps the domain password in the vault
+        # of the computer (DISA STIG WN11-CC-000370 wants it off)
+        "group": "logon",
+        "reg": [("Software\\Policies\\Microsoft\\Windows\\System", "AllowDomainPINLogon", REG_DWORD, 1)],
+        "risk": 2,
+    },
     "usb_block": {
         "group": "media",
         "reg": [("Software\\Policies\\Microsoft\\Windows\\RemovableStorageDevices", "Deny_All", REG_DWORD, 1)],

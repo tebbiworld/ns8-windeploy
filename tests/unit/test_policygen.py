@@ -150,3 +150,13 @@ class Profile(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PinLogon(unittest.TestCase):
+    def test_registry_value(self):
+        files, ext = policygen.build_files({"domain_pin_logon": {"state": "on", "params": {}}})
+        entries = policygen.parse_registry_pol(files[policygen.FILE_REGISTRY])
+        self.assertIn(("Software\\Policies\\Microsoft\\Windows\\System", "AllowDomainPINLogon"),
+                      [(e[0], e[1]) for e in entries])
+        self.assertFalse(policygen.is_tattoo("domain_pin_logon"))
+        self.assertEqual(policygen.CATALOG["domain_pin_logon"]["risk"], 2)

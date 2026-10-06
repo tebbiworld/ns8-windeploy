@@ -468,6 +468,11 @@
         "powershell_logging": {
             "title": "Journaliser les scripts PowerShell",
             "desc": "Consigne le texte des scripts PowerShell exécutés dans le journal des événements."
+        },
+        "domain_pin_logon": {
+            "title": "Autoriser la connexion par code PIN pratique",
+            "desc": "Les utilisateurs du domaine peuvent se connecter avec un code PIN au lieu du mot de passe. S'applique à tous les ordinateurs des OU liées ; impossible de le limiter à certains utilisateurs.",
+            "caution": "Windows conserve pour cela le mot de passe du domaine dans le coffre de l'ordinateur. Des référentiels de sécurité comme le DISA STIG pour Windows 11 (WN11-CC-000370) exigent de laisser l'option désactivée. Windows Hello for Business n'est pas une alternative : il nécessite les services de certificats AD, que Samba ne propose pas."
         }
     },
     "dns": {

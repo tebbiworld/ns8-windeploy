@@ -468,6 +468,11 @@
         "powershell_logging": {
             "title": "Log PowerShell scripts",
             "desc": "Records the text of executed PowerShell scripts in the event log."
+        },
+        "domain_pin_logon": {
+            "title": "Allow convenience PIN sign-in",
+            "desc": "Domain users can sign in with a PIN instead of the password. Applies to all computers of the linked OUs; it cannot be limited to single users.",
+            "caution": "Windows keeps the domain password in the vault of the computer for it. Security baselines such as the DISA STIG for Windows 11 (WN11-CC-000370) require the option to stay off. Windows Hello for Business is no replacement: it needs AD Certificate Services, which Samba does not offer."
         }
     },
     "dns": {
