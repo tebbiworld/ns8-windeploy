@@ -307,11 +307,11 @@ class Session:
                 continue
             out.append({
                 "guid": guid, "exists": True,
-                "display_name": str(m.get("displayName", [b""])[0]),
-                "version": int(str(m.get("versionNumber", [b"0"])[0])),
-                "machine_extensions": str(m.get("gPCMachineExtensionNames", [b""])[0]),
-                "user_extensions": str(m.get("gPCUserExtensionNames", [b""])[0]),
-                "flags": int(str(m.get("flags", [b"0"])[0])),
+                "display_name": _attr(m, "displayName", ""),
+                "version": int(_attr(m, "versionNumber", "0")),
+                "machine_extensions": _attr(m, "gPCMachineExtensionNames", ""),
+                "user_extensions": _attr(m, "gPCUserExtensionNames", ""),
+                "flags": int(_attr(m, "flags", "0")),
                 "links": self._links_of(guid),
             })
         return out
@@ -392,10 +392,10 @@ class Session:
         m = self.samdb.search(dn, scope=ldb.SCOPE_BASE,
                               attrs=["versionNumber", "gPCMachineExtensionNames", "gPCUserExtensionNames",
                                      "displayName"])[0]
-        old_version = str(m.get("versionNumber", [b"0"])[0])
+        old_version = _attr(m, "versionNumber", "0")
         old_ext = str(m["gPCMachineExtensionNames"][0]) if "gPCMachineExtensionNames" in m else None
         old_user_ext = str(m["gPCUserExtensionNames"][0]) if "gPCUserExtensionNames" in m else None
-        old_name = str(m.get("displayName", [b""])[0])
+        old_name = _attr(m, "displayName", "")
         new_name = old_name if display_name is None else display_name
 
         # 1. keep the previous state of every touched file (and GPT.INI)
@@ -484,8 +484,9 @@ class Session:
         entry = f"[LDAP://{self.gpo_dn(guid)};0]"
         if old and guid.lower() in old.lower():
             return {"linked": True, "changed": False}
-        # Appended entries have the lowest precedence, like "Link an
-        # existing GPO" in the editor.
+        # Appended entries are applied last within the container, so they
+        # win over the other links there ([MS-GPOL]; Samba's get_gpo_list
+        # walks gPLink the same way). The editor puts a new link first.
         self._set_gplink(target_dn, old, (old or "") + entry)
         return {"linked": True, "changed": True}
 
@@ -541,7 +542,7 @@ class Session:
             # servers, not Windows computers).
             if str(r.dn).lower() == dcs:
                 continue
-            out.append({"dn": str(r.dn), "name": str(r.get("name", [b""])[0]), "kind": "ou"})
+            out.append({"dn": str(r.dn), "name": _attr(r, "name"), "kind": "ou"})
         return out
 
     def provision(self, username, password, link_targets, guids=None):
@@ -785,6 +786,12 @@ def _alias_sid(trustee, sids):
 def _check_guid(guid):
     if not isinstance(guid, str) or not GUID_RE.match(guid):
         raise GpoError(f"invalid GPO GUID {guid!r}")
+
+
+def _attr(msg, name, default=""):
+    """First value of an LDAP attribute as text, default when it is missing
+    (str() of a missing value's bytes default would give "b''")."""
+    return str(msg[name][0]) if name in msg else default
 
 
 def _check_display_name(name):
