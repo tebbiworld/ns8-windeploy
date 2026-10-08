@@ -59,6 +59,14 @@ FVE = "Software\\Policies\\Microsoft\\FVE"
 ADMINS = "*S-1-5-32-544"
 LOCAL_SERVICE = "*S-1-5-19"
 AUDIT_SUFFIX = "-69AE-11D9-BED3-505054503030}"
+# Power setting "Allow display required policy" (ALLOWDISPLAY), set as a
+# policy below Software\\Policies so that Windows drops it with the GPO
+ALLOW_DISPLAY = "Software\\Policies\\Microsoft\\Power\\PowerSettings\\A9CEB8DA-CD46-44FB-A98B-02AF69DE4623"
+# Names as powercfg /requests shows them. Strict allowlists: the names end up
+# in a PowerShell script as single-quoted literals.
+PROCESS_RE = re.compile(r"^[A-Za-z0-9_.-]{1,60}\.exe$", re.I)
+SERVICE_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+LIST_MAX = 30
 
 
 class PolicyError(ValueError):
@@ -89,6 +97,28 @@ CATALOG = {
         "params": {"seconds": {"type": "integer", "default": 180, "min": 60, "max": 3600}},
         "reg": [(SYSTEM, "InactivityTimeoutSecs", REG_DWORD, "{seconds}")],
         "risk": 2,
+    },
+    "display_requests_ignore_all": {
+        # Windows ignores the display power requests of every program, so
+        # remote control, video calls and presentations no longer keep the
+        # session from locking. System (sleep) requests are not touched.
+        "group": "logon",
+        "requires": ["session_lock"],
+        "reg": [(ALLOW_DISPLAY, "ACSettingIndex", REG_DWORD, 0),
+                (ALLOW_DISPLAY, "DCSettingIndex", REG_DWORD, 0)],
+        "risk": 2,
+    },
+    "display_request_overrides": {
+        # powercfg /requestsoverride <PROCESS|SERVICE> <name> DISPLAY, set
+        # by a task; the values stay on the computer, so the profile takes
+        # removed names out again (cleanup) and has a reset state
+        "group": "logon",
+        "requires": ["session_lock"],
+        "params": {"processes": {"type": "list", "default": ["AnyDesk.exe", "RustDesk.exe", "TeamViewer.exe"],
+                                 "kind": "process", "maxitems": LIST_MAX},
+                   "services": {"type": "list", "default": [], "kind": "service", "maxitems": LIST_MAX}},
+        "power_overrides": True,
+        "risk": 1,
     },
     "logon_banner": {
         "group": "logon",
@@ -259,7 +289,7 @@ def is_tattoo(setting_id):
     """True if a computer keeps values of the setting after the GPO is
     gone, so that it needs the reset state."""
     s = CATALOG[setting_id]
-    return bool(s.get("audit") or s.get("reg_reset"))
+    return bool(s.get("audit") or s.get("reg_reset") or s.get("power_overrides"))
 
 
 def catalog():
@@ -267,7 +297,25 @@ def catalog():
     out = []
     for sid, s in CATALOG.items():
         out.append({"id": sid, "group": s["group"], "risk": s["risk"], "tattoo": is_tattoo(sid),
-                    "params": s.get("params", {}), "excludes": s.get("excludes", [])})
+                    "params": s.get("params", {}), "excludes": s.get("excludes", []),
+                    "requires": s.get("requires", [])})
+    return out
+
+
+def check_names(value, kind, maxitems=LIST_MAX, what="names"):
+    """A list of process or service names: each one checked against the
+    allowlist, duplicates (in any case) dropped, order kept."""
+    pattern = PROCESS_RE if kind == "process" else SERVICE_RE
+    if not isinstance(value, list) or len(value) > maxitems:
+        raise PolicyError(f"{what} must be a list of at most {maxitems} names")
+    out, seen = [], set()
+    for name in value:
+        if not isinstance(name, str) or not pattern.fullmatch(name):
+            shown = name if isinstance(name, str) else "?"
+            raise PolicyError(f"{what}: invalid name {shown[:70]!r}")
+        if name.lower() not in seen:
+            seen.add(name.lower())
+            out.append(name)
     return out
 
 
@@ -283,7 +331,9 @@ def check_params(setting_id, params):
     out = {}
     for name, p in spec.items():
         value = params.get(name, p["default"])
-        if p["type"] == "integer":
+        if p["type"] == "list":
+            value = check_names(value, p["kind"], p["maxitems"], f"{setting_id}: {name}")
+        elif p["type"] == "integer":
             if isinstance(value, bool) or not isinstance(value, int) or not p["min"] <= value <= p["max"]:
                 raise PolicyError(f"{setting_id}: {name} must be a number from {p['min']} to {p['max']}")
         elif "values" in p:
@@ -311,10 +361,50 @@ def check_settings(settings):
         if state == "reset" and not is_tattoo(sid):
             raise PolicyError(f"{sid}: nothing to reset")
         out[sid] = {"state": state, "params": check_params(sid, entry.get("params"))}
+        if CATALOG[sid].get("power_overrides"):
+            out[sid]["cleanup"] = {kind: check_names(entry.get("cleanup", {}).get(kind, []), kind, 200,
+                                                     f"{sid}: cleanup")
+                                   for kind in ("process", "service")}
     for sid, entry in out.items():
+        for needed in CATALOG[sid].get("requires", []):
+            if entry["state"] == "on" and out.get(needed, {}).get("state") != "on":
+                raise PolicyError(f"{sid}: needs {needed}")
         for other in CATALOG[sid].get("excludes", []):
             if entry["state"] == "on" and out.get(other, {}).get("state") == "on":
                 raise PolicyError(f"{sid} and {other} contradict each other")
+    return out
+
+
+def _override_names(entry):
+    """{"process": [...], "service": [...]} a profile entry has set."""
+    p = entry.get("params", {})
+    return {"process": list(p.get("processes", [])), "service": list(p.get("services", []))}
+
+
+def carry_cleanup(before, after):
+    """Names that were overridden before and are not any more go to the
+    cleanup list of the setting: the task removes them on the computers.
+    A name that is set again leaves the cleanup list."""
+    out = dict(after)
+    for sid, entry in after.items():
+        if not CATALOG.get(sid, {}).get("power_overrides"):
+            continue
+        old = before.get(sid)
+        cleanup = {k: list(v) for k, v in (old or {}).get("cleanup", {}).items()}
+        if old:
+            for kind, names in _override_names(old).items():
+                cleanup.setdefault(kind, []).extend(names)
+        now = _override_names(entry) if entry["state"] == "on" else {"process": [], "service": []}
+        merged = {}
+        for kind in ("process", "service"):
+            keep = {n.lower() for n in now[kind]}
+            seen, names = set(), []
+            for n in cleanup.get(kind, []) + entry.get("cleanup", {}).get(kind, []):
+                if n.lower() not in keep and n.lower() not in seen:
+                    seen.add(n.lower())
+                    names.append(n)
+            merged[kind] = names[-200:]
+        out[sid] = dict(entry, cleanup=merged)
     return out
 
 
@@ -424,31 +514,88 @@ def build_audit_script(settings):
     return "\r\n".join(["$ErrorActionPreference = 'Stop'"] + lines + ["exit $LASTEXITCODE"]) + "\r\n"
 
 
-def build_tasks_xml(settings, uid, changed=None):
-    """ScheduledTasks.xml with the task that runs the audit script, or
-    None. uid is the GUID of the task item, kept by the profile."""
-    script = build_audit_script(settings)
-    if script is None:
+POWER_TASK = "windeploy policy display requests"
+CALLER = {"process": "PROCESS", "service": "SERVICE"}
+
+
+def _literal(name, kind):
+    # the allowlist already excludes quotes; checked again before use
+    if not (PROCESS_RE if kind == "process" else SERVICE_RE).fullmatch(name):
+        raise PolicyError(f"invalid name {name!r}")
+    return "'" + name + "'"
+
+
+def build_power_script(settings):
+    """PowerShell text that sets and removes the display request
+    overrides with powercfg, or None. Removals first, then the names that
+    are set; a failed setting makes the task fail, a removal of a name
+    that is not there does not."""
+    removals, sets = [], []
+    for sid, entry in settings.items():
+        if not CATALOG[sid].get("power_overrides"):
+            continue
+        names = _override_names(entry)
+        for kind in ("process", "service"):
+            gone = list(entry.get("cleanup", {}).get(kind, []))
+            if entry["state"] == "on":
+                sets += [(kind, n) for n in names[kind]]
+            else:
+                gone += names[kind]
+            keep = {n.lower() for n in names[kind]} if entry["state"] == "on" else set()
+            seen = set()
+            for n in gone:
+                if n.lower() not in keep and n.lower() not in seen:
+                    seen.add(n.lower())
+                    removals.append((kind, n))
+    if not removals and not sets:
         return None
-    task = {
-        "name": AUDIT_TASK, "uid": uid,
+    lines = ["$failed = 0"]
+    for kind, name in removals:
+        lines.append(f"& powercfg.exe /requestsoverride {CALLER[kind]} {_literal(name, kind)} | Out-Null")
+    for kind, name in sets:
+        lines.append(f"& powercfg.exe /requestsoverride {CALLER[kind]} {_literal(name, kind)} DISPLAY | Out-Null")
+        lines.append("if ($LASTEXITCODE -ne 0) { $failed++ }")
+    lines.append("exit $failed")
+    return "\r\n".join(lines) + "\r\n"
+
+
+def _task(name, uid, script, description, changed):
+    return {
+        "name": name, "uid": uid,
         "changed": changed or datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None),
-        "author": "windeploy", "description": "Audit settings of a policy profile (NethServer module windeploy)",
+        "author": "windeploy", "description": description,
         "arguments": gpogen.task_arguments("embedded", script_text=script),
         "schedule": AUDIT_SCHEDULE, "time_limit": "PT1H", "remove_policy": True,
     }
-    return gpogen.build_scheduled_tasks_xml([task]).encode("utf-8")
+
+
+def build_tasks_xml(settings, uid, changed=None, power_uid=None):
+    """ScheduledTasks.xml with the tasks of the profile (audit settings,
+    display request overrides), or None. The uids are the GUIDs of the
+    task items, kept by the profile."""
+    tasks = []
+    script = build_audit_script(settings)
+    if script is not None:
+        tasks.append(_task(AUDIT_TASK, uid, script, "Audit settings of a policy profile (NethServer module windeploy)",
+                           changed))
+    script = build_power_script(settings)
+    if script is not None:
+        tasks.append(_task(POWER_TASK, power_uid or gpogen.new_uid(), script,
+                           "Display request overrides of a policy profile (NethServer module windeploy)", changed))
+    if not tasks:
+        return None
+    return gpogen.build_scheduled_tasks_xml(tasks).encode("utf-8")
 
 
 # ------------------------------------------------------------------- GPO ---
 
-def build_files(settings, task_uid=None):
+def build_files(settings, task_uid=None, power_task_uid=None):
     """({relative path: bytes or None}, machine extension names) of a
     policy GPO. None deletes a file that is not needed any more."""
     settings = check_settings(settings)
     files = {FILE_REGISTRY: build_registry_pol(settings),
              FILE_SECURITY: build_security_template(settings),
-             FILE_TASKS: build_tasks_xml(settings, task_uid or gpogen.new_uid())}
+             FILE_TASKS: build_tasks_xml(settings, task_uid or gpogen.new_uid(), power_uid=power_task_uid)}
     names = {}
     for path, (cse, tool) in ((FILE_REGISTRY, EXT_REGISTRY), (FILE_SECURITY, EXT_SECURITY)):
         if files[path] is not None:
@@ -468,7 +615,10 @@ def after_removal(settings, removed):
         if sid not in out:
             continue
         if is_tattoo(sid):
-            out[sid] = {"state": "reset", "params": out[sid].get("params", {})}
+            entry = {"state": "reset", "params": out[sid].get("params", {})}
+            if "cleanup" in out[sid]:
+                entry["cleanup"] = out[sid]["cleanup"]
+            out[sid] = entry
         else:
             del out[sid]
     return out

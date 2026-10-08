@@ -21,7 +21,10 @@ class Catalog(unittest.TestCase):
     def test_every_setting_builds(self):
         for sid, spec in policygen.CATALOG.items():
             params = {"caption": "Notice", "text": "Authorised use only"} if sid == "logon_banner" else {}
-            files, ext = policygen.build_files({sid: {"state": "on", "params": params}})
+            settings = {sid: {"state": "on", "params": params}}
+            for needed in spec.get("requires", []):
+                settings[needed] = {"state": "on"}
+            files, ext = policygen.build_files(settings)
             self.assertTrue(any(v is not None for v in files.values()), sid)
             self.assertRegex(ext, r"^(\[\{[0-9A-F-]{36}\}\{[0-9A-F-]{36}\}\])+$")
             self.assertIn(spec["group"], policygen.GROUPS)
@@ -30,7 +33,7 @@ class Catalog(unittest.TestCase):
 
     def test_catalog_hides_registry_details(self):
         for entry in policygen.catalog():
-            self.assertEqual(set(entry), {"id", "group", "risk", "tattoo", "params", "excludes"})
+            self.assertEqual(set(entry), {"id", "group", "risk", "tattoo", "params", "excludes", "requires"})
 
     def test_tattoo(self):
         self.assertFalse(policygen.is_tattoo("session_lock"))
@@ -160,3 +163,107 @@ class PinLogon(unittest.TestCase):
                       [(e[0], e[1]) for e in entries])
         self.assertFalse(policygen.is_tattoo("domain_pin_logon"))
         self.assertEqual(policygen.CATALOG["domain_pin_logon"]["risk"], 2)
+
+
+class DisplayRequests(unittest.TestCase):
+    LOCK = {"session_lock": {"state": "on", "params": {"seconds": 300}}}
+
+    def overrides(self, processes=None, services=None, state="on", cleanup=None):
+        params = {}
+        if processes is not None:
+            params["processes"] = processes
+        if services is not None:
+            params["services"] = services
+        entry = {"state": state, "params": params}
+        if cleanup:
+            entry["cleanup"] = cleanup
+        return dict(self.LOCK, display_request_overrides=entry)
+
+    def script(self, settings):
+        return policygen.build_power_script(policygen.check_settings(settings))
+
+    def test_defaults(self):
+        s = policygen.check_settings(self.overrides())
+        self.assertEqual(s["display_request_overrides"]["params"]["processes"],
+                         ["AnyDesk.exe", "RustDesk.exe", "TeamViewer.exe"])
+        self.assertEqual(s["display_request_overrides"]["params"]["services"], [])
+
+    def test_names_are_allowlisted(self):
+        bad = ["a b.exe", "x.exe'; Remove-Item C:\\ -Recurse #.exe", "..\\evil.exe", "evil", "evil.exe\n",
+               "$(calc).exe", "a\"b.exe", "", "x" * 61 + ".exe", 5]
+        for name in bad:
+            with self.assertRaises(policygen.PolicyError, msg=repr(name)):
+                policygen.check_settings(self.overrides([name]))
+        for name in ("evil service", "svc;calc", "svc'x", "a/b"):
+            with self.assertRaises(policygen.PolicyError, msg=repr(name)):
+                policygen.check_settings(self.overrides(services=[name]))
+        with self.assertRaises(policygen.PolicyError):
+            policygen.check_settings(self.overrides(["a%d.exe" % i for i in range(policygen.LIST_MAX + 1)]))
+        with self.assertRaises(policygen.PolicyError):
+            policygen.check_settings(self.overrides("AnyDesk.exe"))
+
+    def test_duplicates_dropped(self):
+        s = policygen.check_settings(self.overrides(["vncviewer.exe", "VNCViewer.EXE", "winvnc.exe"]))
+        self.assertEqual(s["display_request_overrides"]["params"]["processes"], ["vncviewer.exe", "winvnc.exe"])
+
+    def test_script_sets_display_only(self):
+        text = self.script(self.overrides(["RustDesk.exe"], ["TermService"]))
+        self.assertIn("& powercfg.exe /requestsoverride PROCESS 'RustDesk.exe' DISPLAY | Out-Null", text)
+        self.assertIn("& powercfg.exe /requestsoverride SERVICE 'TermService' DISPLAY | Out-Null", text)
+        self.assertNotIn("SYSTEM", text)
+        self.assertTrue(text.endswith("exit $failed\r\n"))
+
+    def test_task_in_gpo(self):
+        files, ext = policygen.build_files(self.overrides(), task_uid="{11111111-1111-1111-1111-111111111111}",
+                                           power_task_uid="{22222222-2222-2222-2222-222222222222}")
+        xml = files[policygen.FILE_TASKS].decode()
+        self.assertIn(policygen.POWER_TASK, xml)
+        self.assertIn("{22222222-2222-2222-2222-222222222222}", xml)
+        self.assertNotIn(policygen.AUDIT_TASK, xml)
+        self.assertIn("removePolicy=\"1\"", xml)
+
+    def test_requires_session_lock(self):
+        for sid in ("display_request_overrides", "display_requests_ignore_all"):
+            with self.assertRaises(policygen.PolicyError, msg=sid):
+                policygen.check_settings({sid: {"state": "on"}})
+        # the reset state removes the names also without the lock
+        policygen.check_settings({"display_request_overrides": {"state": "reset", "params": {}}})
+
+    def test_removed_names_are_cleaned_up(self):
+        before = policygen.check_settings(self.overrides(["AnyDesk.exe", "RustDesk.exe"], ["TermService"]))
+        after = policygen.check_settings(self.overrides(["rustdesk.exe"]))
+        merged = policygen.check_settings(policygen.carry_cleanup(before, after))
+        self.assertEqual(merged["display_request_overrides"]["cleanup"],
+                         {"process": ["AnyDesk.exe"], "service": ["TermService"]})
+        text = policygen.build_power_script(merged)
+        self.assertIn("PROCESS 'AnyDesk.exe' | Out-Null", text)
+        self.assertIn("SERVICE 'TermService' | Out-Null", text)
+        self.assertIn("PROCESS 'rustdesk.exe' DISPLAY", text)
+        self.assertNotIn("PROCESS 'RustDesk.exe' | Out-Null", text)
+        # removals run before the names that are set
+        self.assertLess(text.index("'AnyDesk.exe' |"), text.index("'rustdesk.exe' DISPLAY"))
+        # a name set again leaves the cleanup list
+        again = policygen.carry_cleanup(merged, policygen.check_settings(self.overrides(["AnyDesk.exe"])))
+        self.assertEqual(again["display_request_overrides"]["cleanup"]["process"], ["rustdesk.exe"])
+
+    def test_switched_off_removes_everything(self):
+        before = policygen.check_settings(self.overrides(["AnyDesk.exe"], cleanup={"process": ["old.exe"]}))
+        reset = policygen.after_removal(before, ["display_request_overrides", "session_lock"])
+        self.assertNotIn("session_lock", reset)
+        merged = policygen.check_settings(policygen.carry_cleanup(before, reset))
+        self.assertEqual(merged["display_request_overrides"]["state"], "reset")
+        text = policygen.build_power_script(merged)
+        self.assertNotIn("DISPLAY", text)
+        self.assertEqual(text.count("'AnyDesk.exe'"), 1)
+        self.assertIn("PROCESS 'old.exe' | Out-Null", text)
+
+    def test_ignore_all_is_a_policy_value(self):
+        files, _ = policygen.build_files(dict(self.LOCK, display_requests_ignore_all=ON))
+        entries = policygen.parse_registry_pol(files[policygen.FILE_REGISTRY])
+        keys = {(k.lower(), n) for k, n, *_ in entries}
+        key = policygen.ALLOW_DISPLAY.lower()
+        self.assertIn((key, "ACSettingIndex"), keys)
+        self.assertIn((key, "DCSettingIndex"), keys)
+        self.assertTrue(policygen.POLICY_KEY_RE.match(policygen.ALLOW_DISPLAY))
+        self.assertFalse(policygen.is_tattoo("display_requests_ignore_all"))
+        self.assertIsNone(files[policygen.FILE_TASKS])

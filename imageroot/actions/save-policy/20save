@@ -77,10 +77,15 @@ with wdcommon.policies_locked() as data:
     # switched off: gone, or reset to the Windows default
     off = [sid for sid, entry in before.items() if entry["state"] == "on" and sid not in wanted_on]
     merged = policygen.after_removal(before, off)
+    merged.update(wanted_on)
+    # names taken out of an override list: the task removes them on the
+    # computers until the admin confirms that all of them have seen it
+    merged = policygen.carry_cleanup(before, merged)
     for sid in request.get("drop_resets", []):
         if merged.get(sid, {}).get("state") == "reset":
             del merged[sid]
-    merged.update(wanted_on)
+        elif merged.get(sid, {}).get("cleanup"):
+            merged[sid]["cleanup"] = {"process": [], "service": []}
     if not merged:
         fail("settings", "", "setting_required")
     profile["settings"] = merged
