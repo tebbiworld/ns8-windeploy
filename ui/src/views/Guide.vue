@@ -12,6 +12,21 @@
     <cv-row>
       <cv-column :md="8" :max="12">
         <cv-tile light class="tile">
+          <h4>{{ $t("guide.pages_title") }}</h4>
+          <p class="help">{{ $t("guide.pages_help") }}</p>
+          <dl class="options">
+            <template v-for="page in pages">
+              <dt :key="page + '-t'">
+                <cv-link @click="goToAppPage(instanceName, page)">{{
+                  $t(page + ".title")
+                }}</cv-link>
+              </dt>
+              <dd :key="page + '-d'">{{ $t("guide.page_" + page) }}</dd>
+            </template>
+          </dl>
+        </cv-tile>
+
+        <cv-tile light class="tile">
           <h4>{{ $t("guide.how_title") }}</h4>
           <ul class="bullets">
             <li v-for="n in 6" :key="n">{{ $t("guide.how_" + n) }}</li>
@@ -111,6 +126,111 @@
           <p class="help">{{ $t("guide.check_help") }}</p>
           <pre class="code">{{ checkCommands }}</pre>
         </cv-tile>
+
+        <cv-tile light class="tile">
+          <h4>{{ $t("guide.policy_title") }}</h4>
+          <ul class="bullets">
+            <li v-for="n in 5" :key="n">{{ $t("guide.policy_" + n) }}</li>
+          </ul>
+        </cv-tile>
+
+        <cv-tile light class="tile" id="lock">
+          <h4>{{ $t("guide.lock_title") }}</h4>
+          <p class="help">{{ $t("guide.lock_help") }}</p>
+          <NsInlineNotification
+            kind="warning"
+            :title="$t('guide.lock_unlock_title')"
+            :description="$t('guide.lock_unlock')"
+            :showCloseButton="false"
+          />
+          <dl class="options">
+            <dt>
+              {{ $t("policy_setting.display_requests_ignore_all.title") }}
+            </dt>
+            <dd>{{ $t("guide.lock_all") }}</dd>
+            <dt>{{ $t("policy_setting.display_request_overrides.title") }}</dt>
+            <dd>{{ $t("guide.lock_list") }}</dd>
+          </dl>
+
+          <h5 class="sub">{{ $t("guide.lock_find_heading") }}</h5>
+          <ol class="manual-steps">
+            <li>
+              <p class="step-text">{{ $t("guide.lock_find_1") }}</p>
+            </li>
+            <li>
+              <p class="step-text">{{ $t("guide.lock_find_2") }}</p>
+              <pre class="code">{{ lockRequests }}</pre>
+            </li>
+            <li>
+              <p class="step-text">{{ $t("guide.lock_find_3") }}</p>
+            </li>
+            <li>
+              <p class="step-text">{{ $t("guide.lock_find_4") }}</p>
+              <pre class="code">{{ lockCheck }}</pre>
+            </li>
+            <li>
+              <p class="step-text">{{ $t("guide.lock_find_5") }}</p>
+            </li>
+          </ol>
+
+          <h5 class="sub">{{ $t("guide.lock_known_heading") }}</h5>
+          <p class="help">{{ $t("guide.lock_known_help") }}</p>
+          <table class="known">
+            <thead>
+              <tr>
+                <th>{{ $t("guide.lock_col_tool") }}</th>
+                <th>{{ $t("guide.lock_col_process") }}</th>
+                <th>{{ $t("guide.lock_col_service") }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in knownTools" :key="row[0]">
+                <td v-for="(cell, i) in row" :key="i">{{ cell }}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h5 class="sub">{{ $t("guide.lock_off_heading") }}</h5>
+          <ul class="bullets">
+            <li v-for="n in 3" :key="n">{{ $t("guide.lock_off_" + n) }}</li>
+          </ul>
+        </cv-tile>
+
+        <cv-tile light class="tile">
+          <h4>{{ $t("guide.logon_title") }}</h4>
+          <ul class="bullets">
+            <li v-for="n in 5" :key="n">{{ $t("guide.logon_" + n) }}</li>
+          </ul>
+        </cv-tile>
+
+        <cv-tile light class="tile">
+          <h4>{{ $t("guide.scripts_title") }}</h4>
+          <p class="help">{{ $t("guide.scripts_help") }}</p>
+          <ol class="manual-steps">
+            <li v-for="n in 5" :key="n">
+              <p class="step-text">{{ $t("guide.scripts_step_" + n) }}</p>
+              <pre v-if="n === 3" class="code">{{ scriptExample }}</pre>
+              <pre v-if="n === 4" class="code">{{ scriptCleanup }}</pre>
+            </li>
+          </ol>
+          <h5 class="sub">{{ $t("guide.scripts_check_heading") }}</h5>
+          <p class="help">{{ $t("guide.scripts_check") }}</p>
+          <pre class="code">{{ scriptCheck }}</pre>
+          <ul class="bullets">
+            <li v-for="n in 3" :key="n">{{ $t("guide.scripts_note_" + n) }}</li>
+          </ul>
+        </cv-tile>
+
+        <cv-tile light class="tile">
+          <h4>{{ $t("guide.dns_title") }}</h4>
+          <p class="help">{{ $t("guide.dns_help") }}</p>
+          <dl class="options">
+            <template v-for="n in 6">
+              <dt :key="'dt' + n">{{ $t("guide.dns_" + n + "_title") }}</dt>
+              <dd :key="'dd' + n">{{ $t("guide.dns_" + n) }}</dd>
+            </template>
+          </dl>
+        </cv-tile>
       </cv-column>
     </cv-row>
   </cv-grid>
@@ -145,6 +265,26 @@ export default {
       config: {},
       // domain and account name for the manual commands
       setup: { domain: "", username: "svc-windeploy" },
+      pages: [
+        "status",
+        "settings",
+        "deployments",
+        "policies",
+        "logon",
+        "scripts",
+        "dns",
+      ],
+      // common remote control tools; the names are hints, powercfg
+      // /requests on a computer shows which one holds the request
+      knownTools: [
+        ["AnyDesk", "AnyDesk.exe", "AnyDesk"],
+        ["RustDesk", "RustDesk.exe", "RustDesk"],
+        ["TeamViewer", "TeamViewer.exe, TeamViewer_Desktop.exe", "TeamViewer"],
+        ["UltraVNC", "winvnc.exe", "uvnc_service"],
+        ["TightVNC", "tvnserver.exe", "tvnserver"],
+        ["RealVNC", "vncserver.exe", "vncserver"],
+        ["Remote Desktop (RDP)", "-", "TermService"],
+      ],
     };
   },
   computed: {
@@ -242,6 +382,41 @@ export default {
         "Get-Content C:\\Windows\\Temp\\windeploy-<Paket-ID>.log -Tail 30",
       ].join("\n");
     },
+    lockRequests() {
+      return [
+        "powercfg /requests",
+        "",
+        "DISPLAY:",
+        "[PROCESS] \\Device\\HarddiskVolume3\\Program Files\\RustDesk\\rustdesk.exe",
+        "",
+        "SYSTEM:",
+        "[PROCESS] \\Device\\HarddiskVolume3\\Program Files\\RustDesk\\rustdesk.exe",
+      ].join("\n");
+    },
+    lockCheck() {
+      return [
+        "gpupdate /target:computer /force",
+        'Get-ScheduledTask -TaskName "windeploy policy display requests" | Get-ScheduledTaskInfo',
+        "powercfg /requestsoverride",
+        "powercfg /q SCHEME_CURRENT SUB_VIDEO ALLOWDISPLAY",
+      ].join("\n");
+    },
+    scriptExample() {
+      return [
+        "# " + this.$t("guide.scripts_example_comment"),
+        'net use H: "\\\\fileserver\\home\\$env:USERNAME" /persistent:no',
+      ].join("\n");
+    },
+    scriptCleanup() {
+      return "net use H: /delete /y";
+    },
+    scriptCheck() {
+      return [
+        "gpupdate /force",
+        "gpresult /r",
+        'Start-Transcript -Path "$env:TEMP\\windeploy-logon.log" -Append',
+      ].join("\n");
+    },
   },
   beforeRouteEnter(to, from, next) {
     next((vm) => {
@@ -330,6 +505,24 @@ h4 {
   }
   .code {
     margin-bottom: 0;
+  }
+}
+.known {
+  width: 100%;
+  margin-bottom: $spacing-05;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  th,
+  td {
+    text-align: left;
+    padding: $spacing-03 $spacing-04;
+    border-bottom: 1px solid $ui-03;
+  }
+  th {
+    font-weight: 600;
+  }
+  td:not(:first-child) {
+    font-family: "IBM Plex Mono", monospace;
   }
 }
 .code {
