@@ -364,7 +364,15 @@
         "change_removal_started": "Entfernen gestartet",
         "change_removal_cancelled": "Entfernen abgebrochen",
         "change_deleted_by_timer": "Gelöscht nach Ablauf der Wartefrist",
-        "error_removal_pending": "Das Entfernen läuft; zuerst abbrechen"
+        "error_removal_pending": "Das Entfernen läuft; zuerst abbrechen",
+        "names_help_process": "Der Dateiname, wie powercfg /requests ihn unter DISPLAY zeigt, z. B. RustDesk.exe. Buchstaben, Ziffern, Punkt, Bindestrich und Unterstrich, endet auf .exe.",
+        "names_help_service": "Der Dienstname (Get-Service zeigt ihn als Name), z. B. TermService. Buchstaben, Ziffern, Punkt, Bindestrich und Unterstrich.",
+        "names_known": "Bekannte Namen:",
+        "names_invalid_process": "Kein Programm-Dateiname: {names}",
+        "names_invalid_service": "Kein Dienstname: {names}",
+        "names_too_many": "Höchstens {n} Namen",
+        "cleanup_tag": "wird entfernt",
+        "cleanup_help": "Aus der Liste genommen; die Rechner entfernen es bei der nächsten Richtlinienaktualisierung: {names}."
     },
     "policy_group": {
         "logon": "Anmeldung und Sperre",
@@ -379,7 +387,9 @@
         "caption": "Titel",
         "text": "Text",
         "method": "Verschlüsselung von System- und Datenlaufwerken",
-        "security_mb": "Sicherheitsprotokoll in MB"
+        "security_mb": "Sicherheitsprotokoll in MB",
+        "processes": "Programme (Dateiname, einer pro Zeile)",
+        "services": "Dienste (Dienstname, einer pro Zeile)"
     },
     "policy_value": {
         "xts128": "XTS-AES 128 Bit",
@@ -390,6 +400,15 @@
             "title": "Sitzung bei Inaktivität sperren",
             "desc": "Sperrt den Bildschirm nach der angegebenen Zeit ohne Tastatur- oder Mauseingabe, für jeden Benutzer des Rechners.",
             "caution": "Sperrt auch Leitstand- und Messrechner: diese in eine eigene Organisationseinheit legen."
+        },
+        "display_requests_ignore_all": {
+            "title": "Auch sperren, wenn Programme den Bildschirm wachhalten",
+            "desc": "Windows ignoriert die Anforderungen aller Programme, den Bildschirm eingeschaltet zu lassen. Die Sitzung sperrt nach der eingestellten Zeit also auch während einer Fernwartung, einer Videokonferenz oder einer Präsentation. Anforderungen, die den Ruhezustand verhindern, bleiben unverändert. Fernwartungssitzungen ohne Eingabe der Gegenseite werden gesperrt; die Gegenseite muss mit den Anmeldedaten des angemeldeten Benutzers entsperren.",
+            "caution": "Sperrt auch Videokonferenzen und Präsentationen ohne Tastatur- oder Mauseingabe. Setzt „Sitzung bei Inaktivität sperren“ voraus."
+        },
+        "display_request_overrides": {
+            "title": "Auch sperren, wenn diese Programme den Bildschirm wachhalten",
+            "desc": "Nur die aufgeführten Programme und Dienste verlieren ihre Anforderung, den Bildschirm wachzuhalten (powercfg /requestsoverride … DISPLAY). Alles andere und die Anforderungen, die den Ruhezustand verhindern, bleiben unverändert. Fernwartungssitzungen ohne Eingabe der Gegenseite werden gesperrt; die Gegenseite muss mit den Anmeldedaten des angemeldeten Benutzers entsperren. Wie man den Namen eines Programms findet, steht in der Anleitung."
         },
         "logon_banner": {
             "title": "Hinweis vor der Anmeldung",

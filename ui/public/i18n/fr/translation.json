@@ -364,7 +364,15 @@
         "change_removal_started": "Suppression lancée",
         "change_removal_cancelled": "Suppression annulée",
         "change_deleted_by_timer": "Supprimé après le délai d'attente",
-        "error_removal_pending": "La suppression est en cours ; l'annuler d'abord"
+        "error_removal_pending": "La suppression est en cours ; l'annuler d'abord",
+        "names_help_process": "Le nom de fichier tel que powercfg /requests l'affiche sous DISPLAY, p. ex. RustDesk.exe. Lettres, chiffres, point, tiret et trait de soulignement, se terminant par .exe.",
+        "names_help_service": "Le nom du service (Get-Service l'affiche comme Name), p. ex. TermService. Lettres, chiffres, point, tiret et trait de soulignement.",
+        "names_known": "Noms connus :",
+        "names_invalid_process": "Pas un nom de fichier de programme : {names}",
+        "names_invalid_service": "Pas un nom de service : {names}",
+        "names_too_many": "Au plus {n} noms",
+        "cleanup_tag": "en retrait",
+        "cleanup_help": "Retiré de la liste ; les ordinateurs le suppriment à la prochaine actualisation des stratégies : {names}."
     },
     "policy_group": {
         "logon": "Connexion et verrouillage",
@@ -379,7 +387,9 @@
         "caption": "Titre",
         "text": "Texte",
         "method": "Chiffrement des lecteurs système et de données",
-        "security_mb": "Journal de sécurité en Mo"
+        "security_mb": "Journal de sécurité en Mo",
+        "processes": "Programmes (nom de fichier, un par ligne)",
+        "services": "Services (nom du service, un par ligne)"
     },
     "policy_value": {
         "xts128": "XTS-AES 128 bits",
@@ -390,6 +400,15 @@
             "title": "Verrouiller la session en cas d'inactivité",
             "desc": "Verrouille l'écran après le délai indiqué sans saisie au clavier ni à la souris, pour chaque utilisateur de l'ordinateur.",
             "caution": "Verrouille aussi les postes de supervision et de mesure : les placer dans leur propre unité d'organisation."
+        },
+        "display_requests_ignore_all": {
+            "title": "Verrouiller aussi quand des programmes gardent l'écran allumé",
+            "desc": "Windows ignore les demandes de tous les programmes de garder l'écran allumé : la session se verrouille après le délai réglé, même pendant une prise en main à distance, une visioconférence ou une présentation. Les demandes qui empêchent la mise en veille restent inchangées. Les sessions de prise en main sans saisie de l'autre côté sont verrouillées ; l'autre côté doit déverrouiller avec les identifiants de l'utilisateur connecté.",
+            "caution": "Verrouille aussi les visioconférences et présentations sans saisie au clavier ou à la souris. Nécessite « Verrouiller la session en cas d'inactivité »."
+        },
+        "display_request_overrides": {
+            "title": "Verrouiller aussi quand ces programmes gardent l'écran allumé",
+            "desc": "Seuls les programmes et services listés perdent leur demande de garder l'écran allumé (powercfg /requestsoverride … DISPLAY) ; tout le reste, et les demandes qui empêchent la mise en veille, restent inchangés. Les sessions de prise en main sans saisie de l'autre côté sont verrouillées ; l'autre côté doit déverrouiller avec les identifiants de l'utilisateur connecté. Le guide explique comment trouver le nom d'un programme."
         },
         "logon_banner": {
             "title": "Avis avant la connexion",

@@ -364,7 +364,15 @@
         "change_removal_started": "Removal started",
         "change_removal_cancelled": "Removal cancelled",
         "change_deleted_by_timer": "Deleted after the waiting period",
-        "error_removal_pending": "The removal is running; cancel it first"
+        "error_removal_pending": "The removal is running; cancel it first",
+        "names_help_process": "The file name as powercfg /requests shows it under DISPLAY, e.g. RustDesk.exe. Letters, digits, dot, hyphen and underscore, ending in .exe.",
+        "names_help_service": "The service name (Get-Service shows it as Name), e.g. TermService. Letters, digits, dot, hyphen and underscore.",
+        "names_known": "Known names:",
+        "names_invalid_process": "Not a program file name: {names}",
+        "names_invalid_service": "Not a service name: {names}",
+        "names_too_many": "At most {n} names",
+        "cleanup_tag": "removing",
+        "cleanup_help": "Taken out of the list; the computers remove it at their next policy refresh: {names}."
     },
     "policy_group": {
         "logon": "Logon and lock",
@@ -379,7 +387,9 @@
         "caption": "Title",
         "text": "Text",
         "method": "Encryption of system and data drives",
-        "security_mb": "Security log in MB"
+        "security_mb": "Security log in MB",
+        "processes": "Programs (file name, one per line)",
+        "services": "Services (service name, one per line)"
     },
     "policy_value": {
         "xts128": "XTS-AES 128 bit",
@@ -390,6 +400,15 @@
             "title": "Lock the session when idle",
             "desc": "Locks the screen after the given time without keyboard or mouse input, for every user of the computer.",
             "caution": "Also locks control room and measuring computers: give them their own organizational unit."
+        },
+        "display_requests_ignore_all": {
+            "title": "Lock also when programs keep the screen on",
+            "desc": "Windows ignores the requests of every program to keep the screen on, so the session locks after the set time also during a remote control session, a video call or a presentation. Requests that keep the computer from sleeping stay as they are. Remote control sessions without input from the other side are locked; the other side has to unlock with the credentials of the logged on user.",
+            "caution": "Also locks video calls and presentations without keyboard or mouse input. Needs \"Lock the session when idle\"."
+        },
+        "display_request_overrides": {
+            "title": "Lock also when these programs keep the screen on",
+            "desc": "Only the listed programs and services lose their request to keep the screen on (powercfg /requestsoverride ... DISPLAY); everything else, and the requests that keep the computer from sleeping, stay as they are. Remote control sessions without input from the other side are locked; the other side has to unlock with the credentials of the logged on user. The guide explains how to find the name of a program."
         },
         "logon_banner": {
             "title": "Notice before logon",

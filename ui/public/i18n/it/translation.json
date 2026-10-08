@@ -364,7 +364,15 @@
         "change_removal_started": "Rimozione avviata",
         "change_removal_cancelled": "Rimozione annullata",
         "change_deleted_by_timer": "Eliminato al termine del periodo di attesa",
-        "error_removal_pending": "La rimozione è in corso; annullarla prima"
+        "error_removal_pending": "La rimozione è in corso; annullarla prima",
+        "names_help_process": "Il nome del file come lo mostra powercfg /requests sotto DISPLAY, p. es. RustDesk.exe. Lettere, cifre, punto, trattino e trattino basso, termina con .exe.",
+        "names_help_service": "Il nome del servizio (Get-Service lo mostra come Name), p. es. TermService. Lettere, cifre, punto, trattino e trattino basso.",
+        "names_known": "Nomi noti:",
+        "names_invalid_process": "Non è un nome di file di programma: {names}",
+        "names_invalid_service": "Non è un nome di servizio: {names}",
+        "names_too_many": "Al massimo {n} nomi",
+        "cleanup_tag": "in rimozione",
+        "cleanup_help": "Tolto dall'elenco; i computer lo rimuovono al prossimo aggiornamento dei criteri: {names}."
     },
     "policy_group": {
         "logon": "Accesso e blocco",
@@ -379,7 +387,9 @@
         "caption": "Titolo",
         "text": "Testo",
         "method": "Crittografia delle unità di sistema e dati",
-        "security_mb": "Registro di sicurezza in MB"
+        "security_mb": "Registro di sicurezza in MB",
+        "processes": "Programmi (nome file, uno per riga)",
+        "services": "Servizi (nome del servizio, uno per riga)"
     },
     "policy_value": {
         "xts128": "XTS-AES 128 bit",
@@ -390,6 +400,15 @@
             "title": "Blocca la sessione per inattività",
             "desc": "Blocca lo schermo dopo il tempo indicato senza input da tastiera o mouse, per ogni utente del computer.",
             "caution": "Blocca anche i computer di sala controllo e di misura: metterli in una propria unità organizzativa."
+        },
+        "display_requests_ignore_all": {
+            "title": "Bloccare anche quando i programmi tengono acceso lo schermo",
+            "desc": "Windows ignora le richieste di tutti i programmi di tenere acceso lo schermo: la sessione si blocca dopo il tempo impostato anche durante un controllo remoto, una videochiamata o una presentazione. Le richieste che impediscono la sospensione restano invariate. Le sessioni di controllo remoto senza input dall'altra parte vengono bloccate; l'altra parte deve sbloccare con le credenziali dell'utente connesso.",
+            "caution": "Blocca anche videochiamate e presentazioni senza input da tastiera o mouse. Richiede «Blocca la sessione per inattività»."
+        },
+        "display_request_overrides": {
+            "title": "Bloccare anche quando questi programmi tengono acceso lo schermo",
+            "desc": "Solo i programmi e i servizi elencati perdono la richiesta di tenere acceso lo schermo (powercfg /requestsoverride … DISPLAY); tutto il resto e le richieste che impediscono la sospensione restano invariati. Le sessioni di controllo remoto senza input dall'altra parte vengono bloccate; l'altra parte deve sbloccare con le credenziali dell'utente connesso. La guida spiega come trovare il nome di un programma."
         },
         "logon_banner": {
             "title": "Avviso prima dell'accesso",
