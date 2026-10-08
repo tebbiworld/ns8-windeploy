@@ -34,15 +34,17 @@ Samba (or Windows) Active Directory.
 The page "Policies" rolls out security settings for the computers: a
 *policy profile* is one GPO with settings picked from a catalog
 (`imageroot/pypkg/policygen.py`), linked like a deployment. Computer
-side only; 21 settings in six groups: lock idle sessions, logon notice,
+side only; 23 settings in six groups: lock idle sessions (also when
+programs keep the screen on, see below), logon notice,
 convenience PIN sign-in (with a caution: Windows keeps the domain
 password on the computer for it), removable media, BitLocker recovery keys into the directory, time
 source, who may set the clock, Defender, firewall, print spooler,
 OneDrive, NTLMv2, auditing, event log sizes, PowerShell logging.
 
 Three kinds of files are written: `Machine/Registry.pol` (most
-settings), `GptTmpl.inf` (user rights) and a scheduled task that sets
-the audit subcategories with `auditpol`. What a computer does when the
+settings), `GptTmpl.inf` (user rights) and scheduled tasks that set
+the audit subcategories with `auditpol` and the display request
+overrides with `powercfg`. What a computer does when the
 GPO is gone was measured with Windows 11 25H2:
 
 | Kind of setting | When the GPO no longer applies |
@@ -51,6 +53,7 @@ GPO is gone was measured with Windows 11 25H2:
 | User rights | back to what they were before |
 | Registry values elsewhere (NTLMv2) | stay as set |
 | Audit settings | stay as set |
+| Display request overrides (`powercfg /requestsoverride`) | stay as set |
 
 Settings that stay have a *reset* state: switching them off, or
 removing the profile, first changes the GPO to write the Windows
@@ -58,6 +61,38 @@ default. The GPO is deleted after the waiting period of the removal (see
 below), when the computers have applied it. The advanced audit policy file (`audit.csv`) is not used on
 purpose: when such a GPO is removed, Windows clears all auditing, also
 what a fresh installation audits.
+
+### Screen lock and remote control
+
+Remote control tools (AnyDesk, RustDesk, TeamViewer, VNC servers) ask
+Windows to keep the screen on during a session, so "Lock the session
+when idle" never locks while somebody is connected but idle. Two
+settings, both needing the screen lock, take that request away; the
+requests that keep the computer from sleeping (SYSTEM) are not touched:
+
+- *Lock also when programs keep the screen on*: the power setting
+  "Allow display required policy" (`ALLOWDISPLAY`, GUID
+  `a9ceb8da-cd46-44fb-a98b-02af69de4623`) set to 0 for AC and battery
+  below `Software\Policies\Microsoft\Power\PowerSettings`. Works for
+  every program, also video calls and presentations. A policy value:
+  Windows removes it with the GPO.
+- *Lock also when these programs keep the screen on*: free lists of
+  process file names and service names, preset with `AnyDesk.exe`,
+  `RustDesk.exe`, `TeamViewer.exe`. A scheduled task runs
+  `powercfg /requestsoverride PROCESS|SERVICE <name> DISPLAY` at every
+  policy refresh. Names taken out of the list, and all names when the
+  setting is switched off or the profile removed, are removed with
+  `powercfg /requestsoverride PROCESS|SERVICE <name>`; overrides set by
+  hand are left alone.
+
+The names are checked on the server against
+`^[A-Za-z0-9_.-]{1,60}\.exe$` (processes) and `^[A-Za-z0-9_.-]{1,64}$`
+(services), at most 30 per list, and go into the script only as
+single-quoted literals. The guide page of the module explains how to
+find the name with `powercfg /requests`.
+
+A remote control session without input from the other side is locked;
+the other side has to unlock with the credentials of the logged on user.
 
 Every change of a profile needs a reason and is kept in a list of
 changes with the settings before and after. The page also shows the

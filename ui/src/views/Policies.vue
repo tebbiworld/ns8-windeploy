@@ -261,8 +261,32 @@
               </p>
               <div v-if="editor.on.includes(s.id)" class="params">
                 <template v-for="(p, name) in s.params">
+                  <div v-if="p.type === 'list'" :key="name" class="names">
+                    <cv-text-area
+                      :label="$t('policy_param.' + name)"
+                      :helper-text="$t('policies.names_help_' + p.kind)"
+                      :invalid-message="error.names[s.id + '.' + name]"
+                      v-model="editor.params[s.id][name]"
+                      rows="4"
+                    />
+                    <div class="suggest">
+                      <span class="muted small">{{
+                        $t("policies.names_known")
+                      }}</span>
+                      <button
+                        v-for="n in knownNames[p.kind]"
+                        :key="n"
+                        type="button"
+                        class="chip"
+                        :disabled="hasName(s.id, name, n)"
+                        @click="addName(s.id, name, n)"
+                      >
+                        {{ n }}
+                      </button>
+                    </div>
+                  </div>
                   <cv-select
-                    v-if="p.values"
+                    v-else-if="p.values"
                     :key="name"
                     :label="$t('policy_param.' + name)"
                     v-model="editor.params[s.id][name]"
@@ -296,6 +320,24 @@
                     class="param"
                   />
                 </template>
+              </div>
+              <div
+                v-if="
+                  editor.on.includes(s.id) && cleanupNames(editor.cleanup[s.id])
+                "
+                class="reset"
+              >
+                <span class="tag">{{ $t("policies.cleanup_tag") }}</span>
+                {{
+                  $t("policies.cleanup_help", {
+                    names: cleanupNames(editor.cleanup[s.id]),
+                  })
+                }}
+                <cv-checkbox
+                  :value="s.id"
+                  :label="$t('policies.reset_drop')"
+                  v-model="editor.drop"
+                />
               </div>
               <div
                 v-if="editor.resets.includes(s.id) && !editor.on.includes(s.id)"
@@ -433,6 +475,29 @@ export default {
         name: "",
         reason: "",
         remove: "",
+        names: {},
+      },
+      // names to pick from; which one holds the display request is shown
+      // by powercfg /requests on a computer (see the guide)
+      knownNames: {
+        process: [
+          "AnyDesk.exe",
+          "RustDesk.exe",
+          "TeamViewer.exe",
+          "TeamViewer_Desktop.exe",
+          "winvnc.exe",
+          "tvnserver.exe",
+          "vncserver.exe",
+        ],
+        service: [
+          "AnyDesk",
+          "RustDesk",
+          "TeamViewer",
+          "TermService",
+          "uvnc_service",
+          "tvnserver",
+          "vncserver",
+        ],
       },
     };
   },
@@ -462,6 +527,7 @@ export default {
         params: {},
         resets: [],
         drop: [],
+        cleanup: {},
         link_targets: [],
         reason: "",
       };
@@ -484,7 +550,33 @@ export default {
       if (id === "bitlocker_policy")
         return this.$t("policy_value." + params.method);
       if (id === "eventlog_sizes") return params.security_mb + " MB";
+      if (id === "display_request_overrides")
+        return [...(params.processes || []), ...(params.services || [])].join(
+          ", "
+        );
       return "";
+    },
+    cleanupNames(cleanup) {
+      if (!cleanup) return "";
+      return [...(cleanup.process || []), ...(cleanup.service || [])].join(
+        ", "
+      );
+    },
+    splitNames(text) {
+      return String(text || "")
+        .split(/[\s,;]+/)
+        .map((n) => n.trim())
+        .filter((n) => n);
+    },
+    hasName(id, param, name) {
+      return this.splitNames(this.editor.params[id][param])
+        .map((n) => n.toLowerCase())
+        .includes(name.toLowerCase());
+    },
+    addName(id, param, name) {
+      const names = this.splitNames(this.editor.params[id][param]);
+      names.push(name);
+      this.editor.params[id][param] = names.join("\n");
     },
     settingList(p) {
       return this.catalog
@@ -551,12 +643,14 @@ export default {
     },
     openEditor(p) {
       this.error.save = this.error.name = this.error.reason = "";
+      this.error.names = {};
       const e = this.emptyEditor();
       // every setting gets its parameters, filled with the defaults
       for (const s of this.catalog) {
         e.params[s.id] = {};
         for (const [name, spec] of Object.entries(s.params))
-          e.params[s.id][name] = spec.default;
+          e.params[s.id][name] =
+            spec.type === "list" ? spec.default.join("\n") : spec.default;
       }
       if (p) {
         e.id = p.id;
@@ -565,7 +659,9 @@ export default {
         for (const [id, entry] of Object.entries(p.settings)) {
           if (entry.state === "on") {
             e.on.push(id);
-            Object.assign(e.params[id], entry.params || {});
+            for (const [name, v] of Object.entries(entry.params || {}))
+              e.params[id][name] = Array.isArray(v) ? v.join("\n") : v;
+            if (entry.cleanup) e.cleanup[id] = entry.cleanup;
           } else {
             e.resets.push(id);
           }
@@ -579,31 +675,64 @@ export default {
       // Two settings that contradict each other: the one ticked last wins.
       // The list is changed in place and after the checkbox has updated
       // it: the checkboxes keep working on the array they were given.
+      // A setting that needs another one ticks it; unticking that one
+      // unticks the settings that need it.
       this.$nextTick(() => {
         const on = this.editor.on;
-        if (!on.includes(s.id)) return;
+        if (!on.includes(s.id)) {
+          for (const other of this.catalog)
+            if ((other.requires || []).includes(s.id)) {
+              const i = on.indexOf(other.id);
+              if (i !== -1) on.splice(i, 1);
+            }
+          return;
+        }
         for (const other of s.excludes) {
           const i = on.indexOf(other);
           if (i !== -1) on.splice(i, 1);
         }
+        for (const needed of s.requires || [])
+          if (!on.includes(needed)) on.push(needed);
       });
     },
     async savePolicy() {
       const e = this.editor;
       this.error.save = this.error.name = this.error.reason = "";
+      this.error.names = {};
       if (!e.name) this.error.name = this.$t("common.required");
       if (e.reason.length < 3)
         this.error.reason = this.$t("policies.reason_required");
-      if (this.error.name || this.error.reason) return;
       const settings = {};
+      const names = {};
       for (const id of e.on) {
         const params = {};
         for (const [name, spec] of Object.entries(this.byId(id).params)) {
           const v = e.params[id][name];
-          params[name] = spec.type === "integer" ? Number(v) : v;
+          if (spec.type === "list") {
+            // checked again on the server, which decides
+            const list = this.splitNames(v);
+            const pattern =
+              spec.kind === "process"
+                ? /^[A-Za-z0-9_.-]{1,60}\.exe$/i
+                : /^[A-Za-z0-9_.-]{1,64}$/;
+            const bad = list.filter((n) => !pattern.test(n));
+            if (bad.length)
+              names[id + "." + name] = this.$t(
+                "policies.names_invalid_" + spec.kind,
+                { names: bad.join(", ") }
+              );
+            else if (list.length > spec.maxitems)
+              names[id + "." + name] = this.$t("policies.names_too_many", {
+                n: spec.maxitems,
+              });
+            params[name] = list;
+          } else params[name] = spec.type === "integer" ? Number(v) : v;
         }
         settings[id] = { params };
       }
+      this.error.names = names;
+      if (this.error.name || this.error.reason || Object.keys(names).length)
+        return;
       const data = {
         name: e.name,
         reason: e.reason,
@@ -764,6 +893,31 @@ table.profiles {
 .desc {
   margin: 0 0 $spacing-03 1.75rem;
   max-width: 48rem;
+}
+.names {
+  width: 100%;
+  margin-bottom: $spacing-05;
+}
+.suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-02;
+  margin-top: $spacing-03;
+}
+.chip {
+  font: inherit;
+  font-size: 0.75rem;
+  padding: $spacing-01 $spacing-03;
+  border: 1px solid $ui-04;
+  border-radius: 1rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.chip:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 .params {
   display: flex;
