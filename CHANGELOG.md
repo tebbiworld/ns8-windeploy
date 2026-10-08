@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 — unreleased
+
+### Added
+
+- **Screen lock also during remote control sessions.** Two policy options next to "Lock the session when idle", both needing it:
+  - *Lock also when programs keep the screen on*: Windows ignores the display requests of every program (power setting `ALLOWDISPLAY` = 0, written as a policy value, removed by Windows with the GPO). Also locks video calls and presentations without input.
+  - *Lock also when these programs keep the screen on*: free lists of programs and services (preset AnyDesk.exe, RustDesk.exe, TeamViewer.exe; known names of VNC servers, TeamViewer, RDP and others to pick). A scheduled task sets `powercfg /requestsoverride … DISPLAY` for them at every policy refresh; SYSTEM requests are not touched. Names taken out of the list, or all of them when the setting is switched off or the profile removed, are removed again on the computers; the profile shows them as "removing" until the admin confirms.
+  - Names are checked against a strict allowlist on the server and in the UI.
+- **Guide:** an overview of all pages and new sections on policy profiles, screen lock and remote control (how to find the program that keeps the screen on and switch it off), logon rules, scripts (how to write one, cleanup script, checking) and DNS.
+
 ## 0.3.0 — 2026-10-06
 
 ### Added
