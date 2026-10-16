@@ -63,7 +63,7 @@
             "maxLength": 256
         },
         "default_delivery": {
-            "description": "How new deployments hand the script to the task: from SYSVOL or embedded as -EncodedCommand",
+            "description": "Ignored since 0.4.1: the script is always embedded in the task (-EncodedCommand)",
             "type": "string",
             "enum": ["sysvol", "embedded"]
         },

@@ -103,7 +103,6 @@
         "password": "Mot de passe",
         "password_keep": "Laisser vide pour conserver le mot de passe enregistré",
         "password_required": "Obligatoire lors de la première configuration",
-        "default_delivery": "Mode de livraison du script par défaut pour les nouveaux déploiements",
         "rights_title": "Vérification des droits",
         "rights_unknown": "Pas encore vérifié : enregistrez les paramètres.",
         "right_can_create_gpo": "Créer des GPO",
@@ -169,7 +168,7 @@
         "start_date": "Date de début (AAAA-MM-JJ)",
         "random_delay": "Délai aléatoire (minutes)",
         "delivery": "Livraison du script",
-        "delivery_help": "La tâche exécute le script depuis SYSVOL ou le contient dans sa ligne de commande. Les deux sont testés ; le mode intégré ne dépend pas de l'accès à SYSVOL au moment de l'exécution.",
+        "delivery_help": "Le script fait partie de la ligne de commande de la tâche (-EncodedCommand). À l'exécution, la tâche n'a besoin que d'elle-même ; elle ne lance aucun fichier depuis SYSVOL.",
         "links_help": "La GPO s'applique aux ordinateurs situés sous les conteneurs sélectionnés.",
         "whole_domain": "Domaine entier ({name})",
         "targets_failed": "Impossible de lire les unités d'organisation",
@@ -217,10 +216,6 @@
     "mode": {
         "upgrade": "Mettre à jour si installé",
         "install": "Installer ou mettre à jour"
-    },
-    "delivery": {
-        "sysvol": "Script dans SYSVOL",
-        "embedded": "Script intégré à la tâche"
     },
     "day": {
         "Monday": "Lundi",
@@ -283,9 +278,7 @@
         "error_setup_failed": "La configuration du compte a échoué, voir le journal du module",
         "error_dc_not_resolved": "Aucun contrôleur de domaine connu pour ce domaine",
         "options_title": "3. Options d'un déploiement",
-        "delivery_sysvol": "Le script se trouve dans le dossier de la GPO dans SYSVOL ; la tâche le lance depuis cet emplacement (\\\\domaine\\SysVol\\...). Lisible dans la GPO et facile à vérifier, mais l'ordinateur doit accéder à SYSVOL au moment où la tâche s'exécute.",
-        "delivery_embedded": "Le script fait partie de la ligne de commande de la tâche (-EncodedCommand). Au moment de l'exécution, la tâche n'a besoin de rien d'autre, par ex. sur un portable hors du bureau ; dans la GPO, le script n'est pas lisible en clair.",
-        "delivery_choice": "Les deux modes sont testés ; la valeur par défaut des nouveaux déploiements se règle dans {settings}.",
+        "delivery_embedded": "Chaque tâche porte son script dans sa ligne de commande (-EncodedCommand). Jusqu'à la version 0.4.0, la tâche pouvait aussi lancer le script depuis SYSVOL ; powershell.exe pouvait alors se bloquer avant la première ligne du script, et les exécutions bloquées s'accumulaient. Les déploiements des anciennes versions sont réécrits lors de la mise à jour du module.",
         "link_domain_title": "Domaine entier",
         "link_domain": "La GPO s'applique à chaque ordinateur du domaine.",
         "link_ou_title": "Unité d'organisation",
@@ -764,7 +757,8 @@
         "logon_delete": "Le délai d'attente est écoulé. Le GPO de {name} est délié et supprimé.",
         "scripts_start": "Les scripts de nettoyage s'exécutent à la place des scripts de {name} ; les scripts sans nettoyage ne s'exécutent plus. Le GPO reste lié pendant le délai d'attente ; ensuite il est supprimé.",
         "scripts_cancel": "Les scripts de {name} sont réécrits dans le GPO.",
-        "scripts_delete": "Le délai d'attente est écoulé. Le GPO de {name} est délié et supprimé."
+        "scripts_delete": "Le délai d'attente est écoulé. Le GPO de {name} est délié et supprimé.",
+        "change_rewritten": "Script intégré à la tâche (mise à jour)"
     },
     "logon": {
         "title": "Ouverture de session",

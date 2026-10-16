@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# Up to 0.4.0 a task could start its script from SYSVOL (-File), and such
+# a start of powershell.exe could hang before the first line of the
+# script. Write the GPOs of those deployments again with the script
+# embedded in the task. A deployment that fails (DC down) is marked and
+# written by the daily timer windeploy-purge; the update goes on.
+
+import sys
+
+import agent
+import removal
+import wdcommon
+
+agent.set_env("DEFAULT_DELIVERY", wdcommon.DELIVERY)
+try:
+    with wdcommon.deployments_locked() as data:
+        done, failed = removal.rewrite_outdated(data)
+except Exception as ex:
+    print(agent.SD_WARNING + f"deployments not rewritten, the timer tries again: {ex}", file=sys.stderr)
+    sys.exit(0)
+for name in done:
+    print(agent.SD_NOTICE + f"deployment {name!r}: script embedded in the task", file=sys.stderr)
+for name, msg in failed:
+    print(agent.SD_WARNING + f"deployment {name!r} not rewritten, the timer tries again: {msg}", file=sys.stderr)

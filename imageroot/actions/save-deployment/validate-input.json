@@ -8,7 +8,6 @@
             "name": "Nextcloud client",
             "packages": [{"id": "Nextcloud.NextcloudDesktop", "mode": "upgrade"}],
             "schedule": {"frequency": "weekly", "days": ["Monday"], "time": "12:30", "start_date": "2026-09-28", "random_delay_minutes": 30},
-            "delivery": "sysvol",
             "link_targets": ["DC=ad,DC=example,DC=com"]
         }
     ],
@@ -37,7 +36,7 @@
                 "random_delay_minutes": {"type": "integer", "minimum": 0, "maximum": 1440}
             }
         },
-        "delivery": {"type": "string", "enum": ["sysvol", "embedded"]},
+        "delivery": {"type": "string", "enum": ["sysvol", "embedded"], "description": "Ignored since 0.4.1: the script is always embedded in the task"},
         "link_targets": {"type": "array", "maxItems": 20, "items": {"type": "string", "minLength": 3, "maxLength": 512}}
     }
 }

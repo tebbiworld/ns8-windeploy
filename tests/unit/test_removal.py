@@ -65,6 +65,37 @@ def deployment():
             "packages": [{"id": "Mozilla.Firefox", "mode": "upgrade", "now_run_id": "{00000000-0000-0000-0000-0000000000AA}"}]}
 
 
+class Rewrite(Base):
+    def test_sysvol_deployment_is_rewritten_once(self):
+        d = deployment()
+        d["_scripts"] = ["Machine/Scripts/windeploy/Mozilla.Firefox.ps1"]
+        data = {"deployments": [d, dict(deployment(), id="x", name="new", gpo_guid="")]}
+        done, failed = removal.rewrite_outdated(data, settings=SETTINGS)
+        self.assertEqual((done, failed), (["Browser"], []))
+        self.assertEqual(d["delivery"], "embedded")
+        self.assertNotIn(" -File ", self.xml())
+        apply = [c for c in self.tool.calls if c["op"] == "apply"]
+        self.assertEqual(len(apply), 1)  # a deployment without GPO is left alone
+        self.assertIsNone(apply[0]["files"]["Machine/Scripts/windeploy/Mozilla.Firefox.ps1"])
+        self.assertEqual(removal.rewrite_outdated(data, settings=SETTINGS), ([], []))
+
+    def test_failed_rewrite_is_kept_for_the_timer(self):
+        def down(request, settings=None, **_):
+            raise wdcommon.ToolError("dc unreachable")
+        wdcommon.run_tool = down
+        d = deployment()
+        d["_scripts"] = ["Machine/Scripts/windeploy/Mozilla.Firefox.ps1"]
+        done, failed = removal.rewrite_outdated({"deployments": [d]}, settings=SETTINGS)
+        self.assertEqual(done, [])
+        self.assertEqual(failed[0][0], "Browser")
+        # unchanged, so the next try still deletes the old script file
+        self.assertTrue(d["rewrite_pending"])
+        self.assertEqual(d["_scripts"], ["Machine/Scripts/windeploy/Mozilla.Firefox.ps1"])
+        wdcommon.run_tool = self.tool
+        self.assertEqual(removal.rewrite_outdated({"deployments": [d]}, settings=SETTINGS)[0], ["Browser"])
+        self.assertNotIn("rewrite_pending", d)
+
+
 class Deployments(Base):
     def test_start_deletes_tasks_and_cancel_restores(self):
         d = deployment()

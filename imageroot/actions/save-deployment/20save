@@ -15,7 +15,6 @@
 
 import copy
 import json
-import os
 import sys
 
 import agent
@@ -89,7 +88,7 @@ with wdcommon.deployments_locked() as data:
     old_packages = {p["id"]: p for p in (old or {}).get("packages", [])}
     deployment["name"] = request["name"]
     deployment["schedule"] = {k: v for k, v in schedule.items() if k in ("frequency", "days", "time", "start_date", "random_delay_minutes")}
-    deployment["delivery"] = request.get("delivery") or os.environ.get("DEFAULT_DELIVERY", "sysvol")
+    deployment["delivery"] = wdcommon.DELIVERY  # input "sysvol" of older clients as well
     deployment.pop("run_now_id", None)  # one id per deployment: before 0.1
     deployment["packages"] = []
     for p in request["packages"]:

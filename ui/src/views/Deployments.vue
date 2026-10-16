@@ -405,20 +405,6 @@
           </div>
 
           <h5 class="sub">{{ $t("deployments.delivery") }}</h5>
-          <cv-radio-group :vertical="true">
-            <cv-radio-button
-              v-model="editor.delivery"
-              value="sysvol"
-              :label="$t('delivery.sysvol')"
-              name="delivery"
-            />
-            <cv-radio-button
-              v-model="editor.delivery"
-              value="embedded"
-              :label="$t('delivery.embedded')"
-              name="delivery"
-            />
-          </cv-radio-group>
           <p class="muted small">{{ $t("deployments.delivery_help") }}</p>
 
           <h5 class="sub">{{ $t("deployments.links") }}</h5>
@@ -577,7 +563,6 @@ export default {
       deployments: [],
       targets: [],
       index: {},
-      defaultDelivery: "sysvol",
       editor: this.emptyEditor(),
       search: {
         query: "",
@@ -659,7 +644,7 @@ export default {
           start_date: today(),
           random_delay_minutes: 30,
         },
-        delivery: this.defaultDelivery || "sysvol",
+        delivery: "embedded",
         link_targets: [],
       };
     },
@@ -692,7 +677,6 @@ export default {
       try {
         const c = await this.runModuleTask("get-configuration");
         this.index = c.index || {};
-        this.defaultDelivery = c.default_delivery || "sysvol";
       } catch (e) {
         // the page works without it
       }
@@ -739,7 +723,7 @@ export default {
           JSON.parse(JSON.stringify(d.schedule))
         );
         if (!e.schedule.days) e.schedule.days = [];
-        e.delivery = d.delivery || "sysvol";
+        e.delivery = "embedded";
         e.link_targets = [...(d.link_targets || [])];
       }
       e.visible = true;

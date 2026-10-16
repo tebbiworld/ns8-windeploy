@@ -46,7 +46,6 @@
         "password": "Password",
         "password_keep": "Lascia vuoto per mantenere la password salvata",
         "password_required": "Obbligatoria alla prima configurazione",
-        "default_delivery": "Consegna predefinita dello script per le nuove distribuzioni",
         "rights_title": "Verifica dei diritti",
         "rights_unknown": "Non ancora verificato: salva le impostazioni.",
         "right_can_create_gpo": "Creare GPO",
@@ -169,7 +168,7 @@
         "start_date": "Data di inizio (AAAA-MM-GG)",
         "random_delay": "Ritardo casuale (minuti)",
         "delivery": "Consegna dello script",
-        "delivery_help": "L'operazione esegue lo script da SYSVOL oppure lo contiene nella propria riga di comando. Entrambi i modi sono testati; incorporato non dipende dall'accesso a SYSVOL al momento dell'esecuzione.",
+        "delivery_help": "Lo script fa parte della riga di comando dell'attività (-EncodedCommand). In esecuzione l'attività non ha bisogno d'altro e non avvia alcun file da SYSVOL.",
         "links_help": "Il GPO si applica ai computer sotto i contenitori selezionati.",
         "whole_domain": "Intero dominio ({name})",
         "targets_failed": "Impossibile leggere le unità organizzative",
@@ -217,10 +216,6 @@
     "mode": {
         "upgrade": "Aggiorna se installato",
         "install": "Installa o aggiorna"
-    },
-    "delivery": {
-        "sysvol": "Script in SYSVOL",
-        "embedded": "Script incorporato nell'operazione"
     },
     "day": {
         "Monday": "Lunedì",
@@ -283,9 +278,7 @@
         "error_setup_failed": "Configurazione dell'account non riuscita, vedi il log del modulo",
         "error_dc_not_resolved": "Nessun domain controller noto per questo dominio",
         "options_title": "3. Opzioni di una distribuzione",
-        "delivery_sysvol": "Lo script si trova nella cartella del GPO in SYSVOL; l'operazione lo avvia da lì (\\\\dominio\\SysVol\\...). Leggibile nel GPO e facile da verificare, ma il computer deve raggiungere SYSVOL quando l'operazione viene eseguita.",
-        "delivery_embedded": "Lo script fa parte della riga di comando dell'operazione (-EncodedCommand). Al momento dell'esecuzione l'operazione non ha bisogno d'altro, ad es. su un portatile fuori ufficio; nel GPO lo script non è leggibile in chiaro.",
-        "delivery_choice": "Entrambi i modi sono testati; il valore predefinito per le nuove distribuzioni si imposta in {settings}.",
+        "delivery_embedded": "Ogni attività porta il proprio script nella riga di comando (-EncodedCommand). Fino alla versione 0.4.0 l'attività poteva anche avviare lo script da SYSVOL; in quel caso powershell.exe poteva bloccarsi prima della prima riga dello script e le esecuzioni bloccate si accumulavano. Le distribuzioni delle versioni precedenti vengono riscritte all'aggiornamento del modulo.",
         "link_domain_title": "Intero dominio",
         "link_domain": "Il GPO si applica a ogni computer del dominio.",
         "link_ou_title": "Unità organizzativa",
@@ -764,7 +757,8 @@
         "logon_delete": "Il periodo di attesa è terminato. Il GPO di {name} viene scollegato ed eliminato.",
         "scripts_start": "Al posto degli script di {name} vengono eseguiti gli script di pulizia; gli script senza pulizia non vengono più eseguiti. Il GPO resta collegato per il periodo di attesa; poi viene eliminato.",
         "scripts_cancel": "Gli script di {name} vengono riscritti nel GPO.",
-        "scripts_delete": "Il periodo di attesa è terminato. Il GPO di {name} viene scollegato ed eliminato."
+        "scripts_delete": "Il periodo di attesa è terminato. Il GPO di {name} viene scollegato ed eliminato.",
+        "change_rewritten": "Script incorporato nell'attività (aggiornamento)"
     },
     "logon": {
         "title": "Accesso",

@@ -569,32 +569,32 @@ def new_id():
     return uuid.uuid4().hex[:12]
 
 
+# The only way a task gets its script (see build_files); "sysvol" is
+# accepted as input of older clients and stored as this.
+DELIVERY = "embedded"
+
+
 def build_files(deployment, settings):
-    """Script and ScheduledTasks.xml files for a deployment, base64 encoded
-    for gpowrite. Scripts of removed packages are deleted (value None)."""
-    guid = deployment["gpo_guid"]
-    realm_dns = settings["realm"].lower()
+    """ScheduledTasks.xml and windeploy.json for a deployment, base64
+    encoded for gpowrite. Script files of older versions are deleted
+    (value None)."""
     files = {}
     tasks = []
     now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-    keep = set()
-    delivery = deployment.get("delivery", "sysvol")
+    # Since 0.4.1 every task carries its script (-EncodedCommand). Started
+    # with -File from the SYSVOL share of the domain, powershell.exe could
+    # hang before the first line of the script (the security zone lookup
+    # of the UNC path never returned). The scripts of older versions are
+    # deleted from SYSVOL.
+    deployment["delivery"] = DELIVERY
     run_now = []
     for pkg in deployment["packages"]:
-        rel = f"Machine/Scripts/windeploy/{gpogen.safe_file_part(pkg['id'])}.ps1"
-        keep.add(rel)
         options = dict(mode=pkg.get("mode", "upgrade"), scope="machine" if pkg.get("scope") == "machine" else "",
                        schedule=deployment["schedule"])
         script = gpogen.build_script(pkg["id"], **options)
-        if delivery == "sysvol":
-            files[rel] = base64.b64encode(gpogen.script_bytes(script)).decode()
-            unc = f"\\\\{realm_dns}\\SysVol\\{realm_dns}\\Policies\\{guid}\\" + rel.replace("/", "\\")
-            args = gpogen.task_arguments("sysvol", script_unc=unc)
-            run_now.append(gpogen.task_arguments("sysvol", script_unc=unc, run_now=True))
-        else:
-            args = gpogen.task_arguments("embedded", script_text=script)
-            run_now.append(gpogen.task_arguments(
-                "embedded", script_text=gpogen.build_script(pkg["id"], run_now=True, **options)))
+        args = gpogen.task_arguments("embedded", script_text=script)
+        run_now.append(gpogen.task_arguments(
+            "embedded", script_text=gpogen.build_script(pkg["id"], run_now=True, **options)))
         pkg.setdefault("task_uid", gpogen.new_uid())
         tasks.append({
             "name": f"windeploy {pkg['id']}"[:100],
@@ -610,12 +610,8 @@ def build_files(deployment, settings):
             "delete": bool(deployment.get("pending_delete")),
         })
     for rel in deployment.get("_scripts", []):
-        if rel not in keep:
-            files[rel] = None
-    deployment["_scripts"] = sorted(keep) if deployment.get("delivery", "sysvol") == "sysvol" else []
-    if deployment.get("delivery") != "sysvol":
-        for rel in keep:
-            files[rel] = None
+        files[rel] = None
+    deployment["_scripts"] = []
     immediate = []
     # "Run now": one run-once immediate task per package that was in the
     # deployment when it was triggered. Each needs its own run-once id:
@@ -644,7 +640,7 @@ def describe(deployment):
         "generator": "NethServer module windeploy",
         "module_uuid": os.environ.get("MODULE_UUID", ""),
         "name": deployment["name"],
-        "delivery": deployment.get("delivery", "sysvol"),
+        "delivery": DELIVERY,
         "schedule": deployment["schedule"],
         "packages": [{"id": p["id"], "mode": p.get("mode", "upgrade")} for p in deployment["packages"]],
         "pending_delete": deployment.get("pending_delete"),

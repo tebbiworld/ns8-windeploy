@@ -50,6 +50,38 @@ def _write_deployment(deployment, settings):
     wdcommon.prune_backups(deployment["gpo_guid"])
 
 
+def outdated(deployment):
+    """GPO written by a version whose tasks start the script from SYSVOL
+    (up to 0.4.0), or such a rewrite that failed before."""
+    return bool(deployment.get("gpo_guid")) and (
+        deployment.get("delivery") != wdcommon.DELIVERY or deployment.get("rewrite_pending"))
+
+
+def rewrite_outdated(data, settings=None):
+    """Write the GPOs of outdated deployments again (update to 0.4.1 and
+    the daily timer). A deployment that fails (DC down) keeps the mark
+    rewrite_pending and is tried again. Returns (rewritten, failed) names."""
+    done, failed = [], []
+    todo = [d for d in data["deployments"] if outdated(d)]
+    if not todo:
+        return done, failed
+    settings = settings or wdcommon.connection_settings()
+    for deployment in todo:
+        new = copy.deepcopy(deployment)
+        new.pop("rewrite_pending", None)
+        try:
+            _write_deployment(new, settings)
+        except Exception as ex:
+            deployment["rewrite_pending"] = True
+            failed.append((deployment["name"], str(ex)))
+            continue
+        deployment.clear()
+        deployment.update(new)
+        wdcommon.log_deployment_change(deployment["name"], "rewritten", "script embedded in the task (0.4.1)")
+        done.append(deployment["name"])
+    return done, failed
+
+
 def start_deployment(deployment, reason, days=None, settings=None):
     if deployment.get("pending_delete"):
         raise RemovalError("removal_pending")
