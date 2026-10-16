@@ -40,16 +40,21 @@ Samba (or Windows) Active Directory.
 
 The page "Policies" rolls out security settings for the computers: a
 *policy profile* is one GPO with settings picked from a catalog
-(`imageroot/pypkg/policygen.py`), linked like a deployment. Computer
-side only; 23 settings in six groups: lock idle sessions (also when
+(`imageroot/pypkg/policygen.py`), linked like a deployment. 24
+settings in six groups, all on the computer side except one: lock idle sessions (also when
 programs keep the screen on, see below), logon notice,
 convenience PIN sign-in (with a caution: Windows keeps the domain
 password on the computer for it), removable media, BitLocker recovery keys into the directory, time
 source, who may set the clock, Defender, firewall, print spooler,
-OneDrive, NTLMv2, auditing, event log sizes, PowerShell logging.
+OneDrive, no `Thumbs.db` on network drives, NTLMv2, auditing, event
+log sizes, PowerShell logging.
 
-Three kinds of files are written: `Machine/Registry.pol` (most
-settings), `GptTmpl.inf` (user rights) and scheduled tasks that set
+Four kinds of files are written: `Machine/Registry.pol` (most
+settings), `User/Registry.pol` (no `Thumbs.db` on network drives,
+policy `DisableThumbsDBOnNetworkFolders` of `Thumbnails.admx`; it
+applies to the user accounts below the linked targets, not to the
+computers; `Thumbs.db` files already on the shares stay), `GptTmpl.inf`
+(user rights) and scheduled tasks that set
 the audit subcategories with `auditpol` and the display request
 overrides with `powercfg`. What a computer does when the
 GPO is gone was measured with Windows 11 25H2:

@@ -258,6 +258,7 @@
                   $t("policy_setting." + s.id + ".caution")
                 }}</span>
                 <span v-if="s.tattoo"> {{ $t("policies.stays_hint") }}</span>
+                <span v-if="s.user"> {{ $t("policies.user_hint") }}</span>
               </p>
               <div v-if="editor.on.includes(s.id)" class="params">
                 <template v-for="(p, name) in s.params">

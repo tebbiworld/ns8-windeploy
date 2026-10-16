@@ -140,9 +140,9 @@ def purge_deployment(data, deployment, reason, by="admin", settings=None):
 # ------------------------------------------------------ policy profiles ---
 
 def _write_profile(profile, settings):
-    files, extensions = wdcommon.build_policy_files(profile)
+    files, extensions, user = wdcommon.build_policy_files(profile)
     res = wdcommon.run_tool({"op": "apply", "guid": profile["gpo_guid"], "files": files, "backup_dir": "/backup",
-                             "machine_extensions": extensions}, settings=settings)
+                             "machine_extensions": extensions, "user_extensions": user}, settings=settings)
     profile["version"] = res["version"]
     wdcommon.prune_backups(profile["gpo_guid"])
 

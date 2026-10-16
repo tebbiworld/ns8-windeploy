@@ -321,6 +321,7 @@
         "policy_3": "Windows rimuove da solo la maggior parte delle impostazioni quando vengono disattivate o il profilo viene rimosso. Non quelle con l'indicazione «Resta sui computer dopo la disattivazione»: disattivate passano a «ripristinata» e il profilo scrive il valore predefinito di Windows finché tutti i computer lo hanno applicato; poi toglierle con la casella di controllo.",
         "policy_4": "La rimozione di un profilo avvia un periodo di attesa: le impostazioni vengono revocate, il GPO resta collegato perché anche i computer connessi di rado lo vedano, e poi viene eliminato.",
         "policy_5": "Le regole di password e blocco degli account del dominio sono mostrate, non impostate: in un dominio Samba si cambiano nelle impostazioni del dominio di NethServer.",
+        "policy_6": "«Nessun Thumbs.db sulle unità di rete» è un'impostazione utente: vale per gli account utente sotto le destinazioni collegate, quindi collegare il profilo alle OU degli utenti (o al dominio). Non elimina i file Thumbs.db già presenti nelle condivisioni; rimuoverli a mano, p. es. sul server con find <condivisione> -name Thumbs.db -delete.",
         "lock_title": "6. Blocco schermo e controllo remoto",
         "lock_help": "«Blocca la sessione per inattività» blocca dopo il tempo impostato senza input da tastiera o mouse. I programmi possono chiedere a Windows di tenere acceso lo schermo, e gli strumenti di controllo remoto come AnyDesk, RustDesk, TeamViewer o i server VNC lo fanno durante una sessione: il computer non si blocca mai finché qualcuno è connesso ma inattivo. Due impostazioni del gruppo «Accesso e blocco» tolgono questa richiesta; entrambe richiedono il blocco schermo.",
         "lock_unlock_title": "Anche le sessioni remote vengono bloccate",
@@ -412,6 +413,7 @@
         "edit_title": "Modifica profilo di criteri",
         "new_title": "Nuovo profilo di criteri",
         "stays_hint": "Resta sui computer dopo la disattivazione, finché il profilo non l'ha ripristinata.",
+        "user_hint": "Vale per gli account utente sotto le destinazioni collegate, non per i computer.",
         "range": "da {min} a {max}",
         "seconds": "{n} s",
         "reset_help": "Disattivata. Il profilo scrive il valore predefinito di Windows finché i computer non lo hanno applicato.",
@@ -540,6 +542,10 @@
         "block_onedrive": {
             "title": "Blocca OneDrive",
             "desc": "OneDrive non sincronizza file. Gli altri client di sincronizzazione non sono interessati."
+        },
+        "no_thumbs_db_network": {
+            "title": "Nessun Thumbs.db sulle unità di rete",
+            "desc": "Esplora risorse non crea più file nascosti Thumbs.db con le miniature nelle cartelle condivise. Questi file disturbano i client di sincronizzazione come Nextcloud. I file Thumbs.db già presenti restano e vanno eliminati a mano."
         },
         "ntlmv2_only": {
             "title": "Solo NTLMv2",
