@@ -12,6 +12,7 @@ import Policies from "../views/Policies.vue";
 import Logon from "../views/Logon.vue";
 import Scripts from "../views/Scripts.vue";
 import Dns from "../views/Dns.vue";
+import Inventory from "../views/Inventory.vue";
 
 Vue.use(VueRouter);
 
@@ -46,6 +47,11 @@ const routes = [
     path: "/dns",
     name: "Dns",
     component: Dns,
+  },
+  {
+    path: "/inventory",
+    name: "Inventory",
+    component: Inventory,
   },
   {
     path: "/guide",
