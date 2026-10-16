@@ -42,6 +42,9 @@ DEFAULT_TIME_LIMIT = "PT2H"
 # The script itself stops winget and its installer earlier (with a log
 # entry); the task limit above stays as the last resort.
 DEFAULT_INSTALL_TIMEOUT = 30
+# A run older than this (the default task limit) is stopped by the next
+# start of the task.
+RUN_LIMIT_MINUTES = 120
 # "" = let winget choose (no scope in the manifest, or nothing better)
 SCOPES = ("", "machine")
 TIME_LIMIT_RE = re.compile(r"^PT(0S|[1-9][0-9]?H)$")
@@ -66,6 +69,9 @@ $PackageId = '{package_id}'
 $Mode = '{mode}'
 $Scope = '{scope}'
 $TimeoutMinutes = {timeout_minutes}
+# limit of one run: the task limit, so a run that the task can no longer
+# stop is stopped by the next start
+$RunLimitMinutes = {run_limit_minutes}
 $LogPath = '{log_path}'
 $Time = '{time}'
 $Days = @({days})
@@ -96,6 +102,51 @@ function Test-Due {{
     }}
     return $false
 }}
+# Stop a process and the processes it started (after it: a reused
+# process id is not a child), children first.
+function Stop-Tree($Root) {{
+    $tree = @($Root.Id)
+    for ($i = 0; $i -lt $tree.Count; $i++) {{
+        $tree += @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($tree[$i])" |
+            Where-Object {{ $_.CreationDate -ge $Root.StartTime }} | ForEach-Object {{ $_.ProcessId }})
+    }}
+    [array]::Reverse($tree)
+    foreach ($id in $tree) {{
+        $proc = Get-Process -Id $id -ErrorAction SilentlyContinue
+        if ($proc) {{ Write-Output "stop $($proc.ProcessName) ($id)"; Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }}
+    }}
+}}
+# The task created again at a policy refresh does not know the runs of
+# its earlier copy, so its time limit does not stop them: stop a run of
+# this package that is older than the limit of one run.
+$stopped = @()
+$prev = Get-ItemProperty -Path $StateKey -ErrorAction SilentlyContinue
+if ($prev.RunPid -and $prev.RunPid -ne $PID) {{
+    $old = Get-Process -Id $prev.RunPid -ErrorAction SilentlyContinue
+    if ($old -and $old.StartTime.ToString('s') -eq $prev.RunStart -and
+        $old.StartTime -lt (Get-Date).AddMinutes(-$RunLimitMinutes)) {{
+        $stopped += "run $($old.Id) of $($prev.RunStart) exceeded $RunLimitMinutes minutes"
+        $stopped += @(Stop-Tree $old)
+    }}
+}}
+# Up to version 0.4.0 the task started this script from SYSVOL (-File),
+# and such a start could hang before the first line: stop those. A start
+# that runs winget has a child process and is left alone.
+$oldFile = '\Machine\Scripts\windeploy\' + '{file_part}.ps1'
+Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" |
+    Where-Object {{ $_.ProcessId -ne $PID -and $_.CommandLine -and $_.CommandLine.Contains($oldFile) -and
+        $_.CreationDate -lt (Get-Date).AddMinutes(-10) -and
+        -not (Get-CimInstance Win32_Process -Filter "ParentProcessId=$($_.ProcessId)" |
+            Where-Object {{ $_.Name -ne 'conhost.exe' }}) }} |
+    ForEach-Object {{
+        $stopped += "hung start from SYSVOL $($_.ProcessId) of $($_.CreationDate.ToString('s'))"
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }}
+if ($stopped) {{ Add-Content -Path $LogPath -Value (@("$((Get-Date).ToString('s')) windeploy:") + $stopped) -ErrorAction SilentlyContinue }}
+# One run per package: each policy refresh starts the task again, a start
+# while the previous one still runs ends here.
+$own = New-Object System.Threading.Mutex($false, 'Global\windeploy-{file_part}')
+try {{ if (-not $own.WaitOne(0)) {{ exit 0 }} }} catch [System.Threading.AbandonedMutexException] {{ }}
 if (-not (Test-Due)) {{ exit 0 }}
 Start-Transcript -Path $LogPath -Append | Out-Null
 # One winget at a time: tasks of several deployments may start together and
@@ -108,6 +159,9 @@ try {{
     # another start of this task may have done the work while this one waited
     if (-not (Test-Due)) {{ Write-Output 'already done by another run'; exit 0 }}
     $started = (Get-Date).ToString('s')
+    New-Item -Path $StateKey -Force | Out-Null
+    Set-ItemProperty -Path $StateKey -Name RunPid -Value $PID
+    Set-ItemProperty -Path $StateKey -Name RunStart -Value (Get-Process -Id $PID).StartTime.ToString('s')
     # C:\Program Files\WindowsApps is readable for SYSTEM only; the winget of
     # the newest App Installer is picked by its version number.
     $winget = Resolve-Path "$env:ProgramFiles\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue |
@@ -144,17 +198,7 @@ try {{
         $code = $p.ExitCode
     }} else {{
         Write-Output "no result after $TimeoutMinutes minutes, stopping winget and the installer"
-        $tree = @($p.Id)
-        for ($i = 0; $i -lt $tree.Count; $i++) {{
-            # started after winget: a reused process id is not a child
-            $tree += @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$($tree[$i])" |
-                Where-Object {{ $_.CreationDate -ge $p.StartTime }} | ForEach-Object {{ $_.ProcessId }})
-        }}
-        [array]::Reverse($tree)
-        foreach ($id in $tree) {{
-            $proc = Get-Process -Id $id -ErrorAction SilentlyContinue
-            if ($proc) {{ Write-Output "stop $($proc.ProcessName) ($id)"; Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }}
-        }}
+        Stop-Tree $p
         $code = 1460
     }}
     Get-Content -Path $out -Encoding UTF8 -ErrorAction SilentlyContinue | Write-Output
@@ -174,6 +218,7 @@ try {{
     exit $code
 }} finally {{
     if ($locked) {{ $mutex.ReleaseMutex() }}
+    Remove-ItemProperty -Path $StateKey -Name RunPid, RunStart -ErrorAction SilentlyContinue
     Stop-Transcript | Out-Null
 }}
 """
@@ -224,6 +269,7 @@ def build_script(package_id, mode="upgrade", log_path=None, scope="", timeout_mi
         raise GenError(f"invalid log path {log_path!r}")
     text = SCRIPT_TEMPLATE.format(package_id=package_id, mode=mode, log_path=log_path,
                                   scope=scope, timeout_minutes=timeout_minutes,
+                                  run_limit_minutes=RUN_LIMIT_MINUTES, file_part=safe_file_part(package_id),
                                   header=SCRIPT_HEADER_RUN_NOW if run_now else SCRIPT_HEADER, **times)
     return text.replace("\r\n", "\n").replace("\n", "\r\n")
 

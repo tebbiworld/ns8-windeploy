@@ -178,7 +178,20 @@ class Script(unittest.TestCase):
         self.assertEqual(base64.b64decode(enc).decode("utf-16-le"), gpogen.compact_script(s))
         self.assertNotIn("# ", gpogen.compact_script(s))
         # the command line of a task is limited to 32767 characters
-        self.assertLess(len(gpogen.task_arguments("embedded", script_text=s)), 16000)
+        self.assertLess(len(gpogen.task_arguments("embedded", script_text=s)), 24000)
+
+    def test_one_run_per_package(self):
+        s = gpogen.build_script("Nextcloud.NextcloudDesktop", mode="install")
+        # a second start ends at once, a run older than the limit is stopped
+        self.assertIn("Mutex($false, 'Global\\windeploy-Nextcloud.NextcloudDesktop')", s)
+        self.assertIn("$own.WaitOne(0)", s)
+        self.assertIn(f"$RunLimitMinutes = {gpogen.RUN_LIMIT_MINUTES}", s)
+        self.assertIn("Set-ItemProperty -Path $StateKey -Name RunPid -Value $PID", s)
+        self.assertIn("Remove-ItemProperty -Path $StateKey -Name RunPid, RunStart", s)
+        # hung starts of the SYSVOL copy of up to 0.4.0
+        self.assertIn("'\\Machine\\Scripts\\windeploy\\' + 'Nextcloud.NextcloudDesktop.ps1'", s)
+        # the lock is taken before the schedule test and before winget
+        self.assertLess(s.index("$own.WaitOne(0)"), s.index("if (-not (Test-Due)) { exit 0 }"))
 
     def test_schedule_in_script(self):
         weekly = {"frequency": "weekly", "days": ["Friday", "Monday"], "time": "12:30", "start_date": "2026-09-28"}
