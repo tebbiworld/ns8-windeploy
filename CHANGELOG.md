@@ -4,6 +4,7 @@
 
 ### Added
 
+- **Page "GPO inventory"** (read only): the GPOs of the domain that are not the module's, with links, versions of the computer and user part, last change, presence of the SYSVOL folder on each DC, and every setting with what the computers keep when the GPO is deleted (removed by Windows, rights restored, stays, all advanced auditing cleared, scripts, preferences that retiring takes back, not analysed). The default policies and GPOs of other windeploy instances are marked and never offered for retiring.
 - **Policy option "No Thumbs.db on network drives"** (group "Network"): Explorer no longer writes hidden `Thumbs.db` thumbnail files into shared folders, where they disturb sync clients. It is the first setting on the user side: the profile writes `User/Registry.pol` and raises the user part of the GPO version only when that file changes. It applies to the user accounts below the linked targets. `Thumbs.db` files already on the shares stay. Windows 11 25H2 wrote no `Thumbs.db` to a Samba share in the test even without the policy; the option guards against older clients.
 
 ### Security
