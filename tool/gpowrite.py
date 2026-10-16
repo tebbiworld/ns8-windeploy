@@ -271,6 +271,76 @@ class Session:
         res["can_manage_gpos"] = not res["foreign_gpos"]
         return res
 
+    def domain_controllers(self, guids):
+        """Every DC of the domain with its addresses in the directory DNS,
+        whether SMB answers, and which of the given GPOs lack their SYSVOL
+        folder there. Samba does not replicate SYSVOL: a GPO written on one
+        DC is missing on the others. Clients reach SYSVOL through the
+        address records of the domain name, listed as domain_ips."""
+        import socket
+        for g in guids:
+            _check_guid(g)
+        res = self.samdb.search(self.domain_dn, scope=ldb.SCOPE_SUBTREE,
+                                expression="(&(objectCategory=computer)"
+                                           "(userAccountControl:1.2.840.113556.1.4.803:=8192))",
+                                attrs=["dNSHostName", "name"])
+        out = []
+        for m in res:
+            host = _attr(m, "dNSHostName", "") or _attr(m, "name", "")
+            short = host.split(".")[0]
+            dc = {"name": host, "ips": self._a_records(short), "reachable": False, "missing_gpos": None}
+            if host.lower() == self.host.lower():
+                conn = self.smb
+                dc["reachable"] = True
+            else:
+                conn = None
+                for ip in dc["ips"]:
+                    try:
+                        socket.create_connection((ip, 445), timeout=3).close()
+                    except OSError:
+                        continue
+                    dc["reachable"] = True
+                    try:
+                        conn = self._smb_to(ip)
+                    except Exception as ex:
+                        dc["error"] = f"{type(ex).__name__}: {ex}"
+                    break
+            if conn is not None:
+                dc["missing_gpos"] = [g for g in guids if not conn.chkpath(self.share_path(g))]
+            out.append(dc)
+        return {"dcs": out, "domain_ips": self._a_records("@")}
+
+    def _a_records(self, name):
+        """IPv4 addresses of a name in the domain zone (directory DNS)."""
+        from samba.dcerpc import dnsp
+        base = f"DC={self.dns_domain},CN=MicrosoftDNS,DC=DomainDnsZones,{self.domain_dn}"
+        try:
+            res = self.samdb.search(base, scope=ldb.SCOPE_ONELEVEL,
+                                    expression=f"(&(objectClass=dnsNode)(name={ldb.binary_encode(name)}))",
+                                    attrs=["dnsRecord"])
+        except ldb.LdbError:
+            return []
+        ips = []
+        for m in res:
+            for v in m.get("dnsRecord", []):
+                rec = ndr_unpack(dnsp.DnssrvRpcRecord, v)
+                if rec.wType == dnsp.DNS_TYPE_A and str(rec.data) not in ips:
+                    ips.append(str(rec.data))
+        return sorted(ips)
+
+    def _smb_to(self, ip):
+        """SYSVOL of another DC by address (NTLM: Kerberos needs its name)."""
+        creds = credentials.Credentials()
+        creds.guess(self.lp)
+        creds.set_username(self.creds.get_username())
+        creds.set_domain(self.workgroup)
+        creds.set_password(self.creds.get_password())
+        creds.set_kerberos_state(credentials.DONT_USE_KERBEROS)
+        creds.set_smb_signing(SMB_SIGNING_REQUIRED)
+        s3_lp = s3param.get_context()
+        s3_lp.load(self.lp.configfile)
+        return libsmb.Conn(ip, "sysvol", lp=s3_lp, creds=creds)
+
     def _can_manage(self, guid, sids):
         _check_guid(guid)
         try:
@@ -919,6 +989,8 @@ def main():
             return
         if op == "check":
             result = s.check(request.get("guids"))
+        elif op == "domain_controllers":
+            result = s.domain_controllers(request.get("guids", []))
         elif op == "list":
             result = s.list(request.get("guids", []))
         elif op == "create":

@@ -285,7 +285,7 @@
         "link_ou": "Il GPO si applica solo ai computer di questa unità organizzativa e di quelle sottostanti. L'unità Domain Controllers non viene proposta: in NS8 i domain controller sono server Samba, non computer Windows.",
         "link_computers": "I nuovi computer finiscono nel contenitore Computers, che non è un'unità organizzativa: ricevono solo le distribuzioni collegate all'intero dominio finché non vengono spostati in un'unità organizzativa. Al collegamento il modulo può creare vuota un'unità mancante; i computer vi si spostano con uno strumento AD (ad es. RSAT o LDAP Admin).",
         "mode_upgrade": "Aggiorna il pacchetto sui computer dove è installato; sugli altri non succede nulla.",
-        "mode_install": "Installa il pacchetto dove manca e lo aggiorna dove è installato.",
+        "mode_install": "Installa il pacchetto dove manca e lo aggiorna dove è installato. Un computer che non ha mai eseguito la distribuzione installa subito un pacchetto mancante; la pianificazione vale per gli aggiornamenti.",
         "mode_msi": "Preferisci i pacchetti MSI (ad es. Google.Chrome invece di Google.Chrome.EXE): alcuni programmi di installazione EXE attendono un desktop quando vengono eseguiti come SYSTEM. Lo script interrompe winget e il programma di installazione dopo 30 minuti senza risultato (nel log: codice di uscita 1460); l'attività stessa viene interrotta dopo due ore.",
         "how_6": "Questo server legge solo l'indice e scrive il GPO; il software viene scaricato dai computer stessi.",
         "auto_heading": "1.1 Configurazione automatica",
@@ -374,7 +374,12 @@
         "dns_5_title": "Confronto con il DNS pubblico",
         "dns_5": "Invia i nomi di una zona a un resolver pubblico via HTTPS e mostra cosa differisce o esiste solo internamente. Il confronto non modifica nulla.",
         "dns_6_title": "Adottare il valore pubblico",
-        "dns_6": "Sostituisce un record interno con la risposta del DNS pubblico, o elimina il record interno. Il lato pubblico si modifica presso il provider DNS o con il modulo dnshelper."
+        "dns_6": "Sostituisce un record interno con la risposta del DNS pubblico, o elimina il record interno. Il lato pubblico si modifica presso il provider DNS o con il modulo dnshelper.",
+        "lifecycle_6": "Un pacchetto tolto da una distribuzione mantiene per il periodo di attesa un elemento attività con l'azione «elimina», così anche i computer assenti eliminano la sua attività. Un computer che ha perso tutto il periodo, o il cui GPO è stato eliminato a mano, può mantenere attività di versioni precedenti; la prossima esecuzione di qualsiasi distribuzione le elimina quando il loro GPO manca in SYSVOL e nella directory.",
+        "dcs_title": "Più controller di dominio",
+        "dcs_1": "Samba non replica SYSVOL. Il modulo scrive i suoi GPO solo sul DC delle impostazioni; un computer che legge la cartella del GPO da un altro DC la trova mancante o vecchia e non riceve attività o ne riceve di vecchie. Con più DC, copiare SYSVOL sugli altri (p. es. rsync dal DC delle impostazioni) o mantenere un solo DC.",
+        "dcs_2": "I computer raggiungono SYSVOL tramite il nome di dominio (\\\\dominio\\SysVol). Ogni DC registra il proprio indirizzo per quel nome; l'indirizzo di un DC rimosso o non raggiungibile (p. es. tramite VPN) resta finché non viene rimosso. Rimuovere correttamente il DC dal dominio (samba-tool domain demote --remove-other-dead-server) e controllare i record di indirizzo del nome di dominio.",
+        "dcs_3": "La pagina di stato elenca ogni DC con i suoi indirizzi e avvisa in caso di DC non raggiungibile, cartelle GPO mancanti e indirizzi del nome di dominio che non appartengono a nessun DC raggiungibile. La verifica avviene ogni giorno; «Verifica ora» la avvia subito."
     },
     "policies": {
         "title": "Criteri",
@@ -758,7 +763,8 @@
         "scripts_start": "Al posto degli script di {name} vengono eseguiti gli script di pulizia; gli script senza pulizia non vengono più eseguiti. Il GPO resta collegato per il periodo di attesa; poi viene eliminato.",
         "scripts_cancel": "Gli script di {name} vengono riscritti nel GPO.",
         "scripts_delete": "Il periodo di attesa è terminato. Il GPO di {name} viene scollegato ed eliminato.",
-        "change_rewritten": "Script incorporato nell'attività (aggiornamento)"
+        "change_rewritten": "Script incorporato nell'attività (aggiornamento)",
+        "log_orphans": "I computer spenti per tutto il periodo di attesa mantengono le attività di una distribuzione eliminata. La prossima esecuzione di un'altra distribuzione elimina le attività il cui GPO è scomparso."
     },
     "logon": {
         "title": "Accesso",
@@ -849,5 +855,20 @@
         "error_removal_pending": "La rimozione è in corso; annullarla prima",
         "error_link_target_not_found": "La destinazione {value} non esiste",
         "error_not_configured": "Il modulo non è collegato a un dominio"
+    },
+    "dcs": {
+        "title": "Controller di dominio",
+        "not_checked": "Non ancora verificato. La verifica avviene ogni giorno e con il pulsante qui sotto.",
+        "no_address": "nessun indirizzo nel DNS della directory",
+        "unreachable": "non raggiungibile (SMB, porta 445)",
+        "sysvol_unreadable": "SYSVOL non leggibile",
+        "missing_gpos": "manca la cartella SYSVOL di un GPO di questo modulo | mancano le cartelle SYSVOL di {n} GPO di questo modulo",
+        "domain_ips": "Il nome di dominio risolve anche in {ips}, che non appartiene a nessun DC raggiungibile. I computer che scelgono questo indirizzo non possono leggere i GPO; rimuovere l'indirizzo o ripristinare il DC.",
+        "several": "{n} controller di dominio. Samba non replica SYSVOL: il modulo scrive i suoi GPO solo sul DC delle impostazioni; gli altri DC hanno bisogno di una copia (p. es. rsync), altrimenti i computer che li usano vedono GPO incompleti.",
+        "checked": "Verificato {time}",
+        "problem_title": "Problema con un controller di dominio",
+        "problem_help": "I computer potrebbero non ricevere i GPO di questo modulo. Vedere la guida, sezione «Più controller di dominio».",
+        "check_now": "Verifica ora",
+        "check_failed": "La verifica non è riuscita; vedere i log di sistema."
     }
 }

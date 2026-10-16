@@ -84,14 +84,18 @@ $StartDate = '{start_date}'
 $StateKey = 'HKLM:\SOFTWARE\windeploy\' + $PackageId
 # New-Item -Force on an existing registry key empties it: create it once
 function Open-State {{ if (-not (Test-Path $StateKey)) {{ New-Item -Path $StateKey -Force | Out-Null }} }}
+$FirstContact = $false
 function Test-Due {{
     if ($RunNow) {{ return $true }}
     $last = (Get-ItemProperty -Path $StateKey -Name LastRun -ErrorAction SilentlyContinue).LastRun
     if (-not $last) {{
-        # first time on this computer: wait for the next scheduled time
+        # first time on this computer: "install" puts a missing package on
+        # it now (the run skips one that is there), "upgrade" waits for the
+        # next scheduled time
         Open-State
         Set-ItemProperty -Path $StateKey -Name LastRun -Value (Get-Date).ToString('s')
-        return $false
+        $script:FirstContact = $true
+        return ($Mode -eq 'install')
     }}
     $last = [datetime]::ParseExact($last, 's', [cultureinfo]::InvariantCulture)
     $now = Get-Date
@@ -159,11 +163,33 @@ try {{
     try {{ $locked = $mutex.WaitOne([TimeSpan]::FromMinutes(60)) }} catch [System.Threading.AbandonedMutexException] {{ $locked = $true }}
     if (-not $locked) {{ Write-Output 'another winget run did not finish within 60 minutes'; exit 1 }}
     # another start of this task may have done the work while this one waited
-    if (-not (Test-Due)) {{ Write-Output 'already done by another run'; exit 0 }}
+    if (-not $FirstContact -and -not (Test-Due)) {{ Write-Output 'already done by another run'; exit 0 }}
     $started = (Get-Date).ToString('s')
     Open-State
     Set-ItemProperty -Path $StateKey -Name RunPid -Value $PID
     Set-ItemProperty -Path $StateKey -Name RunStart -Value (Get-Process -Id $PID).StartTime.ToString('s')
+    # Tasks of earlier versions name their GPO in the script path. A task
+    # whose GPO is gone (deleted while the computer was away, or by hand)
+    # fails at every start: delete it - only tasks made by windeploy, only
+    # when SYSVOL answers, and only when the GPO is missing in SYSVOL and in
+    # the directory (a DC whose SYSVOL lacks the folder is no proof).
+    try {{
+        $dom = (Get-CimInstance Win32_ComputerSystem).Domain
+        $sysvol = '\\' + $dom + '\SysVol\' + $dom + '\Policies'
+        $base = if ($dom -match '\.' -and [IO.Directory]::Exists($sysvol)) {{ ([adsi]'LDAP://RootDSE').defaultNamingContext }}
+    }} catch {{ $base = $null }}
+    if ($base) {{
+        foreach ($t in @(Get-ScheduledTask -TaskName 'windeploy *' -ErrorAction SilentlyContinue)) {{
+            if ($t.Author -ne 'windeploy') {{ continue }}
+            $m = [regex]::Match(($t.Actions | ForEach-Object {{ $_.Arguments }}) -join ' ', '\\Policies\\(\{{[0-9A-Fa-f-]{{36}}\}})\\')
+            if (-not $m.Success -or [IO.Directory]::Exists($sysvol + '\' + $m.Groups[1].Value)) {{ continue }}
+            try {{ $gone = -not [adsi]::Exists('LDAP://CN=' + $m.Groups[1].Value + ',CN=Policies,CN=System,' + $base) }} catch {{ $gone = $false }}
+            if ($gone) {{
+                Write-Output "delete task '$($t.TaskName)': GPO $($m.Groups[1].Value) is gone"
+                Unregister-ScheduledTask -TaskName $t.TaskName -TaskPath $t.TaskPath -Confirm:$false -ErrorAction SilentlyContinue
+            }}
+        }}
+    }}
     # C:\Program Files\WindowsApps is readable for SYSTEM only; the winget of
     # the newest App Installer is picked by its version number.
     $winget = Resolve-Path "$env:ProgramFiles\WindowsApps\Microsoft.DesktopAppInstaller_*_x64__8wekyb3d8bbwe\winget.exe" -ErrorAction SilentlyContinue |
@@ -189,6 +215,9 @@ try {{
         & $winget.Path list --id $PackageId --exact --source winget --accept-source-agreements --disable-interactivity | Out-Null
         if ($LASTEXITCODE -ne 0) {{ $verb = 'install' }}
     }}
+    # first contact: only a missing package is installed now, updates
+    # wait for the schedule
+    if ($FirstContact -and $verb -ne 'install') {{ Write-Output "$PackageId is installed, next update at the scheduled time"; exit 0 }}
     Write-Output "winget $verb $PackageId"
     # A silent installer can still wait for input nobody sees: stop winget
     # and everything it started after $TimeoutMinutes, so the log gets a

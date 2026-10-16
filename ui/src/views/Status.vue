@@ -126,6 +126,28 @@
           }}</cv-link>
         </cv-tile>
       </cv-column>
+      <cv-column :md="4" :max="8">
+        <cv-tile light class="rights-tile">
+          <h4 class="rights-title">{{ $t("dcs.title") }}</h4>
+          <DcCheck :result="wd.dcs" :loading="loading.getConfiguration" />
+          <NsInlineNotification
+            v-if="!dcsOk"
+            kind="warning"
+            :title="$t('dcs.problem_title')"
+            :description="$t('dcs.problem_help')"
+            :showCloseButton="false"
+          />
+          <NsButton
+            kind="ghost"
+            size="small"
+            :loading="loading.checkDcs"
+            :disabled="loading.checkDcs || !wd.username"
+            @click="checkDcs"
+            >{{ $t("dcs.check_now") }}</NsButton
+          >
+          <div v-if="error.checkDcs" class="bad-text">{{ error.checkDcs }}</div>
+        </cv-tile>
+      </cv-column>
       <cv-column :md="4" :max="4">
         <NsInfoCard
           light
@@ -321,6 +343,7 @@ import to from "await-to-js";
 import Deploy32 from "@carbon/icons-vue/es/deploy/32";
 import Catalog32 from "@carbon/icons-vue/es/catalog/32";
 import RightsCheck, { rightsComplete } from "@/components/RightsCheck";
+import DcCheck, { dcsOk } from "@/components/DcCheck";
 import moduleTask from "@/mixins/moduleTask";
 import { mapState } from "vuex";
 import {
@@ -333,7 +356,7 @@ import {
 
 export default {
   name: "Status",
-  components: { RightsCheck },
+  components: { RightsCheck, DcCheck },
   mixins: [
     moduleTask,
     TaskService,
@@ -349,7 +372,7 @@ export default {
     return {
       Deploy32,
       Catalog32,
-      wd: { rights: null, username: "", deployments: 0, index: {} },
+      wd: { rights: null, dcs: null, username: "", deployments: 0, index: {} },
       q: {
         page: "status",
       },
@@ -369,17 +392,22 @@ export default {
         getStatus: false,
         listBackupRepositories: false,
         listBackups: false,
+        checkDcs: false,
       },
       error: {
         getStatus: "",
         listBackupRepositories: "",
         listBackups: "",
+        checkDcs: "",
       },
     };
   },
   computed: {
     wdRightsOk() {
       return rightsComplete(this.wd.rights);
+    },
+    dcsOk() {
+      return dcsOk(this.wd.dcs);
     },
     ...mapState(["instanceName", "instanceLabel", "core", "appName"]),
     installationNodeTitle() {
@@ -426,12 +454,24 @@ export default {
     this.listBackupRepositories();
   },
   methods: {
+    async checkDcs() {
+      this.loading.checkDcs = true;
+      this.error.checkDcs = "";
+      try {
+        this.wd.dcs = await this.runModuleTask("check-domain-controllers");
+      } catch (e) {
+        this.error.checkDcs = this.$t("dcs.check_failed");
+      } finally {
+        this.loading.checkDcs = false;
+      }
+    },
     async getWdConfiguration() {
       this.loading.getConfiguration = true;
       try {
         const c = await this.runModuleTask("get-configuration");
         this.wd = {
           rights: c.rights,
+          dcs: c.domain_controllers,
           username: c.username,
           deployments: c.deployments,
           index: c.index || {},
@@ -606,6 +646,10 @@ export default {
 .rights-tile {
   margin-bottom: $spacing-07;
   min-height: 7.5rem;
+}
+.bad-text {
+  color: $support-01;
+  margin-top: $spacing-03;
 }
 .rights-title {
   margin-bottom: $spacing-05;

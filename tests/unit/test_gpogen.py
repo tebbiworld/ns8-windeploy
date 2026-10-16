@@ -180,6 +180,22 @@ class Script(unittest.TestCase):
         # the command line of a task is limited to 32767 characters
         self.assertLess(len(gpogen.task_arguments("embedded", script_text=s)), 24000)
 
+    def test_first_contact(self):
+        s = gpogen.build_script("7zip.7zip", mode="install")
+        # install: a missing package now, an installed one waits
+        self.assertIn("return ($Mode -eq 'install')", s)
+        self.assertIn("if ($FirstContact -and $verb -ne 'install')", s)
+        self.assertIn("if (-not $FirstContact -and -not (Test-Due))", s)
+
+    def test_orphan_tasks(self):
+        s = gpogen.build_script("7zip.7zip")
+        # only tasks of windeploy, only when SYSVOL answers and the GPO is
+        # missing in SYSVOL and in the directory
+        self.assertIn("if ($t.Author -ne 'windeploy') { continue }", s)
+        self.assertIn("[IO.Directory]::Exists($sysvol)", s)
+        self.assertIn("[adsi]::Exists('LDAP://CN=' + $m.Groups[1].Value + ',CN=Policies,CN=System,' + $base)", s)
+        self.assertLess(s.index("Set-ItemProperty -Path $StateKey -Name RunPid"), s.index("Unregister-ScheduledTask"))
+
     def test_one_run_per_package(self):
         s = gpogen.build_script("Nextcloud.NextcloudDesktop", mode="install")
         # a second start ends at once, a run older than the limit is stopped

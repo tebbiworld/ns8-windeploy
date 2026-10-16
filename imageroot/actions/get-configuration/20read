@@ -34,6 +34,7 @@ json.dump({
     "domains": wdcommon.ns8_domains(),
     "effective": wdcommon.connection_settings(),
     "rights": rights,
+    "domain_controllers": wdcommon.read_domain_controllers(),
     "index": wingetindex.read_meta(wdcommon.state_dir()),
     "deployments": len(wdcommon.read_deployments()["deployments"]),
 }, fp=sys.stdout)

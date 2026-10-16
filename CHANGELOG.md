@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.2 — unreleased
+
+### Added
+
+- **Check of the domain controllers** (status page): every DC with its addresses, whether it answers on SMB, and which GPOs of the module lack their SYSVOL folder there (Samba does not replicate SYSVOL). Warns as well about addresses of the domain name that belong to no reachable DC. Runs daily and with "Check now".
+- **New computers install at once:** a computer that has not run a deployment before installs a missing package with the action "install" right away instead of on the next scheduled day; updates keep to the schedule.
+- **Guide and README:** several domain controllers, SYSVOL without replication, address records of the domain name, first installation of new computers.
+
+### Fixed
+
+- **Tasks left on computers.** A package taken out of a deployment now keeps a task item with the action "delete" for the waiting period, so computers that were away delete its task too. A run of any deployment deletes tasks of windeploy whose GPO is gone (missing in SYSVOL and in the directory, checked only when SYSVOL answers); before, such tasks failed at every start. The list of removed deployments says that computers offline for the whole waiting period may keep tasks.
+
 ## 0.4.1 — unreleased
 
 ### Fixed

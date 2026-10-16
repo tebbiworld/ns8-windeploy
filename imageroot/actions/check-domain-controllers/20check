@@ -1,0 +1,26 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# The domain controllers, their addresses, and the GPOs of the module
+# whose SYSVOL folder is missing on a DC (Samba does not replicate
+# SYSVOL). The result is kept for the status page; the daily timer
+# windeploy-purge checks as well.
+
+import json
+import sys
+
+import agent
+import wdcommon
+
+try:
+    result = wdcommon.check_domain_controllers()
+except (wdcommon.ToolError, ValueError) as ex:
+    print(agent.SD_ERR + f"check of the domain controllers failed: {ex}", file=sys.stderr)
+    agent.set_status("validation-failed")
+    json.dump([{"field": "dc_ip", "parameter": "dc_ip", "value": "", "error": "dc_unreachable"}], fp=sys.stdout)
+    sys.exit(3)
+json.dump(result, fp=sys.stdout)

@@ -98,6 +98,7 @@ with wdcommon.deployments_locked() as data:
             if old_packages.get(p["id"], {}).get(key):
                 entry[key] = old_packages[p["id"]][key]
         deployment["packages"].append(entry)
+    wdcommon.track_removed_packages(deployment, old_packages)
     # The tasks run as SYSTEM: refuse packages that only install per user.
     for pid in wdcommon.update_scopes(deployment):
         fail("packages", pid, "user_scope_only")

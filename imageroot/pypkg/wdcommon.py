@@ -565,6 +565,50 @@ def update_scopes(deployment):
     return [p["id"] for p in deployment["packages"] if p.get("scope") == "user"]
 
 
+DCS_FILE = "dcs.json"
+
+
+def check_domain_controllers(settings=None):
+    """Run the check of the domain controllers and keep the result in
+    dcs.json (shown on the status page)."""
+    result = run_tool({"op": "domain_controllers", "guids": sorted(gpo_guids())}, settings=settings, timeout=120)
+    result["checked"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    fd, tmp = tempfile.mkstemp(dir=state_dir(), prefix="." + DCS_FILE + "-")
+    with os.fdopen(fd, "w") as f:
+        json.dump(result, f, indent=1)
+    os.replace(tmp, os.path.join(state_dir(), DCS_FILE))
+    return result
+
+
+def read_domain_controllers():
+    try:
+        with open(os.path.join(state_dir(), DCS_FILE)) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
+def track_removed_packages(deployment, old_packages):
+    """A package taken out of a deployment keeps a task item with the
+    action "delete" for the waiting period: computers that were away in
+    the meantime delete its task as well. Taking it in again ends that."""
+    kept = {p["id"].lower() for p in deployment["packages"]}
+    removed = [r for r in deployment.get("removed_packages", []) if r["id"].lower() not in kept]
+    known = {r["id"].lower() for r in removed}
+    for pid, pkg in old_packages.items():
+        if pid.lower() not in kept and pid.lower() not in known and pkg.get("task_uid"):
+            removed.append({"id": pid, "task_uid": pkg["task_uid"],
+                            "until": new_pending("package removed")["until"]})
+    deployment["removed_packages"] = removed
+
+
+def removed_due(deployment, now=None):
+    """Removed packages whose waiting period is over."""
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    return [r for r in deployment.get("removed_packages", [])
+            if datetime.datetime.fromisoformat(r["until"]) <= now]
+
+
 def new_id():
     return uuid.uuid4().hex[:12]
 
@@ -609,6 +653,15 @@ def build_files(deployment, settings):
             "remove_policy": True,
             # removal started: the computers delete the task now
             "delete": bool(deployment.get("pending_delete")),
+        })
+    due = {r["task_uid"] for r in removed_due(deployment)}
+    for r in deployment.get("removed_packages", []):
+        if r["task_uid"] in due:
+            continue
+        tasks.append({
+            "name": f"windeploy {r['id']}"[:100], "uid": r["task_uid"], "changed": now, "author": "windeploy",
+            "description": f"remove the task of {r['id']} (NethServer module windeploy)",
+            "arguments": "-NoProfile", "schedule": deployment["schedule"], "delete": True,
         })
     for rel in deployment.get("_scripts", []):
         files[rel] = None
