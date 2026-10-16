@@ -568,9 +568,10 @@ def bump_machine_version(version_number):
 
 def changed_parts(paths):
     """Which halves of a GPO the written paths belong to: (machine, user).
-    Files outside Machine/ and User/ (windeploy.json) count for neither."""
-    machine = any(p.startswith("Machine/") for p in paths)
-    user = any(p.startswith("User/") for p in paths)
+    Files outside Machine/ and User/ (windeploy.json) count for neither.
+    The case does not matter: GPOs of other tools use MACHINE/ and USER/."""
+    machine = any(p.lower().startswith("machine/") for p in paths)
+    user = any(p.lower().startswith("user/") for p in paths)
     return machine, user
 
 

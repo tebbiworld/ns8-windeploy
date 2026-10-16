@@ -41,6 +41,11 @@ Requests (field "op"):
   delete  {guid}          remove links are the caller's job; removes the
                           GPO object and its SYSVOL folder
   targets                 domain root and organizational units (link targets)
+  retire_start {admin_user, admin_password, guid, files, stamp}
+                          copy, adopt and rewrite a foreign GPO
+  retire_cancel {admin_user, admin_password, guid, stamp}
+                          put it back as it was, from the copy
+  retire_delete {guid}    remove its links, the object and the folder
   inventory               every GPO of the domain, read only: attributes,
                           links, files of its SYSVOL folder with the content
                           of the files the module can analyse, and on which
@@ -93,6 +98,15 @@ ALLOWED_FILE_RE = re.compile(
     r"|User/Registry\.pol"
     r"|Machine/Scripts/(psscripts\.ini|Startup/windeploy-startup\.ps1)"
     r"|User/Scripts/(psscripts\.ini|Logon/windeploy-logon\.ps1))$")
+
+# Preferences files a retirement may rewrite in a foreign GPO
+RETIRE_FILE_RE = re.compile(r"^(machine|user)/preferences/[a-z]{1,40}/[a-z]{1,40}\.xml$", re.I)
+RETIRED_DIR = "retired"
+# attributes of a GPO object and its children that can be added again
+GPC_RESTORE_ATTRS = ["objectClass", "cn", "displayName", "gPCFileSysPath", "versionNumber", "flags",
+                     "gPCFunctionalityVersion", "gPCMachineExtensionNames", "gPCUserExtensionNames",
+                     "gPCWQLFilter", "showInAdvancedViewOnly", "nTSecurityDescriptor"]
+STAMP_RE = re.compile(r"^\d{8}T\d{6}Z$")
 
 # Files of a GPO folder whose content the inventory returns (lower case,
 # "/" separated); everything else is listed by name and size only
@@ -461,7 +475,7 @@ class Session:
         return {"guid": guid}
 
     def apply(self, guid, files, backup_dir=None, add_cse=True, machine_extensions=None, display_name=None,
-              user_extensions=None):
+              user_extensions=None, allow_preferences=False):
         """files: {relative path: base64 content or null to delete}.
         machine_extensions replaces gPCMachineExtensionNames (policy GPOs:
         the module owns the whole GPO and knows which extensions it uses);
@@ -479,7 +493,7 @@ class Session:
         if display_name is not None:
             _check_display_name(display_name)
         for rel in files:
-            if not ALLOWED_FILE_RE.fullmatch(rel):
+            if not (ALLOWED_FILE_RE.fullmatch(rel) or allow_preferences and RETIRE_FILE_RE.fullmatch(rel)):
                 raise GpoError(f"path not allowed: {rel}")
         dn = self.gpo_dn(guid)
         m = self.samdb.search(dn, scope=ldb.SCOPE_BASE,
@@ -789,19 +803,20 @@ class Session:
                 changed = True
         return changed
 
-    def _sysvol_acl_tree(self, path, gsid):
+    def _sysvol_acl_tree(self, path, gsid, conn=None):
+        conn = conn or self.smb
         info = security.SECINFO_OWNER | security.SECINFO_DACL
-        self.smb.set_acl(path, self.sysvol_sd(gsid, [gsid]), info | security.SECINFO_PROTECTED_DACL)
-        self._sysvol_acl_children(path, gsid)
+        conn.set_acl(path, self.sysvol_sd(gsid, [gsid]), info | security.SECINFO_PROTECTED_DACL)
+        self._sysvol_acl_children(path, gsid, conn)
 
-    def _sysvol_acl_children(self, path, gsid):
+    def _sysvol_acl_children(self, path, gsid, conn):
         info = security.SECINFO_OWNER | security.SECINFO_DACL | security.SECINFO_UNPROTECTED_DACL
-        for entry in self.smb.list(path):
+        for entry in conn.list(path):
             child = path + "\\" + entry["name"]
             is_dir = bool(entry["attrib"] & 0x10)  # FILE_ATTRIBUTE_DIRECTORY
-            self.smb.set_acl(child, self.sysvol_sd(gsid, [gsid], directory=is_dir, inherited=True), info)
+            conn.set_acl(child, self.sysvol_sd(gsid, [gsid], directory=is_dir, inherited=True), info)
             if is_dir:
-                self._sysvol_acl_children(child, gsid)
+                self._sysvol_acl_children(child, gsid, conn)
 
     def _set_owner_and_ace(self, dn, owner_sid, ace):
         changed = self._add_ace(dn, ace)
@@ -872,7 +887,7 @@ class Session:
         log(f"created {dn}")
         return {"dn": dn, "created": True}
 
-    def inventory(self):
+    def inventory(self, guids=None):
         """Every GPO of the domain, read only (page "GPO inventory"):
         {gpos: [{guid, display_name, version, flags, machine_extensions,
         user_extensions, created, changed, wmi_filter, links: [{dn, enforced,
@@ -905,7 +920,7 @@ class Session:
         gpos = []
         for m in sorted(res, key=lambda m: _attr(m, "displayName", "").lower()):
             guid = _attr(m, "cn", "").upper()
-            if not GUID_RE.fullmatch(guid):
+            if not GUID_RE.fullmatch(guid) or guids is not None and guid not in guids:
                 continue
             item = {
                 "guid": guid,
@@ -941,6 +956,8 @@ class Session:
                 log(f"inventory: SYSVOL folder of {guid} not readable: {type(ex).__name__}: {ex}")
                 item["readable"] = False
             gpos.append(item)
+        if guids is not None:
+            return {"gpos": gpos, "dcs": [], "domain_ips": []}
         dcs = self.domain_controllers([g["guid"] for g in gpos])
         return {"gpos": gpos, "dcs": dcs["dcs"], "domain_ips": dcs["domain_ips"]}
 
@@ -963,6 +980,146 @@ class Session:
             else:
                 out.append({"path": child_rel, "size": int(entry.get("size", 0))})
         return True
+
+    # ---- retiring a foreign GPO (only on the DC of the settings) -------------
+    def _all_links(self, guid):
+        """[{dn, gplink}] of every container that links the GPO: domain,
+        OUs and sites."""
+        out = []
+        bases = [self.domain_dn]
+        try:
+            bases.append(f"CN=Sites,{self.samdb.get_config_basedn()}")
+        except Exception:
+            pass
+        for b in bases:
+            try:
+                res = self.samdb.search(b, scope=ldb.SCOPE_SUBTREE,
+                                        expression=f"(gPLink=*{ldb.binary_encode(guid)}*)", attrs=["gPLink"])
+            except ldb.LdbError:
+                continue
+            out += [{"dn": str(r.dn), "gplink": str(r["gPLink"][0])} for r in res]
+        return out
+
+    def _retired_dir(self, guid, stamp):
+        _check_guid(guid)
+        if not STAMP_RE.fullmatch(stamp or ""):
+            raise GpoError("invalid backup name")
+        return os.path.join("/backup", RETIRED_DIR, guid, stamp)
+
+    def _backup_folder(self, guid, folder):
+        """Every file of the GPO folder into sysvol.tgz and the ACL of
+        every entry into acls.json, so that cancel can put both back."""
+        import tarfile
+        import time
+        root = self.share_path(guid)
+        files, acls = [], {}
+        self._walk(root, "", files, INVENTORY_ENTRIES_MAX * 3)
+        info = security.SECINFO_OWNER | security.SECINFO_GROUP | security.SECINFO_DACL
+        acls[""] = self.smb.get_acl(root, info).as_sddl(self.domain_sid)
+        dirs = set()
+        for f in files:
+            parts = f["path"].split("/")
+            for i in range(1, len(parts)):
+                dirs.add("/".join(parts[:i]))
+        for rel in sorted(dirs) + [f["path"] for f in files]:
+            acls[rel] = self.smb.get_acl(self.share_path(guid, rel), info).as_sddl(self.domain_sid)
+        with tarfile.open(os.path.join(folder, "sysvol.tgz"), "w:gz") as tar:
+            for f in files:
+                data = self.read_file(self.share_path(guid, f["path"]))
+                if data is None:
+                    raise GpoError(f"not readable: {f['path']}")
+                entry = tarfile.TarInfo(f["path"])
+                entry.size = len(data)
+                entry.mtime = int(time.time())
+                tar.addfile(entry, io.BytesIO(data))
+        with open(os.path.join(folder, "acls.json"), "w") as fh:
+            json.dump(acls, fh, indent=1)
+        return [f["path"] for f in files]
+
+    def retire_start(self, guid, files, stamp):
+        """Bound as a domain admin: keep a full copy of the GPO, give the
+        module group ownership and full control of this one GPO (adopt),
+        then write the rewritten Preferences files; apply raises the
+        version of the part that changed."""
+        folder = self._retired_dir(guid, stamp)
+        dn = self.gpo_dn(guid)
+        m = self.samdb.search(dn, scope=ldb.SCOPE_BASE, attrs=["*", "nTSecurityDescriptor"],
+                              controls=["sd_flags:1:15"])[0]
+        for rel in files:
+            if not RETIRE_FILE_RE.fullmatch(rel):
+                raise GpoError(f"path not allowed: {rel}")
+        gsid = self.group_sid()
+        if not gsid:
+            raise GpoError("the module group does not exist")
+        os.makedirs(folder, mode=0o700)
+        # the GPO object and its children (CN=Machine, CN=User) with the
+        # attributes ldbadd takes back on the DC (guide page: restore)
+        tree = self.samdb.search(dn, scope=ldb.SCOPE_SUBTREE, attrs=GPC_RESTORE_ATTRS,
+                                 controls=["sd_flags:1:7"])
+        with open(os.path.join(folder, "gpc.ldif"), "w") as fh:
+            for entry in sorted(tree, key=lambda e: len(str(e.dn))):
+                fh.write(self.samdb.write_ldif(entry, ldb.CHANGETYPE_NONE))
+        sd = ndr_unpack(security.descriptor, m["nTSecurityDescriptor"][0]).as_sddl(self.domain_sid)
+        links = self._all_links(guid)
+        saved = self._backup_folder(guid, folder)
+        meta = {"guid": guid, "display_name": _attr(m, "displayName", ""),
+                "version": int(_attr(m, "versionNumber", "0") or 0), "sd": sd, "links": links,
+                "files": saved, "rewritten": sorted(files), "dc": self.host}
+        with open(os.path.join(folder, "meta.json"), "w") as fh:
+            json.dump(meta, fh, indent=1)
+        self.adopt(guid, gsid)
+        result = {"version": meta["version"]}
+        if files:
+            result = self.apply(guid, files, add_cse=False, allow_preferences=True)
+        log(f"retiring {guid}: copy in {RETIRED_DIR}/{guid}/{stamp}, {len(files)} file(s) rewritten")
+        return {"version": result["version"], "links": links, "files": len(saved)}
+
+    def retire_cancel(self, guid, stamp):
+        """Bound as a domain admin (only a member of Domain Admins may make
+        that group the owner again): put the rewritten files back, then
+        the SYSVOL ACLs and last the security descriptor of the GPO object
+        as they were."""
+        import tarfile
+        folder = self._retired_dir(guid, stamp)
+        with open(os.path.join(folder, "meta.json")) as fh:
+            meta = json.load(fh)
+        originals = {}
+        with tarfile.open(os.path.join(folder, "sysvol.tgz"), "r:gz") as tar:
+            for rel in meta["rewritten"]:
+                originals[rel] = base64.b64encode(tar.extractfile(rel).read()).decode()
+        result = {"version": None}
+        if originals:
+            result = self.apply(guid, originals, add_cse=False, allow_preferences=True)
+        with open(os.path.join(folder, "acls.json")) as fh:
+            acls = json.load(fh)
+        info = security.SECINFO_OWNER | security.SECINFO_GROUP | security.SECINFO_DACL
+        # children first: the top folder last, it holds the module's rights
+        for rel in sorted(acls, key=lambda r: (-r.count("/"), r)):
+            if rel == "":
+                continue
+            path = self.share_path(guid, rel)
+            if self.smb.chkpath(path) or self.read_file(path) is not None:
+                self.smb.set_acl(path, security.descriptor.from_sddl(acls[rel], self.domain_sid), info)
+        self.smb.set_acl(self.share_path(guid), security.descriptor.from_sddl(acls[""], self.domain_sid),
+                         info | security.SECINFO_PROTECTED_DACL)
+        msg = ldb.Message(ldb.Dn(self.samdb, self.gpo_dn(guid)))
+        msg["sd"] = ldb.MessageElement(ndr_pack(security.descriptor.from_sddl(meta["sd"], self.domain_sid)),
+                                       ldb.FLAG_MOD_REPLACE, "nTSecurityDescriptor")
+        self.samdb.modify(msg, controls=["sd_flags:1:7"])
+        log(f"retiring {guid} cancelled: files and rights as before")
+        return {"version": result["version"]}
+
+    def retire_delete(self, guid):
+        """Service account: remove every link (domain, OUs, sites), then
+        the GPO object and its SYSVOL folder on the DC of the settings."""
+        _check_guid(guid)
+        unlinked = []
+        for link in self._all_links(guid):
+            self.unlink(guid, link["dn"])
+            unlinked.append(link["dn"])
+        result = self.delete(guid)
+        log(f"retired {guid} deleted, {len(unlinked)} link(s) removed")
+        return dict(result, unlinked=unlinked)
 
     def delete(self, guid, unlink_all=False):
         _check_guid(guid)
@@ -1084,6 +1241,14 @@ def main():
                                      request.get("guids"))
             json.dump({"ok": True, "result": result}, sys.stdout)
             return
+        if op in ("retire_start", "retire_cancel"):
+            admin = Session(user=request["admin_user"], password=request["admin_password"])
+            if op == "retire_start":
+                result = admin.retire_start(request["guid"], request.get("files", {}), request["stamp"])
+            else:
+                result = admin.retire_cancel(request["guid"], request["stamp"])
+            json.dump({"ok": True, "result": result}, sys.stdout)
+            return
         if op in ("dns_delegate", "dns_create_zone", "dns_delete_zone"):
             # zones and the rights on them are changed by a domain admin, used for this request only
             import dnswrite
@@ -1124,7 +1289,12 @@ def main():
         elif op == "targets":
             result = s.targets()
         elif op == "inventory":
-            result = s.inventory()
+            guids = request.get("guids")
+            for g in guids or []:
+                _check_guid(g)
+            result = s.inventory(guids)
+        elif op == "retire_delete":
+            result = s.retire_delete(request["guid"])
         elif op == "delete":
             result = s.delete(request["guid"], unlink_all=request.get("unlink_all", False))
         else:

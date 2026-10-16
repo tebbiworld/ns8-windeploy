@@ -128,7 +128,8 @@
         "list-scripts": "Skripte auflisten",
         "list-gpo-inventory": "GPO-Bestand einlesen",
         "save-scripts": "Skriptgruppe speichern",
-        "remove-scripts": "Skriptgruppe entfernen"
+        "remove-scripts": "Skriptgruppe entfernen",
+        "retire-gpo": "GPO stilllegen"
     },
     "task": {
         "cannot_create_task": "Aufgabe {action} kann nicht erstellt werden"
@@ -381,7 +382,15 @@
         "dcs_title": "Mehrere Domänencontroller",
         "dcs_1": "Samba repliziert SYSVOL nicht. Das Modul schreibt seine GPOs nur auf den DC aus den Einstellungen; ein Rechner, der den GPO-Ordner von einem anderen DC liest, findet ihn nicht oder veraltet vor und bekommt keine oder alte Aufgaben. Bei mehreren DCs SYSVOL auf die anderen kopieren (z. B. rsync vom DC aus den Einstellungen) oder bei einem DC bleiben.",
         "dcs_2": "Rechner erreichen SYSVOL über den Domänennamen (\\\\domäne\\SysVol). Jeder DC trägt seine Adresse für diesen Namen ein; die Adresse eines entfernten oder nicht erreichbaren DCs (z. B. über ein VPN) bleibt stehen, bis sie entfernt wird. Den DC sauber aus der Domäne nehmen (samba-tool domain demote --remove-other-dead-server) und die Adresseinträge des Domänennamens prüfen.",
-        "dcs_3": "Die Statusseite zeigt jeden DC mit seinen Adressen und warnt bei einem nicht erreichbaren DC, fehlenden GPO-Ordnern und Adressen des Domänennamens, die zu keinem erreichbaren DC gehören. Die Prüfung läuft täglich; „Jetzt prüfen“ startet sie sofort."
+        "dcs_3": "Die Statusseite zeigt jeden DC mit seinen Adressen und warnt bei einem nicht erreichbaren DC, fehlenden GPO-Ordnern und Adressen des Domänennamens, die zu keinem erreichbaren DC gehören. Die Prüfung läuft täglich; „Jetzt prüfen“ startet sie sofort.",
+        "page_inventory": "Die GPOs der Domäne, die nicht vom Modul stammen: was sie setzen, was beim Löschen auf den Rechnern bleibt, und fremde GPOs stilllegen (Abschnitt 10).",
+        "retire_title": "10. Fremde GPOs stilllegen",
+        "retire_1": "Auf der Seite GPO-Bestand legt „Stilllegen“ eine fremde GPO still. Ein Domänen-Administrator meldet sich dafür einmal an; die Zugangsdaten werden nicht gespeichert. Das Modul sichert zuerst die ganze GPO (SYSVOL-Ordner, GPO-Objekt, Rechte, Verknüpfungen) und gibt dann der Gruppe windeploy-admins die Rechte an dieser einen GPO.",
+        "retire_2": "Während der Wartefrist bleibt die GPO verknüpft. Geplante Aufgaben, Laufwerke, Verknüpfungen und Umgebungsvariablen aus den Einstellungen (Preferences) bekommen die Aktion „Löschen“; in lokalen Gruppen werden nur die hinzugefügten Mitglieder entfernt; Registry-Einstellungen nur, wenn sie einzeln bestätigt wurden. Alles andere gilt weiter, bis die GPO gelöscht wird. „Abbrechen“ stellt die GPO aus der Sicherung wieder her. „Abbrechen“ braucht wieder einen Domänen-Administrator: nur ein Mitglied von Domain Admins kann der Gruppe den Besitz zurückgeben.",
+        "retire_3": "Nach der Wartefrist löscht der tägliche Timer (oder „Jetzt löschen“) alle Verknüpfungen, das GPO-Objekt und den SYSVOL-Ordner auf dem DC aus den Einstellungen. Verknüpfungen mit Standorten kann das Modul nicht ändern: eine solche GPO zuerst in der Gruppenrichtlinienverwaltung vom Standort lösen. Die Standardrichtlinien der Domäne und der Domänencontroller werden nie angeboten.",
+        "retire_4": "Andere DCs: Samba repliziert SYSVOL nicht, und das Modul ändert nur den DC aus den Einstellungen. Zeigt der GPO-Bestand den Ordner einer gelöschten GPO noch auf einem anderen DC, ihn dort von Hand löschen: auf dem Knoten des DCs als root „runagent -m <samba-Modul> podman exec samba-dc rm -rf /var/lib/samba/sysvol/<Domäne>/Policies/<GUID>“.",
+        "restore_title": "Gelöschte GPO von Hand wiederherstellen",
+        "restore_help": "Die Sicherungen der letzten 20 stillgelegten GPOs bleiben im Modul und in seiner Sicherung (gpo-backups/retired/<GUID>/<Kopie>; die Kopie steht in der Liste „Stillgelegt“). Wiederherstellen auf dem Knoten des DCs als root; samba1 durch das Samba-Modul der Domäne ersetzen, die Befehle ab ldbadd im Container ausführen. Danach jede Verknüpfung aus meta.json wieder anlegen."
     },
     "policies": {
         "title": "Richtlinien",
@@ -799,6 +808,46 @@
         "effect_none": "Ohne bleibende Wirkung",
         "effect_none_help": "Einträge mit der Aktion „Löschen“: Sie hinterlassen nichts, das zurückzunehmen wäre."
     },
+    "retire": {
+        "button": "Stilllegen",
+        "button_start": "Stilllegen starten",
+        "title": "GPO {name} stilllegen",
+        "intro": "Das Modul legt die GPO in vier Schritten still. Es ändert nur den DC aus den Einstellungen.",
+        "step_1": "Vollständige Sicherung der GPO: SYSVOL-Ordner, GPO-Objekt, Rechte und Verknüpfungen.",
+        "step_2": "Die Gruppe windeploy-admins erhält die Rechte an dieser einen GPO.",
+        "step_3": "Die unten aufgeführten Einstellungen werden für die Wartefrist umgeschrieben; die Rechner nehmen sie bei der nächsten Richtlinienaktualisierung zurück.",
+        "step_4": "Nach der Wartefrist werden Verknüpfungen, GPO-Objekt und SYSVOL-Ordner gelöscht. Bis dahin kann das Stilllegen abgebrochen werden.",
+        "will_delete": "Wird auf den Rechnern gelöscht",
+        "will_remove_members": "Diese Mitglieder werden aus den lokalen Gruppen entfernt",
+        "registry_title": "Registry-Einstellungen",
+        "registry_help": "Angekreuzte Werte löschen die Rechner während der Wartefrist. Der Wert von vorher lässt sich nicht wiederherstellen. Nicht angekreuzte Werte bleiben auf den Rechnern.",
+        "stays": "Eine Einstellung bleibt auf den Rechnern oder wird nicht ausgewertet (siehe Einzelheiten). | {n} Einstellungen bleiben auf den Rechnern oder werden nicht ausgewertet (siehe Einzelheiten).",
+        "audit_warning": "Diese GPO enthält eine erweiterte Überwachungsrichtlinie. Wird sie gelöscht, löscht Windows die gesamte erweiterte Überwachung der Rechner. Vorher Ersatz schaffen, z. B. „Erweiterte Überwachung“ in einem Richtlinienprofil.",
+        "audit_confirm": "Ich habe verstanden, dass die Rechner danach keine erweiterte Überwachung mehr haben, bis ein Ersatz greift.",
+        "audit_required": "Bitte bestätigen",
+        "links": "Beim Löschen werden diese Verknüpfungen entfernt: {links}",
+        "history": "Stillgelegt",
+        "history_help": "Gelöschte fremde GPOs. Die Sicherungen der letzten 20 bleiben im Modul; wie man eine GPO von Hand wiederherstellt, steht in der Anleitung (Abschnitt 10).",
+        "deleted": "Gelöscht",
+        "copy": "Sicherung",
+        "by_timer": "vom Timer nach der Wartefrist",
+        "failed": "Fehlgeschlagen, siehe Modulprotokoll",
+        "error_admin_required": "Domänen-Administrator und Kennwort angeben",
+        "error_admin_bind_failed": "Anmeldung als Domänen-Administrator fehlgeschlagen: Name oder Kennwort falsch",
+        "error_admin_not_allowed": "Das Konto hat nicht die nötigen Rechte; ein Mitglied von Domain Admins angeben",
+        "error_gpo_not_found": "Die GPO steht nicht im Bestand; neu einlesen",
+        "error_gpo_not_selectable": "Diese GPO kann nicht stillgelegt werden",
+        "error_gpo_unreadable": "Der SYSVOL-Ordner der GPO ist nicht lesbar",
+        "error_audit_confirm_required": "Die Warnung zur Überwachung bestätigen",
+        "error_site_links": "Die GPO ist mit einem Standort verknüpft; zuerst in der Gruppenrichtlinienverwaltung lösen",
+        "error_unknown_registry_item": "Die GPO hat sich geändert; neu einlesen",
+        "error_preferences_unreadable": "Eine Preferences-Datei der GPO ist nicht lesbar",
+        "error_removal_pending": "Die GPO wird bereits stillgelegt",
+        "error_removal_not_pending": "Die GPO wird nicht stillgelegt",
+        "error_removal_not_due": "Die Wartefrist ist noch nicht abgelaufen",
+        "cancel_incomplete": "Abbrechen unvollständig: Die GPO wird nicht gelöscht. Abbrechen erneut ausführen.",
+        "error_cancel_incomplete": "Ein Abbrechen ist unvollständig geblieben; zuerst Abbrechen erneut ausführen"
+    },
     "removal": {
         "title_start": "Entfernen starten",
         "title_cancel": "Entfernen abbrechen",
@@ -835,7 +884,10 @@
         "scripts_cancel": "Die Skripte von {name} werden wieder ins GPO geschrieben.",
         "scripts_delete": "Die Wartefrist ist abgelaufen. Das GPO von {name} wird entknüpft und gelöscht.",
         "change_rewritten": "Skript in die Aufgabe eingebettet (Update)",
-        "log_orphans": "Rechner, die während der ganzen Wartefrist ausgeschaltet waren, behalten die Aufgaben einer gelöschten Verteilung. Der nächste Lauf einer anderen Verteilung löscht Aufgaben, deren GPO fehlt."
+        "log_orphans": "Rechner, die während der ganzen Wartefrist ausgeschaltet waren, behalten die Aufgaben einer gelöschten Verteilung. Der nächste Lauf einer anderen Verteilung löscht Aufgaben, deren GPO fehlt.",
+        "gpo_start": "{name} wird stillgelegt.",
+        "gpo_cancel": "Die GPO {name} wird wiederhergestellt, wie sie vor dem Stilllegen war: Dateien, SYSVOL-Rechte, Besitzer und Berechtigungen des GPO-Objekts. Dafür ist wieder ein Domänen-Administrator nötig. Die Rechner bekommen die alten Einstellungen bei der nächsten Richtlinienaktualisierung zurück.",
+        "gpo_delete": "Die Wartefrist ist abgelaufen. Alle Verknüpfungen von {name} werden entfernt, das GPO-Objekt und sein SYSVOL-Ordner auf dem DC aus den Einstellungen gelöscht. Die Sicherung bleibt im Modul."
     },
     "logon": {
         "title": "Anmeldung",

@@ -226,6 +226,16 @@
             </template>
           </dl>
         </cv-tile>
+
+        <cv-tile light class="tile" id="retire">
+          <h4>{{ $t("guide.retire_title") }}</h4>
+          <p v-for="n in 4" :key="n" class="help">
+            {{ $t("guide.retire_" + n) }}
+          </p>
+          <h5 class="sub">{{ $t("guide.restore_title") }}</h5>
+          <p class="help">{{ $t("guide.restore_help") }}</p>
+          <pre class="code">{{ restoreCommands }}</pre>
+        </cv-tile>
       </cv-column>
     </cv-row>
   </cv-grid>
@@ -268,6 +278,7 @@ export default {
         "logon",
         "scripts",
         "dns",
+        "inventory",
       ],
       // common remote control tools; the names are hints, powercfg
       // /requests on a computer shows which one holds the request
@@ -367,6 +378,25 @@ export default {
           ],
         },
       ];
+    },
+    // restore a retired GPO by hand on the node of the DC, as root;
+    // samba1 stands for the Samba module of the domain
+    restoreCommands() {
+      const m = this.instanceName || "windeploy1";
+      return [
+        `G='{GUID}'; T=<copy>; R=<domain>`,
+        `D=/home/${m}/.config/state/gpo-backups/retired/$G/$T`,
+        `tar -C $D -c . | runagent -m samba1 podman exec -i samba-dc \\`,
+        `  sh -c 'rm -rf /tmp/restore && mkdir /tmp/restore && tar -x -C /tmp/restore'`,
+        `runagent -m samba1 podman exec -it samba-dc bash`,
+        `ldbadd -H /var/lib/samba/private/sam.ldb /tmp/restore/gpc.ldif`,
+        `mkdir "/var/lib/samba/sysvol/$R/Policies/$G"`,
+        `tar -xzf /tmp/restore/sysvol.tgz -C "/var/lib/samba/sysvol/$R/Policies/$G"`,
+        `samba-tool ntacl sysvolreset`,
+        `grep '"dn"' /tmp/restore/meta.json`,
+        `samba-tool gpo setlink "<DN>" "$G" -U Administrator`,
+        `rm -rf /tmp/restore`,
+      ].join("\n");
     },
     checkCommands() {
       return [

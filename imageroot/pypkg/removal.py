@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 
-"""Removal of deployments and policy profiles with a waiting period.
+"""Removal of deployments and policy profiles with a waiting period, and
+retiring of foreign GPOs the same way (see the end of the file).
 
 1. start: the GPO stays linked and is changed so that the computers
    remove what it left on them - the tasks of a deployment get the action
@@ -20,6 +21,7 @@ policies_locked) and pass the item and the list it belongs to. Errors of
 gpowrite propagate: the caller does not store a half done step.
 """
 
+import base64
 import copy
 import datetime
 
@@ -318,3 +320,94 @@ def purge_scripts(data, item, reason, by="admin", settings=None):
     data["sets"] = [s for s in data["sets"] if s["id"] != item["id"]]
     wdcommon.log_policy_change(item["name"], "deleted" if by == "admin" else "deleted_by_timer", reason,
                                {}, {}, log=wdcommon.SCRIPTS_LOG)
+
+
+# ----------------------------------------------------- foreign GPOs ---
+
+def _stamp(now=None):
+    return (now or _now()).strftime("%Y%m%dT%H%M%SZ")
+
+
+def start_retire(data, guid, reason, admin_user, admin_password, confirmed=(), confirm_audit=False,
+                 days=None, settings=None):
+    """Start retiring a foreign GPO (pypkg/retire.py): a domain admin,
+    once and not stored, lets gpowrite keep a full copy, give the module
+    group the rights on this one GPO and write the Preferences that take
+    back what the computers would keep. data: state/retired.json."""
+    import retire
+    guid = guid.upper()
+    if any(g["guid"] == guid for g in data["gpos"]):
+        raise RemovalError("removal_pending")
+    inventory = wdcommon.read_gpo_inventory() or {"gpos": []}
+    entry = retire.check_selectable(next((g for g in inventory["gpos"] if g["guid"] == guid), None))
+    if retire.needs_audit_confirmation(entry["items"]) and not confirm_audit:
+        raise RemovalError("audit_confirm_required")
+    settings = settings or wdcommon.connection_settings()
+    raw = wdcommon.run_tool({"op": "inventory", "guids": [guid]}, settings=settings, timeout=300)["gpos"]
+    if not raw or not raw[0].get("readable"):
+        raise RemovalError("gpo_unreadable")
+    raw = raw[0]
+    if any(",cn=sites,cn=configuration," in link["dn"].lower() for link in raw.get("links", [])):
+        # the module has no right to change the links of sites
+        raise RemovalError("site_links")
+    files, changes = retire.plan(raw, set(confirmed))
+    pending = wdcommon.new_pending(reason, days)
+    stamp = _stamp()
+    res = wdcommon.run_tool({"op": "retire_start", "guid": guid, "stamp": stamp,
+                             "files": {p: base64.b64encode(d).decode() for p, d in files.items()},
+                             "admin_user": admin_user, "admin_password": admin_password},
+                            settings=settings, timeout=600)
+    record = {"guid": guid, "name": raw.get("display_name", ""), "stamp": stamp, "pending_delete": pending,
+              "changes": changes, "links": [link["dn"] for link in res.get("links", [])],
+              "audit_confirmed": bool(confirm_audit), "admin_user": admin_user,
+              "version": res.get("version")}
+    data["gpos"].append(record)
+    wdcommon.log_retire_change(guid, record["name"], "removal_started", reason,
+                               {"changes": len(changes), "backup": stamp, "until": pending["until"]})
+    wdcommon.prune_retired_backups(protect=[(g["guid"], g["stamp"]) for g in data["gpos"]])
+    return record
+
+
+def _retiring(data, guid):
+    found = next((g for g in data["gpos"] if g["guid"] == guid.upper()), None)
+    if found is None:
+        raise RemovalError("removal_not_pending")
+    return found
+
+
+def cancel_retire(data, guid, reason, admin_user, admin_password, settings=None):
+    """Put the GPO back as it was: files, SYSVOL ACLs, security
+    descriptor (gpowrite retire_cancel, from the copy). A domain admin is
+    needed again: only a member of Domain Admins may give the ownership
+    back. A failed cancel may have put some of it back already, so the
+    GPO is no longer deleted until a cancel succeeds."""
+    record = _retiring(data, guid)
+    try:
+        wdcommon.run_tool({"op": "retire_cancel", "guid": record["guid"], "stamp": record["stamp"],
+                           "admin_user": admin_user, "admin_password": admin_password},
+                          settings=settings, timeout=600)
+    except wdcommon.ToolError as ex:
+        if not (ex.bad_credentials or ex.access_denied):
+            record["cancel_incomplete"] = _now().isoformat(timespec="seconds")
+        raise
+    data["gpos"].remove(record)
+    wdcommon.log_retire_change(record["guid"], record["name"], "removal_cancelled", reason)
+
+
+def purge_retire(data, guid, reason, by="admin", settings=None):
+    """Delete a retired GPO whose waiting period is over: links, object
+    and SYSVOL folder on the DC of the settings. The copy stays."""
+    record = _retiring(data, guid)
+    if record.get("cancel_incomplete"):
+        raise RemovalError("cancel_incomplete")
+    if not wdcommon.pending_due(record):
+        raise RemovalError("removal_not_due")
+    res = wdcommon.run_tool({"op": "retire_delete", "guid": record["guid"]}, settings=settings, timeout=600)
+    data["gpos"].remove(record)
+    data.setdefault("history", []).insert(0, {
+        "guid": record["guid"], "name": record["name"], "stamp": record["stamp"],
+        "deleted": _now().isoformat(timespec="seconds"), "reason": record["pending_delete"]["reason"],
+        "by": by, "links": res.get("unlinked", []), "changes": len(record.get("changes", []))})
+    del data["history"][50:]
+    wdcommon.log_retire_change(record["guid"], record["name"], "deleted" if by == "admin" else "deleted_by_timer",
+                               reason)

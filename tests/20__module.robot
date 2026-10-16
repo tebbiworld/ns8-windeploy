@@ -25,6 +25,18 @@ Reading the GPO inventory without a domain controller fails cleanly
     Run task expecting a validation error    module/${module_id}/list-gpo-inventory
     ...    {"refresh":true}    inventory_failed
 
+Retiring a GPO needs a domain admin and a GPO of the inventory
+    Run task expecting a validation error    module/${module_id}/retire-gpo
+    ...    {"guid":"{22222222-2222-2222-2222-222222222222}","step":"start","reason":"CI test"}    admin_required
+    Run task expecting a validation error    module/${module_id}/retire-gpo
+    ...    {"guid":"{22222222-2222-2222-2222-222222222222}","step":"start","reason":"CI test","admin_user":"a","admin_password":"b"}
+    ...    gpo_not_found
+    Run task expecting a validation error    module/${module_id}/retire-gpo
+    ...    {"guid":"{22222222-2222-2222-2222-222222222222}","step":"cancel","reason":"CI test"}    admin_required
+    Run task expecting a validation error    module/${module_id}/retire-gpo
+    ...    {"guid":"{22222222-2222-2222-2222-222222222222}","step":"cancel","reason":"CI test","admin_user":"a","admin_password":"b"}
+    ...    removal_not_pending
+
 The administrators can never be denied the logon
     Run task expecting a validation error    module/${module_id}/save-logon-rule
     ...    {"name":"ci","rights":{"deny_interactive":[{"sid":"S-1-5-32-544"}]},"link_targets":[],"reason":"CI test"}
