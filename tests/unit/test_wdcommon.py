@@ -61,13 +61,31 @@ class RunNow(unittest.TestCase):
         self.assertEqual(immediate(wdcommon.build_files(d, SETTINGS)), [])
 
 
+def script_of(files, index):
+    """Decoded embedded script of the n-th scheduled task."""
+    root = ET.fromstring(base64.b64decode(files[XML]).decode("utf-8").split("?>", 1)[1])
+    args = root.findall("TaskV2")[index].find(".//Arguments").text
+    return base64.b64decode(args.split()[-1]).decode("utf-16-le")
+
+
 class Scope(unittest.TestCase):
     def test_scope_in_script(self):
         files = wdcommon.build_files(deployment(a={"scope": "machine"}), SETTINGS)
-        talk = base64.b64decode(files["Machine/Scripts/windeploy/Nextcloud.Talk.ps1"]).decode("utf-8-sig")
-        desktop = base64.b64decode(files["Machine/Scripts/windeploy/Nextcloud.NextcloudDesktop.ps1"]).decode("utf-8-sig")
-        self.assertIn("$Scope = 'machine'", talk)
-        self.assertIn("$Scope = ''", desktop)
+        self.assertIn("$Scope = 'machine'", script_of(files, 0))
+        self.assertIn("$Scope = ''", script_of(files, 1))
+
+
+class Embedded(unittest.TestCase):
+    def test_old_sysvol_deployment_is_embedded(self):
+        d = deployment()
+        d["_scripts"] = ["Machine/Scripts/windeploy/Nextcloud.Talk.ps1"]
+        files = wdcommon.build_files(d, SETTINGS)
+        # no task starts a file from SYSVOL any more, old script files go
+        self.assertEqual(d["delivery"], "embedded")
+        self.assertEqual(d["_scripts"], [])
+        self.assertIsNone(files["Machine/Scripts/windeploy/Nextcloud.Talk.ps1"])
+        self.assertNotIn(" -File ", base64.b64decode(files[XML]).decode("utf-8"))
+        self.assertIn(" -EncodedCommand ", base64.b64decode(files[XML]).decode("utf-8"))
 
 
 if __name__ == "__main__":
@@ -87,8 +105,9 @@ class Lifecycle(unittest.TestCase):
     def test_run_now_skips_the_due_test(self):
         d = deployment(a={"now_run_id": "{11111111-1111-1111-1111-111111111111}"})
         root = ET.fromstring(base64.b64decode(wdcommon.build_files(d, SETTINGS)[XML]).decode("utf-8").split("?>", 1)[1])
-        self.assertTrue(root.find("ImmediateTaskV2//Arguments").text.endswith(" -RunNow"))
-        self.assertFalse(root.find("TaskV2//Arguments").text.endswith(" -RunNow"))
+        decode = lambda a: base64.b64decode(a.split()[-1]).decode("utf-16-le")  # noqa: E731
+        self.assertTrue(decode(root.find("ImmediateTaskV2//Arguments").text).startswith("$RunNow = $true"))
+        self.assertTrue(decode(root.find("TaskV2//Arguments").text).startswith("param([switch]$RunNow)"))
 
     def test_description_file(self):
         import json

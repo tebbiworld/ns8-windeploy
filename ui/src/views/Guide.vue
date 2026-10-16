@@ -82,19 +82,7 @@
           <h4>{{ $t("guide.options_title") }}</h4>
 
           <h5 class="sub first">{{ $t("guide.delivery_heading") }}</h5>
-          <i18n path="guide.delivery_choice" tag="p" class="help">
-            <template v-slot:settings>
-              <cv-link @click="goToAppPage(instanceName, 'settings')">{{
-                $t("settings.title")
-              }}</cv-link>
-            </template>
-          </i18n>
-          <dl class="options">
-            <dt>{{ $t("delivery.sysvol") }}</dt>
-            <dd>{{ $t("guide.delivery_sysvol") }}</dd>
-            <dt>{{ $t("delivery.embedded") }}</dt>
-            <dd>{{ $t("guide.delivery_embedded") }}</dd>
-          </dl>
+          <p class="help">{{ $t("guide.delivery_embedded") }}</p>
 
           <h5 class="sub">{{ $t("guide.link_heading") }}</h5>
           <dl class="options">

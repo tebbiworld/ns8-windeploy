@@ -33,7 +33,6 @@
         "password": "Kennwort",
         "password_keep": "Leer lassen, um das gespeicherte Kennwort zu behalten",
         "password_required": "Bei der ersten Einrichtung erforderlich",
-        "default_delivery": "Standard-Auslieferung des Skripts für neue Verteilungen",
         "rights_title": "Rechteprüfung",
         "rights_unknown": "Noch nicht geprüft: Einstellungen speichern.",
         "right_can_create_gpo": "GPOs anlegen",
@@ -169,7 +168,7 @@
         "start_date": "Startdatum (JJJJ-MM-TT)",
         "random_delay": "Zufällige Verzögerung (Minuten)",
         "delivery": "Auslieferung des Skripts",
-        "delivery_help": "Die Aufgabe startet das Skript entweder aus dem SYSVOL oder trägt es in ihrer Befehlszeile. Beides ist getestet; eingebettet hängt zur Laufzeit nicht vom SYSVOL-Zugriff ab.",
+        "delivery_help": "Das Skript steht in der Befehlszeile der Aufgabe (-EncodedCommand). Die Aufgabe braucht zur Laufzeit nichts ausser sich selbst und startet keine Datei aus SYSVOL.",
         "links_help": "Das GPO gilt für die Rechner unterhalb der ausgewählten Container.",
         "whole_domain": "Ganze Domäne ({name})",
         "targets_failed": "Die Organisationseinheiten konnten nicht gelesen werden",
@@ -217,10 +216,6 @@
     "mode": {
         "upgrade": "Aktualisieren, wenn installiert",
         "install": "Installieren oder aktualisieren"
-    },
-    "delivery": {
-        "sysvol": "Skript im SYSVOL",
-        "embedded": "Skript in der Aufgabe eingebettet"
     },
     "day": {
         "Monday": "Montag",
@@ -283,9 +278,7 @@
         "error_setup_failed": "Einrichten des Kontos fehlgeschlagen, siehe Modulprotokoll",
         "error_dc_not_resolved": "Für diese Domäne ist kein Domänencontroller bekannt",
         "options_title": "3. Optionen einer Verteilung",
-        "delivery_sysvol": "Das Skript liegt im GPO-Ordner im SYSVOL; die Aufgabe startet es von dort (\\\\Domäne\\SysVol\\...). Im GPO lesbar und leicht zu prüfen, aber der Rechner muss das SYSVOL erreichen, wenn die Aufgabe läuft.",
-        "delivery_embedded": "Das Skript steckt in der Befehlszeile der Aufgabe (-EncodedCommand). Die Aufgabe braucht zur Laufzeit nichts außer sich selbst, etwa auf einem Notebook außerhalb des Büros; im GPO ist das Skript nicht im Klartext lesbar.",
-        "delivery_choice": "Beides ist getestet; die Voreinstellung für neue Verteilungen steht unter {settings}.",
+        "delivery_embedded": "Jede Aufgabe trägt ihr Skript in der Befehlszeile (-EncodedCommand). Bis Version 0.4.0 konnte die Aufgabe das Skript auch aus SYSVOL starten; dabei konnte powershell.exe vor der ersten Skriptzeile hängen bleiben, und hängende Läufe häuften sich. Verteilungen älterer Versionen werden beim Update des Moduls neu geschrieben.",
         "link_domain_title": "Ganze Domäne",
         "link_domain": "Das GPO gilt für jeden Rechner der Domäne.",
         "link_ou_title": "Organisationseinheit",
@@ -764,7 +757,8 @@
         "logon_delete": "Die Wartefrist ist abgelaufen. Das GPO von {name} wird entknüpft und gelöscht.",
         "scripts_start": "Statt der Skripte von {name} laufen die Aufräumskripte; Skripte ohne Aufräumskript laufen nicht mehr. Das GPO bleibt während der Wartefrist verknüpft; danach wird es gelöscht.",
         "scripts_cancel": "Die Skripte von {name} werden wieder ins GPO geschrieben.",
-        "scripts_delete": "Die Wartefrist ist abgelaufen. Das GPO von {name} wird entknüpft und gelöscht."
+        "scripts_delete": "Die Wartefrist ist abgelaufen. Das GPO von {name} wird entknüpft und gelöscht.",
+        "change_rewritten": "Skript in die Aufgabe eingebettet (Update)"
     },
     "logon": {
         "title": "Anmeldung",

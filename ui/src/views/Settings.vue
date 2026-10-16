@@ -112,19 +112,6 @@
               :disabled="busy"
               ref="password"
             />
-            <cv-dropdown
-              :label="$t('settings.default_delivery')"
-              v-model="default_delivery"
-              :disabled="busy"
-              class="field"
-            >
-              <cv-dropdown-item value="sysvol">{{
-                $t("delivery.sysvol")
-              }}</cv-dropdown-item>
-              <cv-dropdown-item value="embedded">{{
-                $t("delivery.embedded")
-              }}</cv-dropdown-item>
-            </cv-dropdown>
             <NsTextInput
               :label="$t('settings.grace_days')"
               v-model.number="delete_grace_days"
@@ -335,7 +322,6 @@ export default {
       username: "",
       password: "",
       password_set: false,
-      default_delivery: "sysvol",
       delete_grace_days: 14,
       rights: null,
       index: {},
@@ -446,7 +432,6 @@ export default {
         this.username = c.username;
         this.password = "";
         this.password_set = c.password_set;
-        this.default_delivery = c.default_delivery || "sysvol";
         this.delete_grace_days = c.delete_grace_days || 14;
         this.rights = c.rights;
         this.index = c.index || {};
@@ -497,7 +482,6 @@ export default {
             workgroup: manual ? this.workgroup : "",
             username: this.username,
             password: this.password,
-            default_delivery: this.default_delivery,
             delete_grace_days: this.delete_grace_days,
           },
           {

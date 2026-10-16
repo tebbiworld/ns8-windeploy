@@ -67,6 +67,16 @@ class ReferenceXml(unittest.TestCase):
             gpogen.task_arguments("sysvol", script_unc='\\\\x\\a".ps1')
 
 
+class HardTerminate(unittest.TestCase):
+    def test_time_limit_can_stop_a_run(self):
+        base = {"changed": datetime.datetime(2026, 1, 1), "arguments": "-x", "uid": gpogen.new_uid(),
+                "schedule": {"frequency": "daily", "time": "08:00", "start_date": "2026-01-01"}}
+        immediate = dict(base, name="now", uid=gpogen.new_uid(), run_once_id=gpogen.new_uid())
+        root = ET.fromstring(gpogen.build_scheduled_tasks_xml([dict(base, name="t")], [immediate]).encode())
+        values = [e.text for e in root.iter("AllowHardTerminate")]
+        self.assertEqual(values, ["true", "true"])
+
+
 class Immediate(unittest.TestCase):
     def test_immediate_task(self):
         t = {"name": "windeploy now x", "uid": gpogen.new_uid(), "run_once_id": gpogen.new_uid(),
@@ -168,7 +178,23 @@ class Script(unittest.TestCase):
         self.assertEqual(base64.b64decode(enc).decode("utf-16-le"), gpogen.compact_script(s))
         self.assertNotIn("# ", gpogen.compact_script(s))
         # the command line of a task is limited to 32767 characters
-        self.assertLess(len(gpogen.task_arguments("embedded", script_text=s)), 16000)
+        self.assertLess(len(gpogen.task_arguments("embedded", script_text=s)), 24000)
+
+    def test_one_run_per_package(self):
+        s = gpogen.build_script("Nextcloud.NextcloudDesktop", mode="install")
+        # a second start ends at once, a run older than the limit is stopped
+        self.assertIn("Mutex($false, 'Global\\windeploy-Nextcloud.NextcloudDesktop')", s)
+        self.assertIn("$own.WaitOne(0)", s)
+        self.assertIn(f"$RunLimitMinutes = {gpogen.RUN_LIMIT_MINUTES}", s)
+        self.assertIn("Set-ItemProperty -Path $StateKey -Name RunPid -Value $PID", s)
+        self.assertIn("Remove-ItemProperty -Path $StateKey -Name RunPid, RunStart", s)
+        # New-Item -Force would empty the key (LastRun lost, measured)
+        self.assertEqual(s.count("New-Item -Path $StateKey -Force"), 1)
+        self.assertIn("if (-not (Test-Path $StateKey)) { New-Item -Path $StateKey -Force | Out-Null }", s)
+        # hung starts of the SYSVOL copy of up to 0.4.0
+        self.assertIn("'\\Machine\\Scripts\\windeploy\\' + 'Nextcloud.NextcloudDesktop.ps1'", s)
+        # the lock is taken before the schedule test and before winget
+        self.assertLess(s.index("$own.WaitOne(0)"), s.index("if (-not (Test-Due)) { exit 0 }"))
 
     def test_schedule_in_script(self):
         weekly = {"frequency": "weekly", "days": ["Friday", "Monday"], "time": "12:30", "start_date": "2026-09-28"}

@@ -18,6 +18,13 @@ Samba (or Windows) Active Directory.
 - A *deployment* is one GPO with one scheduled task per package, running
   `winget install|upgrade` as `NT AUTHORITY\System` on a weekly or daily
   schedule, optionally "run now" (run-once immediate task).
+- The task carries its script in its command line (`-EncodedCommand`).
+  Up to 0.4.0 it could also start the script from SYSVOL; started with
+  `-File` from `\\<domain>\SysVol\…`, `powershell.exe` could hang before
+  the first line (the security zone lookup of the UNC path did not
+  return), and hung runs piled up with every policy refresh. The script
+  allows one run per package and stops a run older than the task time
+  limit.
 - The GPO is written by a delegated service account (not a domain admin)
   over LDAP (sign and seal) and SMB, from a separate Samba runtime image
   (`tool/`). The account can be created from the UI with domain admin

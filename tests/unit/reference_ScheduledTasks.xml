@@ -18,7 +18,7 @@
           <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
           <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
           <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
-          <AllowHardTerminate>false</AllowHardTerminate>
+          <AllowHardTerminate>true</AllowHardTerminate>
           <StartWhenAvailable>true</StartWhenAvailable>
           <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
           <AllowStartOnDemand>true</AllowStartOnDemand>

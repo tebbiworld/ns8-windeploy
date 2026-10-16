@@ -46,7 +46,6 @@
         "password": "Password",
         "password_keep": "Leave empty to keep the stored password",
         "password_required": "Required for the first configuration",
-        "default_delivery": "Default script delivery for new deployments",
         "rights_title": "Rights check",
         "rights_unknown": "Not checked yet: save the settings.",
         "right_can_create_gpo": "Create GPOs",
@@ -169,7 +168,7 @@
         "start_date": "Start date (YYYY-MM-DD)",
         "random_delay": "Random delay (minutes)",
         "delivery": "Script delivery",
-        "delivery_help": "The task either runs the script from SYSVOL or carries it in its command line. Both are tested; embedded does not depend on SYSVOL access at run time.",
+        "delivery_help": "The script is part of the task's command line (-EncodedCommand). The task needs nothing but itself at run time; it does not start a file from SYSVOL.",
         "links_help": "The GPO applies to the computers below the selected containers.",
         "whole_domain": "Whole domain ({name})",
         "targets_failed": "Cannot read the organizational units",
@@ -217,10 +216,6 @@
     "mode": {
         "upgrade": "Update if installed",
         "install": "Install or update"
-    },
-    "delivery": {
-        "sysvol": "Script in SYSVOL",
-        "embedded": "Script embedded in the task"
     },
     "day": {
         "Monday": "Monday",
@@ -283,9 +278,7 @@
         "error_setup_failed": "Setting up the account failed, see the module log",
         "error_dc_not_resolved": "No domain controller known for this domain",
         "options_title": "3. Options of a deployment",
-        "delivery_sysvol": "The script lies in the GPO folder in SYSVOL; the task starts it from there (\\\\domain\\SysVol\\...). Readable in the GPO and easy to check, but the computer must reach SYSVOL when the task runs.",
-        "delivery_embedded": "The script is part of the task's command line (-EncodedCommand). The task needs nothing but itself at run time, e.g. on a laptop outside the office; the script is not readable in plain text in the GPO.",
-        "delivery_choice": "Both are tested; the default for new deployments is set under {settings}.",
+        "delivery_embedded": "Every task carries its script in its command line (-EncodedCommand). Up to version 0.4.0 the task could also start the script from SYSVOL; such a start of powershell.exe could hang before the first line of the script, and hung runs piled up. Deployments of older versions are written again when the module is updated.",
         "link_domain_title": "Whole domain",
         "link_domain": "The GPO applies to every computer of the domain.",
         "link_ou_title": "Organizational unit",
@@ -764,7 +757,8 @@
         "logon_delete": "The waiting period is over. The GPO of {name} is unlinked and deleted.",
         "scripts_start": "The cleanup scripts run instead of the scripts of {name}; scripts without cleanup script stop running. The GPO stays linked for the waiting period; then it is deleted.",
         "scripts_cancel": "The scripts of {name} are written to the GPO again.",
-        "scripts_delete": "The waiting period is over. The GPO of {name} is unlinked and deleted."
+        "scripts_delete": "The waiting period is over. The GPO of {name} is unlinked and deleted.",
+        "change_rewritten": "Script embedded in the task (update)"
     },
     "logon": {
         "title": "Logon",

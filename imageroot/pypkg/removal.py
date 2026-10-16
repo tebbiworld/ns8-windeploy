@@ -23,6 +23,7 @@ gpowrite propagate: the caller does not store a half done step.
 import copy
 import datetime
 
+import gpogen
 import policygen
 import wdcommon
 
@@ -48,6 +49,42 @@ def _write_deployment(deployment, settings):
                              "backup_dir": "/backup"}, settings=settings)
     deployment["version"] = res["version"]
     wdcommon.prune_backups(deployment["gpo_guid"])
+
+
+def outdated(deployment):
+    """GPO written with another script or task format (an earlier
+    version, e.g. one starting the script from SYSVOL), or such a rewrite
+    that failed before."""
+    return bool(deployment.get("gpo_guid")) and (
+        deployment.get("generator") != gpogen.generator_id() or deployment.get("delivery") != wdcommon.DELIVERY
+        or deployment.get("rewrite_pending"))
+
+
+def rewrite_outdated(data, settings=None):
+    """Write the GPOs of outdated deployments again (module update and
+    the daily timer). A deployment that fails (DC down) keeps the mark
+    rewrite_pending and is tried again. Returns (rewritten, failed) names."""
+    done, failed = [], []
+    todo = [d for d in data["deployments"] if outdated(d)]
+    if not todo:
+        return done, failed
+    settings = settings or wdcommon.connection_settings()
+    for deployment in todo:
+        new = copy.deepcopy(deployment)
+        new.pop("rewrite_pending", None)
+        embedding = new.get("delivery") != wdcommon.DELIVERY
+        try:
+            _write_deployment(new, settings)
+        except Exception as ex:
+            deployment["rewrite_pending"] = True
+            failed.append((deployment["name"], str(ex)))
+            continue
+        deployment.clear()
+        deployment.update(new)
+        wdcommon.log_deployment_change(deployment["name"], "rewritten",
+                                       "script embedded in the task" if embedding else "script of the new version")
+        done.append(deployment["name"])
+    return done, failed
 
 
 def start_deployment(deployment, reason, days=None, settings=None):
