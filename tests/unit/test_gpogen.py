@@ -147,6 +147,9 @@ class Version(unittest.TestCase):
     def test_changed_parts(self):
         self.assertEqual(gpogen.changed_parts(["windeploy.json"]), (False, False))
         self.assertEqual(gpogen.changed_parts(["User/Registry.pol", "windeploy.json"]), (False, True))
+        # GPOs of other tools spell the folders in upper case
+        self.assertEqual(gpogen.changed_parts(["MACHINE/Preferences/Groups/Groups.xml"]), (True, False))
+        self.assertEqual(gpogen.changed_parts(["USER/Preferences/Drives/Drives.xml"]), (False, True))
         self.assertEqual(gpogen.changed_parts(["Machine/Registry.pol", "User/Registry.pol"]), (True, True))
 
 
