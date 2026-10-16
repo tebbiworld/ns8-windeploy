@@ -35,6 +35,9 @@ DELIVERIES = ("sysvol", "embedded")
 
 # A hung installer (e.g. an EXE package that waits for a desktop) would
 # block every later package through the mutex: stop runs after two hours.
+# The tasks allow a hard stop (AllowHardTerminate): with "false", as in the
+# reference GPO of the first version, Windows never ends a hung run and
+# MultipleInstancesPolicy IgnoreNew then skips every later start.
 DEFAULT_TIME_LIMIT = "PT2H"
 # The script itself stops winget and its installer earlier (with a log
 # entry); the task limit above stays as the last resort.
@@ -344,7 +347,7 @@ def build_task(task):
         '<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>'
         '<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>'
         '<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>'
-        '<AllowHardTerminate>false</AllowHardTerminate>'
+        '<AllowHardTerminate>true</AllowHardTerminate>'
         '<StartWhenAvailable>true</StartWhenAvailable>'
         '<RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>'
         '<AllowStartOnDemand>true</AllowStartOnDemand>'
@@ -384,7 +387,7 @@ def build_immediate_task(task):
         '<MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>'
         '<DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>'
         '<StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>'
-        '<AllowHardTerminate>false</AllowHardTerminate>'
+        '<AllowHardTerminate>true</AllowHardTerminate>'
         '<StartWhenAvailable>true</StartWhenAvailable>'
         '<AllowStartOnDemand>false</AllowStartOnDemand>'
         '<Enabled>true</Enabled><Hidden>false</Hidden>'

@@ -67,6 +67,16 @@ class ReferenceXml(unittest.TestCase):
             gpogen.task_arguments("sysvol", script_unc='\\\\x\\a".ps1')
 
 
+class HardTerminate(unittest.TestCase):
+    def test_time_limit_can_stop_a_run(self):
+        base = {"changed": datetime.datetime(2026, 1, 1), "arguments": "-x", "uid": gpogen.new_uid(),
+                "schedule": {"frequency": "daily", "time": "08:00", "start_date": "2026-01-01"}}
+        immediate = dict(base, name="now", uid=gpogen.new_uid(), run_once_id=gpogen.new_uid())
+        root = ET.fromstring(gpogen.build_scheduled_tasks_xml([dict(base, name="t")], [immediate]).encode())
+        values = [e.text for e in root.iter("AllowHardTerminate")]
+        self.assertEqual(values, ["true", "true"])
+
+
 class Immediate(unittest.TestCase):
     def test_immediate_task(self):
         t = {"name": "windeploy now x", "uid": gpogen.new_uid(), "run_once_id": gpogen.new_uid(),
