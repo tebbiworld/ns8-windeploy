@@ -179,8 +179,11 @@ For an address the reverse record can be kept along.
   (measured: the service account could change the record of the domain
   controller). The module therefore refuses to change the zone itself
   (SOA, NS), `_msdcs`, `_sites`, the AD services below `_tcp` and
-  `_udp`, `DomainDnsZones`, `ForestDnsZones`, `gc` and the domain
-  controllers. The rules are in `imageroot/pypkg/dnsrules.py`.
+  `_udp`, `DomainDnsZones`, `ForestDnsZones`, `gc`, the domain
+  controllers and the reverse records of their addresses (also when a
+  PTR record would be written along with an address record). The rules
+  are in `imageroot/pypkg/dnsrules.py`; tested against the module's
+  actions, also with other case, a trailing dot and the full name.
 - Records a computer registers itself are shown, not changed: the
   computer would overwrite the change.
 - Every change is kept in a list with the record before and after.

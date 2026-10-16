@@ -9,6 +9,7 @@
 
 ### Security
 
+- The DNS page no longer changes the reverse (PTR) records of the domain controllers' addresses, neither directly nor along with an address record. All other protected names (zone, AD services, `_msdcs`, `_sites`, the DC records) were refused already, also in other case, with a trailing dot or as full name (tested against the actions).
 - Input checks use whole-string matching. A trailing line break passed the patterns of package ids, task names, SIDs, account names, DNS names and file paths before; none of them could be exploited (a package id has to be in the winget index, quotes stay excluded), but a line break could reach the security template of a logon rule.
 
 ## 0.4.2 — 2026-10-16
