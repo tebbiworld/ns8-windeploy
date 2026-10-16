@@ -55,7 +55,7 @@ class IndexError_(Exception):
 
 
 def valid_package_id(package_id):
-    return isinstance(package_id, str) and bool(PACKAGE_ID_RE.match(package_id)) and "__" not in package_id[:2]
+    return isinstance(package_id, str) and bool(PACKAGE_ID_RE.fullmatch(package_id)) and "__" not in package_id[:2]
 
 
 def _index_dir(state_dir):

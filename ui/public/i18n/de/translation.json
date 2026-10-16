@@ -321,6 +321,7 @@
         "policy_3": "Die meisten Einstellungen entfernt Windows selbst, wenn sie abgeschaltet werden oder das Profil entfernt wird. Einstellungen mit dem Hinweis „Bleibt nach dem Abschalten auf den Rechnern“ nicht: abgeschaltet wechseln sie auf „zurückgesetzt“ und das Profil schreibt den Windows-Standard, bis alle Rechner ihn übernommen haben; danach mit dem Kontrollkästchen herausnehmen.",
         "policy_4": "Das Entfernen eines Profils startet eine Wartezeit: Die Einstellungen werden aufgehoben, die GPO bleibt verknüpft, damit auch selten verbundene Rechner es mitbekommen, und wird danach gelöscht.",
         "policy_5": "Kennwort- und Sperrregeln der Domänenkonten werden angezeigt, nicht gesetzt: In einer Samba-Domäne werden sie in den Domäneneinstellungen von NethServer geändert.",
+        "policy_6": "„Keine Thumbs.db auf Netzlaufwerken“ ist eine Benutzereinstellung: Sie gilt für die Benutzerkonten unterhalb der verknüpften Ziele, also das Profil mit den OUs der Benutzer verknüpfen (oder mit der Domäne). Thumbs.db-Dateien, die schon in den Freigaben liegen, löscht sie nicht; diese von Hand entfernen, z. B. auf dem Server mit find <Freigabe> -name Thumbs.db -delete.",
         "lock_title": "6. Bildschirmsperre und Fernwartung",
         "lock_help": "„Sitzung bei Inaktivität sperren“ sperrt nach der eingestellten Zeit ohne Tastatur- oder Mauseingabe. Programme können Windows bitten, den Bildschirm eingeschaltet zu lassen, und Fernwartungsprogramme wie AnyDesk, RustDesk, TeamViewer oder VNC-Server tun das während einer Sitzung: Der Rechner sperrt dann nie, solange jemand verbunden, aber untätig ist. Zwei Einstellungen in der Gruppe „Anmeldung und Sperre“ nehmen diese Anforderung weg; beide setzen die Bildschirmsperre voraus.",
         "lock_unlock_title": "Auch Fernwartungssitzungen werden gesperrt",
@@ -412,6 +413,7 @@
         "edit_title": "Richtlinienprofil bearbeiten",
         "new_title": "Neues Richtlinienprofil",
         "stays_hint": "Bleibt nach dem Abschalten auf den Rechnern, bis das Profil sie zurückgesetzt hat.",
+        "user_hint": "Gilt für die Benutzerkonten unterhalb der verknüpften Ziele, nicht für die Rechner.",
         "range": "{min} bis {max}",
         "seconds": "{n} s",
         "reset_help": "Abgeschaltet. Das Profil schreibt den Windows-Standardwert, bis die Rechner ihn übernommen haben.",
@@ -540,6 +542,10 @@
         "block_onedrive": {
             "title": "OneDrive blockieren",
             "desc": "OneDrive synchronisiert keine Dateien. Andere Sync-Clients sind nicht betroffen."
+        },
+        "no_thumbs_db_network": {
+            "title": "Keine Thumbs.db auf Netzlaufwerken",
+            "desc": "Der Explorer legt in Freigaben keine versteckten Thumbs.db-Dateien mit Miniaturansichten mehr an. Solche Dateien stören Sync-Clients wie Nextcloud. Bereits vorhandene Thumbs.db bleiben liegen und sind von Hand zu löschen."
         },
         "ntlmv2_only": {
             "title": "Nur NTLMv2",

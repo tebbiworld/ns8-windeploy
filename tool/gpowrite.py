@@ -463,7 +463,7 @@ class Session:
         if display_name is not None:
             _check_display_name(display_name)
         for rel in files:
-            if not ALLOWED_FILE_RE.match(rel):
+            if not ALLOWED_FILE_RE.fullmatch(rel):
                 raise GpoError(f"path not allowed: {rel}")
         dn = self.gpo_dn(guid)
         m = self.samdb.search(dn, scope=ldb.SCOPE_BASE,
@@ -927,7 +927,7 @@ def _alias_sid(trustee, sids):
 
 
 def _check_guid(guid):
-    if not isinstance(guid, str) or not GUID_RE.match(guid):
+    if not isinstance(guid, str) or not GUID_RE.fullmatch(guid):
         raise GpoError(f"invalid GPO GUID {guid!r}")
 
 

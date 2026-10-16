@@ -489,11 +489,11 @@ def dns_failed(ex, field="data", account=None):
 
 def build_policy_files(profile):
     """Files of a policy profile, base64 encoded for gpowrite (None
-    deletes a file), and the machine extension names of the GPO."""
+    deletes a file), and the machine and user extension names of the GPO."""
     profile.setdefault("task_uid", gpogen.new_uid())
     profile.setdefault("power_task_uid", gpogen.new_uid())
-    files, extensions = policygen.build_files(profile["settings"], task_uid=profile["task_uid"],
-                                              power_task_uid=profile["power_task_uid"])
+    files, extensions, user = policygen.build_files(profile["settings"], task_uid=profile["task_uid"],
+                                                    power_task_uid=profile["power_task_uid"])
     out = {rel: None if data is None else base64.b64encode(data).decode() for rel, data in files.items()}
     description = json.dumps({
         "generator": "NethServer module windeploy",
@@ -503,7 +503,7 @@ def build_policy_files(profile):
         "settings": profile["settings"],
     }, indent=1) + "\n"
     out[DESCRIPTION_FILE] = base64.b64encode(description.encode("utf-8")).decode()
-    return out, extensions
+    return out, extensions, user
 
 
 BACKUPS_KEPT = 10

@@ -91,7 +91,7 @@ with wdcommon.policies_locked() as data:
     profile["settings"] = merged
     profile["state"] = "active"
     try:
-        files, extensions = wdcommon.build_policy_files(profile)
+        files, extensions, user = wdcommon.build_policy_files(profile)
     except policygen.PolicyError as ex:
         print(agent.SD_ERR + str(ex), file=sys.stderr)
         fail("settings", str(ex).split(":")[0], "invalid_setting")
@@ -109,7 +109,7 @@ with wdcommon.policies_locked() as data:
         agent.set_progress(40)
         # the display name follows a renamed profile (LDAP and GPT.INI)
         res = wdcommon.run_tool({"op": "apply", "guid": profile["gpo_guid"], "files": files, "backup_dir": "/backup",
-                                 "machine_extensions": extensions,
+                                 "machine_extensions": extensions, "user_extensions": user,
                                  "display_name": "windeploy policy: " + profile["name"]}, settings=settings)
         profile["version"] = res["version"]
         wdcommon.prune_backups(profile["gpo_guid"])

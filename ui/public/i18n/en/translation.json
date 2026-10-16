@@ -321,6 +321,7 @@
         "policy_3": "Most settings are removed by Windows when they are switched off or the profile is removed. Settings marked \"Stays on the computers\" are not: switched off, they change to \"reset\" and the profile writes the Windows default until all computers have applied it; then take them out with the check box.",
         "policy_4": "Removing a profile starts a waiting period: the settings are lifted, the GPO stays linked so that rarely connected computers see it too, and is deleted afterwards.",
         "policy_5": "Password and lockout rules of the domain accounts are shown, not set: in a Samba domain they are changed in the domain settings of NethServer.",
+        "policy_6": "“No Thumbs.db on network drives” is a user setting: it applies to the user accounts below the linked targets, so link the profile with the OUs of the users (or with the domain). It does not delete Thumbs.db files already in the shares; remove them by hand, e.g. on the server with find <share> -name Thumbs.db -delete.",
         "lock_title": "6. Screen lock and remote control",
         "lock_help": "\"Lock the session when idle\" locks after the set time without keyboard or mouse input. Programs can ask Windows to keep the screen on, and remote control tools such as AnyDesk, RustDesk, TeamViewer or VNC servers do so during a session: the computer then never locks while somebody is connected but idle. Two settings in the group \"Logon and lock\" take this request away; both need the screen lock.",
         "lock_unlock_title": "Remote sessions are locked too",
@@ -412,6 +413,7 @@
         "edit_title": "Edit policy profile",
         "new_title": "New policy profile",
         "stays_hint": "Stays on the computers when switched off, until the profile has reset it.",
+        "user_hint": "Applies to the user accounts below the linked targets, not to the computers.",
         "range": "{min} to {max}",
         "seconds": "{n} s",
         "reset_help": "Switched off. The profile writes the Windows default until the computers have applied it.",
@@ -540,6 +542,10 @@
         "block_onedrive": {
             "title": "Block OneDrive",
             "desc": "OneDrive does not sync files. Other sync clients are not affected."
+        },
+        "no_thumbs_db_network": {
+            "title": "No Thumbs.db on network drives",
+            "desc": "Explorer no longer creates hidden Thumbs.db thumbnail files in shared folders. Such files disturb sync clients like Nextcloud. Thumbs.db files already there stay and have to be deleted by hand."
         },
         "ntlmv2_only": {
             "title": "NTLMv2 only",

@@ -125,7 +125,7 @@
         <cv-tile light class="tile">
           <h4>{{ $t("guide.policy_title") }}</h4>
           <ul class="bullets">
-            <li v-for="n in 5" :key="n">{{ $t("guide.policy_" + n) }}</li>
+            <li v-for="n in 6" :key="n">{{ $t("guide.policy_" + n) }}</li>
           </ul>
         </cv-tile>
 

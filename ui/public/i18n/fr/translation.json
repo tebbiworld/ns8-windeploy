@@ -321,6 +321,7 @@
         "policy_3": "Windows supprime lui-même la plupart des paramètres quand ils sont désactivés ou que le profil est supprimé. Pas ceux marqués « Reste sur les ordinateurs après la désactivation » : désactivés, ils passent à « réinitialisé » et le profil écrit la valeur par défaut de Windows jusqu'à ce que tous les ordinateurs l'aient appliquée ; les retirer ensuite avec la case à cocher.",
         "policy_4": "La suppression d'un profil démarre un délai d'attente : les paramètres sont levés, la GPO reste liée pour que les ordinateurs rarement connectés le voient aussi, puis elle est supprimée.",
         "policy_5": "Les règles de mot de passe et de verrouillage des comptes du domaine sont affichées, pas définies : dans un domaine Samba, elles se modifient dans les paramètres du domaine de NethServer.",
+        "policy_6": "« Pas de Thumbs.db sur les lecteurs réseau » est un paramètre utilisateur : il s'applique aux comptes utilisateur sous les cibles liées, donc lier le profil aux OU des utilisateurs (ou au domaine). Il ne supprime pas les fichiers Thumbs.db déjà présents dans les partages ; les supprimer à la main, p. ex. sur le serveur avec find <partage> -name Thumbs.db -delete.",
         "lock_title": "6. Verrouillage de l'écran et prise en main à distance",
         "lock_help": "« Verrouiller la session en cas d'inactivité » verrouille après le délai réglé sans saisie au clavier ou à la souris. Les programmes peuvent demander à Windows de garder l'écran allumé, et les outils de prise en main comme AnyDesk, RustDesk, TeamViewer ou les serveurs VNC le font pendant une session : l'ordinateur ne se verrouille alors jamais tant que quelqu'un est connecté mais inactif. Deux paramètres du groupe « Connexion et verrouillage » retirent cette demande ; tous deux nécessitent le verrouillage de l'écran.",
         "lock_unlock_title": "Les sessions à distance sont aussi verrouillées",
@@ -412,6 +413,7 @@
         "edit_title": "Modifier le profil de stratégies",
         "new_title": "Nouveau profil de stratégies",
         "stays_hint": "Reste sur les ordinateurs après la désactivation, jusqu'à ce que le profil l'ait réinitialisé.",
+        "user_hint": "S'applique aux comptes utilisateur sous les cibles liées, pas aux ordinateurs.",
         "range": "de {min} à {max}",
         "seconds": "{n} s",
         "reset_help": "Désactivé. Le profil écrit la valeur par défaut de Windows jusqu'à ce que les ordinateurs l'aient appliquée.",
@@ -540,6 +542,10 @@
         "block_onedrive": {
             "title": "Bloquer OneDrive",
             "desc": "OneDrive ne synchronise aucun fichier. Les autres clients de synchronisation ne sont pas concernés."
+        },
+        "no_thumbs_db_network": {
+            "title": "Pas de Thumbs.db sur les lecteurs réseau",
+            "desc": "L'Explorateur ne crée plus de fichiers cachés Thumbs.db avec des miniatures dans les dossiers partagés. Ces fichiers gênent les clients de synchronisation comme Nextcloud. Les fichiers Thumbs.db déjà présents restent et doivent être supprimés à la main."
         },
         "ntlmv2_only": {
             "title": "NTLMv2 uniquement",

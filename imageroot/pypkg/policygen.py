@@ -6,9 +6,11 @@
 """Generate the files of a policy GPO, without touching AD.
 
 A policy profile is one GPO with settings picked from the catalog below,
-computer side only. Three kinds of files are written:
+mostly on the computer side. Four kinds of files are written:
 
   Machine/Registry.pol                              registry policy (PReg)
+  User/Registry.pol                                 registry policy of the
+                                                    user accounts (HKCU)
   Machine/Microsoft/Windows NT/SecEdit/GptTmpl.inf  user rights
   Machine/Preferences/ScheduledTasks/ScheduledTasks.xml
                                                     a task for what needs a command
@@ -44,9 +46,12 @@ REG_DWORD = 4
 
 # Client side extension and editor snap-in of each kind of file
 EXT_REGISTRY = ("{35378EAC-683F-11D2-A89A-00C04FBBCFA2}", "{D02B1F72-3407-48AE-BA88-E8213C6761F1}")
+# the editor's Administrative Templates snap-in of the user side
+TOOL_USER_REGISTRY = "{D02B1F73-3407-48AE-BA88-E8213C6761F1}"
 EXT_SECURITY = ("{827D319E-6EAC-11D2-A4EA-00C04F79F83A}", "{803E14A0-B4FB-11D0-A0D0-00A0C90F574B}")
 
 FILE_REGISTRY = "Machine/Registry.pol"
+FILE_USER_REGISTRY = "User/Registry.pol"
 FILE_SECURITY = "Machine/Microsoft/Windows NT/SecEdit/GptTmpl.inf"
 FILE_TASKS = "Machine/Preferences/ScheduledTasks/ScheduledTasks.xml"
 
@@ -89,6 +94,9 @@ def _audit(name, code, value, default):
 #   audit     [subcategory, value when on, Windows default]; 0 none,
 #             1 success, 2 failure, 3 both (defaults of Windows 11 25H2),
 #             set with auditpol by a task
+#   user      True: the reg values belong to the user side (HKCU,
+#             User/Registry.pol); they reach the user accounts in the
+#             linked OUs, not the computers
 #   excludes  settings that contradict this one
 #   risk      1 low, 2 check the environment first
 CATALOG = {
@@ -239,6 +247,14 @@ CATALOG = {
         "reg": [("Software\\Policies\\Microsoft\\Windows\\OneDrive", "DisableFileSyncNGSC", REG_DWORD, 1)],
         "risk": 1,
     },
+    "no_thumbs_db_network": {
+        # Thumbnails.admx DisableThumbsDBOnNetworkFolders (class User);
+        # Thumbs.db files already on the shares stay
+        "group": "network",
+        "user": True,
+        "reg": [("Software\\Policies\\Microsoft\\Windows\\Explorer", "DisableThumbsDBOnNetworkFolders", REG_DWORD, 1)],
+        "risk": 1,
+    },
     "ntlmv2_only": {
         "group": "network",
         "reg": [(LSA, "LmCompatibilityLevel", REG_DWORD, 5)],
@@ -297,7 +313,7 @@ def catalog():
     out = []
     for sid, s in CATALOG.items():
         out.append({"id": sid, "group": s["group"], "risk": s["risk"], "tattoo": is_tattoo(sid),
-                    "params": s.get("params", {}), "excludes": s.get("excludes", []),
+                    "user": bool(s.get("user")), "params": s.get("params", {}), "excludes": s.get("excludes", []),
                     "requires": s.get("requires", [])})
     return out
 
@@ -433,11 +449,14 @@ def _preg_entry(key, name, rtype, data):
             + struct.pack("<I", len(raw)) + u(";") + raw + u("]"))
 
 
-def build_registry_pol(settings):
-    """Registry.pol (PReg version 1) or None when no setting needs it."""
+def build_registry_pol(settings, user=False):
+    """Registry.pol (PReg version 1) of the computer or (user) the user
+    side, or None when no setting needs it."""
     entries = []
     for sid, entry in settings.items():
         spec = CATALOG[sid]
+        if bool(spec.get("user")) != user:
+            continue
         if entry["state"] == "on":
             for key, name, rtype, data in spec.get("reg", []):
                 entries.append(_preg_entry(key, name, rtype, _value(data, entry["params"])))
@@ -590,10 +609,12 @@ def build_tasks_xml(settings, uid, changed=None, power_uid=None):
 # ------------------------------------------------------------------- GPO ---
 
 def build_files(settings, task_uid=None, power_task_uid=None):
-    """({relative path: bytes or None}, machine extension names) of a
-    policy GPO. None deletes a file that is not needed any more."""
+    """({relative path: bytes or None}, machine extension names, user
+    extension names) of a policy GPO. None deletes a file that is not
+    needed any more."""
     settings = check_settings(settings)
     files = {FILE_REGISTRY: build_registry_pol(settings),
+             FILE_USER_REGISTRY: build_registry_pol(settings, user=True),
              FILE_SECURITY: build_security_template(settings),
              FILE_TASKS: build_tasks_xml(settings, task_uid or gpogen.new_uid(), power_uid=power_task_uid)}
     names = {}
@@ -603,7 +624,9 @@ def build_files(settings, task_uid=None, power_task_uid=None):
     extensions = gpogen.format_extension_names(names)
     if files[FILE_TASKS] is not None:
         extensions = gpogen.add_scheduled_tasks_extension(extensions)
-    return files, extensions
+    user = gpogen.format_extension_names({EXT_REGISTRY[0]: {TOOL_USER_REGISTRY}}) \
+        if files[FILE_USER_REGISTRY] is not None else ""
+    return files, extensions, user
 
 
 def after_removal(settings, removed):

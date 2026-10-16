@@ -34,6 +34,8 @@ class Rights(unittest.TestCase):
         for bad in ({}, {"interactive": []}, {"logon_as_service": [PRIVA]},
                     {"interactive": [{"sid": "S-1-5-21-1-2-3-4,*S-1-1-0"}]},
                     {"interactive": [{"sid": "S-1-1-0"}]},
+                    {"interactive": [{"sid": "S-1-5-32-555\n"}]},
+                    {"interactive": [{"sid": PRIVA["sid"], "name": "x\n"}]},
                     {"interactive": [{"sid": PRIVA["sid"], "name": "x\r\n[Privilege Rights]"}]}):
             with self.assertRaises(logongen.LogonError):
                 logongen.check_rights(bad)

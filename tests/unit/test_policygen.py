@@ -24,16 +24,16 @@ class Catalog(unittest.TestCase):
             settings = {sid: {"state": "on", "params": params}}
             for needed in spec.get("requires", []):
                 settings[needed] = {"state": "on"}
-            files, ext = policygen.build_files(settings)
+            files, ext, user = policygen.build_files(settings)
             self.assertTrue(any(v is not None for v in files.values()), sid)
-            self.assertRegex(ext, r"^(\[\{[0-9A-F-]{36}\}\{[0-9A-F-]{36}\}\])+$")
+            self.assertRegex(user if spec.get("user") else ext, r"^(\[\{[0-9A-F-]{36}\}\{[0-9A-F-]{36}\}\])+$")
             self.assertIn(spec["group"], policygen.GROUPS)
             for other in spec.get("excludes", []):
                 self.assertIn(sid, policygen.CATALOG[other]["excludes"])
 
     def test_catalog_hides_registry_details(self):
         for entry in policygen.catalog():
-            self.assertEqual(set(entry), {"id", "group", "risk", "tattoo", "params", "excludes", "requires"})
+            self.assertEqual(set(entry), {"id", "group", "risk", "tattoo", "user", "params", "excludes", "requires"})
 
     def test_tattoo(self):
         self.assertFalse(policygen.is_tattoo("session_lock"))
@@ -108,7 +108,7 @@ class Audit(unittest.TestCase):
     def test_task(self):
         import xml.etree.ElementTree as ET
         uid = "{11111111-2222-3333-4444-555555555555}"
-        files, ext = policygen.build_files({"audit_extended": ON}, task_uid=uid)
+        files, ext, _ = policygen.build_files({"audit_extended": ON}, task_uid=uid)
         root = ET.fromstring(files[policygen.FILE_TASKS].decode("utf-8").split("?>", 1)[1])
         task = root.find("TaskV2")
         self.assertEqual((task.get("name"), task.get("uid"), task.get("removePolicy")), ("windeploy policy audit", uid, "1"))
@@ -122,12 +122,12 @@ class Audit(unittest.TestCase):
 
 class Profile(unittest.TestCase):
     def test_files_and_extensions(self):
-        files, ext = policygen.build_files({"session_lock": ON})
+        files, ext, _ = policygen.build_files({"session_lock": ON})
         self.assertIsNotNone(files[policygen.FILE_REGISTRY])
         self.assertIsNone(files[policygen.FILE_SECURITY])
         self.assertIsNone(files[policygen.FILE_TASKS])
         self.assertEqual(ext, "[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]")
-        _, ext = policygen.build_files({"session_lock": ON, "time_change_admins_only": ON})
+        _, ext, _ = policygen.build_files({"session_lock": ON, "time_change_admins_only": ON})
         self.assertEqual(ext, "[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F72-3407-48AE-BA88-E8213C6761F1}]"
                               "[{827D319E-6EAC-11D2-A4EA-00C04F79F83A}{803E14A0-B4FB-11D0-A0D0-00A0C90F574B}]")
 
@@ -155,9 +155,37 @@ if __name__ == "__main__":
     unittest.main()
 
 
+class ThumbsDb(unittest.TestCase):
+    KEY = "Software\\Policies\\Microsoft\\Windows\\Explorer"
+
+    def test_user_side_only(self):
+        files, ext, user = policygen.build_files({"no_thumbs_db_network": ON})
+        self.assertEqual(policygen.parse_registry_pol(files[policygen.FILE_USER_REGISTRY]),
+                         [(self.KEY, "DisableThumbsDBOnNetworkFolders", policygen.REG_DWORD, 1)])
+        self.assertIsNone(files[policygen.FILE_REGISTRY])
+        self.assertEqual(ext, "")
+        self.assertEqual(user, "[{35378EAC-683F-11D2-A89A-00C04FBBCFA2}{D02B1F73-3407-48AE-BA88-E8213C6761F1}]")
+        # below Software\Policies: Windows removes it with the GPO
+        self.assertFalse(policygen.is_tattoo("no_thumbs_db_network"))
+
+    def test_mixed_profile(self):
+        files, ext, user = policygen.build_files({"no_thumbs_db_network": ON, "session_lock": ON})
+        machine = policygen.parse_registry_pol(files[policygen.FILE_REGISTRY])
+        self.assertNotIn("DisableThumbsDBOnNetworkFolders", [e[1] for e in machine])
+        self.assertIn("InactivityTimeoutSecs", [e[1] for e in machine])
+        self.assertTrue(ext and user)
+
+    def test_no_user_side(self):
+        files, _, user = policygen.build_files({"session_lock": ON})
+        # None deletes a User/Registry.pol left from before
+        self.assertIn(policygen.FILE_USER_REGISTRY, files)
+        self.assertIsNone(files[policygen.FILE_USER_REGISTRY])
+        self.assertEqual(user, "")
+
+
 class PinLogon(unittest.TestCase):
     def test_registry_value(self):
-        files, ext = policygen.build_files({"domain_pin_logon": {"state": "on", "params": {}}})
+        files, ext, _ = policygen.build_files({"domain_pin_logon": {"state": "on", "params": {}}})
         entries = policygen.parse_registry_pol(files[policygen.FILE_REGISTRY])
         self.assertIn(("Software\\Policies\\Microsoft\\Windows\\System", "AllowDomainPINLogon"),
                       [(e[0], e[1]) for e in entries])
@@ -214,7 +242,7 @@ class DisplayRequests(unittest.TestCase):
         self.assertTrue(text.endswith("exit $failed\r\n"))
 
     def test_task_in_gpo(self):
-        files, ext = policygen.build_files(self.overrides(), task_uid="{11111111-1111-1111-1111-111111111111}",
+        files, ext, _ = policygen.build_files(self.overrides(), task_uid="{11111111-1111-1111-1111-111111111111}",
                                            power_task_uid="{22222222-2222-2222-2222-222222222222}")
         xml = files[policygen.FILE_TASKS].decode()
         self.assertIn(policygen.POWER_TASK, xml)
@@ -258,7 +286,7 @@ class DisplayRequests(unittest.TestCase):
         self.assertIn("PROCESS 'old.exe' | Out-Null", text)
 
     def test_ignore_all_is_a_policy_value(self):
-        files, _ = policygen.build_files(dict(self.LOCK, display_requests_ignore_all=ON))
+        files, _, _ = policygen.build_files(dict(self.LOCK, display_requests_ignore_all=ON))
         entries = policygen.parse_registry_pol(files[policygen.FILE_REGISTRY])
         keys = {(k.lower(), n) for k, n, *_ in entries}
         key = policygen.ALLOW_DISPLAY.lower()

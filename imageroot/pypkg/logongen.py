@@ -63,9 +63,9 @@ def check_rights(rights):
         for e in entries:
             sid = str(e.get("sid", "")).upper() if isinstance(e, dict) else ""
             name = str(e.get("name", "")) if isinstance(e, dict) else ""
-            if not SID_RE.match(sid):
+            if not SID_RE.fullmatch(sid):
                 raise LogonError(f"invalid_sid: {sid}")
-            if name and not NAME_RE.match(name):
+            if name and not NAME_RE.fullmatch(name):
                 raise LogonError(f"invalid_name: {name}")
             seen[sid] = {"sid": sid, "name": name or WELL_KNOWN.get(sid, sid)}
         if not seen:

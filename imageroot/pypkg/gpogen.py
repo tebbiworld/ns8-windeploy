@@ -308,7 +308,7 @@ def build_script(package_id, mode="upgrade", log_path=None, scope="", timeout_mi
     if not isinstance(timeout_minutes, int) or not 5 <= timeout_minutes <= 110:
         raise GenError("installer time limit must be between 5 and 110 minutes")
     log_path = log_path or default_log_path(package_id)
-    if not re.match(r"^[A-Za-z]:\\[\w .\\\-]{1,200}\.log$", log_path) or ".." in log_path:
+    if not re.fullmatch(r"^[A-Za-z]:\\[\w .\\\-]{1,200}\.log$", log_path) or ".." in log_path:
         raise GenError(f"invalid log path {log_path!r}")
     text = SCRIPT_TEMPLATE.format(package_id=package_id, mode=mode, log_path=log_path,
                                   scope=scope, timeout_minutes=timeout_minutes,
@@ -339,10 +339,10 @@ def _check_schedule(schedule):
     freq = schedule.get("frequency", "weekly")
     if freq not in ("daily", "weekly"):
         raise GenError(f"invalid frequency {freq!r}")
-    if not TIME_RE.match(schedule.get("time", "")):
+    if not TIME_RE.fullmatch(schedule.get("time", "")):
         raise GenError(f"invalid time {schedule.get('time')!r}")
     start = schedule.get("start_date", "")
-    if not DATE_RE.match(start):
+    if not DATE_RE.fullmatch(start):
         raise GenError(f"invalid start date {start!r}")
     datetime.date.fromisoformat(start)
     days = schedule.get("days", [])
@@ -387,7 +387,7 @@ def task_arguments(delivery, script_unc=None, script_text=None, run_now=False):
 
 def _time_limit(task):
     limit = task.get("time_limit", DEFAULT_TIME_LIMIT)
-    if not TIME_LIMIT_RE.match(limit):
+    if not TIME_LIMIT_RE.fullmatch(limit):
         raise GenError(f"invalid time limit {limit!r}")
     return limit
 
@@ -411,7 +411,7 @@ def build_task(task):
     computers (action "D"): the first phase of removing a deployment, while
     its GPO still applies."""
     name = task["name"]
-    if not TASK_NAME_RE.match(name):
+    if not TASK_NAME_RE.fullmatch(name):
         raise GenError(f"invalid task name {name!r}")
     uid = task["uid"].upper()
     if not GUID_RE.fullmatch(uid):
@@ -455,7 +455,7 @@ def build_immediate_task(task):
     deleted afterwards. The run-once filter id makes every computer run it
     a single time; a new id (a new "run now") runs it again."""
     name = task["name"]
-    if not TASK_NAME_RE.match(name):
+    if not TASK_NAME_RE.fullmatch(name):
         raise GenError(f"invalid task name {name!r}")
     uid = task["uid"].upper()
     run_id = task["run_once_id"].upper()
