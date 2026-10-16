@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.2 — unreleased
+## 0.4.2 — 2026-10-16
 
 ### Added
 
@@ -12,7 +12,7 @@
 
 - **Tasks left on computers.** A package taken out of a deployment now keeps a task item with the action "delete" for the waiting period, so computers that were away delete its task too. A run of any deployment deletes tasks of windeploy whose GPO is gone (missing in SYSVOL and in the directory, checked only when SYSVOL answers); before, such tasks failed at every start. The list of removed deployments says that computers offline for the whole waiting period may keep tasks.
 
-## 0.4.1 — unreleased
+## 0.4.1 — 2026-10-16
 
 ### Fixed
 
