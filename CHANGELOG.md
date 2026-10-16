@@ -1,6 +1,16 @@
 # Changelog
 
-## 0.4.0 — unreleased
+## 0.4.1 — unreleased
+
+### Fixed
+
+- **Scheduled tasks could hang and pile up.** Started with `-File` from the SYSVOL share of the domain (`\\<domain>\SysVol\…`), `powershell.exe` could hang before the first line of the script, measured on Windows 11 computers in a domain with a Samba DC. Because the GPO creates the task again at every policy refresh and the task starts once registered, every refresh added a hung run; nothing was installed, and on one computer the desktop heap of session 0 ran out until a service of another program failed.
+  - Every task now carries its script in its command line (`-EncodedCommand`). The choice "script delivery" is gone; existing deployments are written again when the module is updated (a GPO that cannot be written then, e.g. with the DC down, is written by the daily timer). Script files of older versions are deleted from the GPO folder.
+  - One run per package: a start while a run of the same package is going ends at once.
+  - A run records its process id and start time; the next start stops a run of the same package that is older than the task time limit (2 hours). Hung starts of the SYSVOL script of earlier versions are stopped as well. Both are noted in the package log.
+  - The tasks allow the time limit to stop a run (`AllowHardTerminate`); before, a hung run stayed "running" for ever and the task skipped every later start.
+
+## 0.4.0 — 2026-10-08
 
 ### Added
 
