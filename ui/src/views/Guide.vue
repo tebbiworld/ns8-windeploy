@@ -105,7 +105,7 @@
 
           <h5 class="sub">{{ $t("guide.lifecycle_heading") }}</h5>
           <ul class="bullets">
-            <li v-for="n in 5" :key="n">{{ $t("guide.lifecycle_" + n) }}</li>
+            <li v-for="n in 6" :key="n">{{ $t("guide.lifecycle_" + n) }}</li>
           </ul>
         </cv-tile>
 
@@ -113,6 +113,13 @@
           <h4>{{ $t("guide.check_title") }}</h4>
           <p class="help">{{ $t("guide.check_help") }}</p>
           <pre class="code">{{ checkCommands }}</pre>
+        </cv-tile>
+
+        <cv-tile light class="tile">
+          <h4>{{ $t("guide.dcs_title") }}</h4>
+          <p v-for="n in 3" :key="n" class="help">
+            {{ $t("guide.dcs_" + n) }}
+          </p>
         </cv-tile>
 
         <cv-tile light class="tile">

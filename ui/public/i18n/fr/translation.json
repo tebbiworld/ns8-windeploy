@@ -285,7 +285,7 @@
         "link_ou": "La GPO ne s'applique qu'aux ordinateurs de cette unité d'organisation et de celles situées en dessous. L'unité Domain Controllers n'est pas proposée : sous NS8, les contrôleurs de domaine sont des serveurs Samba, pas des ordinateurs Windows.",
         "link_computers": "Les nouveaux ordinateurs sont placés dans le conteneur Computers, qui n'est pas une unité d'organisation : ils ne reçoivent que les déploiements liés au domaine entier tant qu'ils ne sont pas déplacés dans une unité d'organisation. Lors de la liaison, le module peut créer vide une unité manquante ; les ordinateurs y sont déplacés avec un outil AD (par ex. RSAT ou LDAP Admin).",
         "mode_upgrade": "Met à jour le paquet sur les ordinateurs où il est installé ; sur les autres, rien ne se passe.",
-        "mode_install": "Installe le paquet là où il manque et le met à jour là où il est installé.",
+        "mode_install": "Installe le paquet là où il manque et le met à jour là où il est installé. Un ordinateur qui n'a jamais exécuté le déploiement installe tout de suite un paquet manquant ; le planning vaut pour les mises à jour.",
         "mode_msi": "Préférez les paquets MSI (par ex. Google.Chrome plutôt que Google.Chrome.EXE) : certains programmes d'installation EXE attendent un bureau lorsqu'ils s'exécutent en tant que SYSTEM. Le script arrête winget et le programme d'installation après 30 minutes sans résultat (dans le journal : code de sortie 1460) ; la tâche elle-même est interrompue après deux heures.",
         "how_6": "Ce serveur lit seulement l'index et écrit la GPO ; les ordinateurs téléchargent eux-mêmes les logiciels.",
         "auto_heading": "1.1 Configuration automatique",
@@ -374,7 +374,12 @@
         "dns_5_title": "Comparer avec le DNS public",
         "dns_5": "Envoie les noms d'une zone à un résolveur public via HTTPS et montre ce qui diffère ou n'existe qu'en interne. La comparaison ne modifie rien.",
         "dns_6_title": "Reprendre la valeur publique",
-        "dns_6": "Remplace un enregistrement interne par la réponse du DNS public, ou supprime l'enregistrement interne. Le côté public se modifie chez le fournisseur DNS ou avec le module dnshelper."
+        "dns_6": "Remplace un enregistrement interne par la réponse du DNS public, ou supprime l'enregistrement interne. Le côté public se modifie chez le fournisseur DNS ou avec le module dnshelper.",
+        "lifecycle_6": "Un paquet retiré d'un déploiement garde, pendant le délai d'attente, un élément de tâche avec l'action « supprimer », afin que les ordinateurs absents suppriment aussi sa tâche. Un ordinateur qui a manqué tout le délai, ou dont le GPO a été supprimé à la main, peut garder des tâches d'anciennes versions ; la prochaine exécution de n'importe quel déploiement les supprime quand leur GPO manque dans SYSVOL et dans l'annuaire.",
+        "dcs_title": "Plusieurs contrôleurs de domaine",
+        "dcs_1": "Samba ne réplique pas SYSVOL. Le module écrit ses GPO uniquement sur le DC des paramètres ; un ordinateur qui lit le dossier du GPO sur un autre DC le trouve absent ou ancien et reçoit aucune tâche ou d'anciennes. Avec plusieurs DC, copiez SYSVOL vers les autres (p. ex. rsync depuis le DC des paramètres) ou gardez un seul DC.",
+        "dcs_2": "Les ordinateurs atteignent SYSVOL par le nom de domaine (\\\\domaine\\SysVol). Chaque DC inscrit son adresse pour ce nom ; l'adresse d'un DC disparu ou injoignable (p. ex. via un VPN) reste jusqu'à sa suppression. Retirez proprement le DC du domaine (samba-tool domain demote --remove-other-dead-server) et vérifiez les enregistrements d'adresse du nom de domaine.",
+        "dcs_3": "La page d'état liste chaque DC avec ses adresses et avertit en cas de DC injoignable, de dossiers de GPO manquants et d'adresses du nom de domaine qui n'appartiennent à aucun DC joignable. La vérification a lieu chaque jour ; « Vérifier maintenant » la lance tout de suite."
     },
     "policies": {
         "title": "Stratégies",
@@ -758,7 +763,8 @@
         "scripts_start": "Les scripts de nettoyage s'exécutent à la place des scripts de {name} ; les scripts sans nettoyage ne s'exécutent plus. Le GPO reste lié pendant le délai d'attente ; ensuite il est supprimé.",
         "scripts_cancel": "Les scripts de {name} sont réécrits dans le GPO.",
         "scripts_delete": "Le délai d'attente est écoulé. Le GPO de {name} est délié et supprimé.",
-        "change_rewritten": "Script intégré à la tâche (mise à jour)"
+        "change_rewritten": "Script intégré à la tâche (mise à jour)",
+        "log_orphans": "Les ordinateurs éteints pendant tout le délai d'attente gardent les tâches d'un déploiement supprimé. La prochaine exécution d'un autre déploiement supprime les tâches dont le GPO a disparu."
     },
     "logon": {
         "title": "Ouverture de session",

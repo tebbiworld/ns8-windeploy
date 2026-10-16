@@ -208,6 +208,7 @@
               </tr>
             </tbody>
           </table>
+          <p class="muted small">{{ $t("removal.log_orphans") }}</p>
         </cv-tile>
       </cv-column>
     </cv-row>

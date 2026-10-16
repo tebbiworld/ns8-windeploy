@@ -285,7 +285,7 @@
         "link_ou": "Das GPO gilt nur für Rechner in dieser Organisationseinheit und den darunterliegenden. Die Einheit Domain Controllers wird nicht angeboten: Unter NS8 sind die Domänencontroller Samba-Server, keine Windows-Rechner.",
         "link_computers": "Neue Rechner landen im Container Computers, der keine Organisationseinheit ist: Sie erhalten nur Verteilungen, die mit der ganzen Domäne verknüpft sind, bis sie in eine Organisationseinheit verschoben werden. Das Modul kann beim Verknüpfen eine fehlende OU leer anlegen; die Rechner verschiebt man mit einem AD-Werkzeug hinein (z. B. RSAT oder LDAP Admin).",
         "mode_upgrade": "Aktualisiert das Paket auf Rechnern, auf denen es installiert ist; auf den anderen passiert nichts.",
-        "mode_install": "Installiert das Paket, wo es fehlt, und aktualisiert es, wo es installiert ist.",
+        "mode_install": "Installiert das Paket, wo es fehlt, und aktualisiert es, wo es installiert ist. Ein Rechner, auf dem die Verteilung noch nie lief, installiert ein fehlendes Paket sofort; der Termin gilt für Aktualisierungen.",
         "mode_msi": "MSI-Pakete bevorzugen (z. B. Google.Chrome statt Google.Chrome.EXE): Manche EXE-Installer warten als SYSTEM auf einen Desktop. Das Skript beendet winget und den Installer nach 30 Minuten ohne Ergebnis (im Protokoll: Exitcode 1460); die Aufgabe selbst bricht nach zwei Stunden ab.",
         "how_6": "Dieser Server liest nur den Index und schreibt das GPO; die Software laden die Rechner selbst.",
         "auto_heading": "1.1 Automatisch einrichten",
@@ -374,7 +374,12 @@
         "dns_5_title": "Mit dem öffentlichen DNS vergleichen",
         "dns_5": "Schickt die Namen einer Zone über HTTPS an einen öffentlichen Resolver und zeigt, was abweicht oder nur intern existiert. Der Vergleich ändert nichts.",
         "dns_6_title": "Öffentlichen Wert übernehmen",
-        "dns_6": "Ersetzt einen internen Eintrag durch die Antwort des öffentlichen DNS oder löscht den internen Eintrag. Die öffentliche Seite wird beim DNS-Anbieter oder mit dem Modul dnshelper geändert."
+        "dns_6": "Ersetzt einen internen Eintrag durch die Antwort des öffentlichen DNS oder löscht den internen Eintrag. Die öffentliche Seite wird beim DNS-Anbieter oder mit dem Modul dnshelper geändert.",
+        "lifecycle_6": "Ein aus einer Verteilung entferntes Paket behält für die Wartefrist einen Aufgabeneintrag mit der Aktion „Löschen“, damit auch Rechner, die abwesend waren, seine Aufgabe löschen. Ein Rechner, der die ganze Frist verpasst hat oder dessen GPO von Hand gelöscht wurde, kann Aufgaben älterer Versionen behalten; der nächste Lauf irgendeiner Verteilung löscht sie, wenn ihre GPO in SYSVOL und im Verzeichnis fehlt.",
+        "dcs_title": "Mehrere Domänencontroller",
+        "dcs_1": "Samba repliziert SYSVOL nicht. Das Modul schreibt seine GPOs nur auf den DC aus den Einstellungen; ein Rechner, der den GPO-Ordner von einem anderen DC liest, findet ihn nicht oder veraltet vor und bekommt keine oder alte Aufgaben. Bei mehreren DCs SYSVOL auf die anderen kopieren (z. B. rsync vom DC aus den Einstellungen) oder bei einem DC bleiben.",
+        "dcs_2": "Rechner erreichen SYSVOL über den Domänennamen (\\\\domäne\\SysVol). Jeder DC trägt seine Adresse für diesen Namen ein; die Adresse eines entfernten oder nicht erreichbaren DCs (z. B. über ein VPN) bleibt stehen, bis sie entfernt wird. Den DC sauber aus der Domäne nehmen (samba-tool domain demote --remove-other-dead-server) und die Adresseinträge des Domänennamens prüfen.",
+        "dcs_3": "Die Statusseite zeigt jeden DC mit seinen Adressen und warnt bei einem nicht erreichbaren DC, fehlenden GPO-Ordnern und Adressen des Domänennamens, die zu keinem erreichbaren DC gehören. Die Prüfung läuft täglich; „Jetzt prüfen“ startet sie sofort."
     },
     "policies": {
         "title": "Richtlinien",
@@ -758,7 +763,8 @@
         "scripts_start": "Statt der Skripte von {name} laufen die Aufräumskripte; Skripte ohne Aufräumskript laufen nicht mehr. Das GPO bleibt während der Wartefrist verknüpft; danach wird es gelöscht.",
         "scripts_cancel": "Die Skripte von {name} werden wieder ins GPO geschrieben.",
         "scripts_delete": "Die Wartefrist ist abgelaufen. Das GPO von {name} wird entknüpft und gelöscht.",
-        "change_rewritten": "Skript in die Aufgabe eingebettet (Update)"
+        "change_rewritten": "Skript in die Aufgabe eingebettet (Update)",
+        "log_orphans": "Rechner, die während der ganzen Wartefrist ausgeschaltet waren, behalten die Aufgaben einer gelöschten Verteilung. Der nächste Lauf einer anderen Verteilung löscht Aufgaben, deren GPO fehlt."
     },
     "logon": {
         "title": "Anmeldung",

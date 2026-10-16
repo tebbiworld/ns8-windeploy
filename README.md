@@ -223,7 +223,15 @@ A rule applies exactly as long as it exists:
   time has passed since its last run, kept in the registry under
   `HKLM\SOFTWARE\windeploy`. A computer that was switched off catches up
   after its next start. On a computer that sees a deployment for the
-  first time the script waits for the next scheduled time.
+  first time, a package with the action "install" that is missing is
+  installed at once; everything else waits for the next scheduled time.
+- A package taken out of a deployment keeps a task item with the action
+  "delete" for the waiting period of removals (see below), so computers
+  that were away delete its task as well. Tasks of earlier versions whose
+  GPO was deleted while a computer was away (or by hand) are deleted by
+  the next run of any deployment on that computer - only tasks made by
+  windeploy, and only when SYSVOL answers and the GPO is missing in SYSVOL
+  and in the directory.
 - Removing a deployment or a policy profile has a waiting period
   (default 14 days, set in the settings and for each removal). When the
   removal starts, the GPO stays linked and is changed so that the
@@ -250,6 +258,25 @@ A rule applies exactly as long as it exists:
 
 Tested end to end with Windows 11 25H2 clients in a Samba 4.19 domain
 (NS8 samba module): GPO → scheduled task as SYSTEM → winget installs.
+
+## Several domain controllers
+
+Samba does not replicate SYSVOL. The module writes its GPOs to the DC
+in the settings only; a computer that reads the GPO folder from another
+DC finds it missing or old. With several DCs, copy SYSVOL to the others
+(e.g. rsync from the DC in the settings) or keep one DC.
+
+Computers reach SYSVOL through the domain name (`\\<domain>\SysVol`),
+which has one address record per DC. The record of a DC that is gone or
+not reachable (e.g. over a VPN) stays until it is removed: demote the DC
+cleanly (`samba-tool domain demote --remove-other-dead-server`) and check
+the records of the domain name.
+
+The status page lists every DC with its addresses (`check-domain-controllers`,
+daily by `windeploy-purge.timer`, and on demand) and warns about a DC
+that does not answer on SMB, GPO folders of the module missing on a DC,
+and addresses of the domain name that belong to no reachable DC. Other
+DCs are read by address with NTLM.
 
 ## Layout
 

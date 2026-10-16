@@ -285,7 +285,7 @@
         "link_ou": "The GPO applies only to computers in this organizational unit and the ones below it. The Domain Controllers unit is not offered: on NS8 the domain controllers are Samba servers, not Windows computers.",
         "link_computers": "New computers are placed in the Computers container, which is not an organizational unit: they only get deployments linked to the whole domain until they are moved into an organizational unit. When linking, the module can create a missing OU empty; computers are moved into it with an AD tool (e.g. RSAT or LDAP Admin).",
         "mode_upgrade": "Updates the package on computers where it is installed; on the others nothing happens.",
-        "mode_install": "Installs the package where it is missing and updates it where it is installed.",
+        "mode_install": "Installs the package where it is missing and updates it where it is installed. A computer that has not run the deployment before installs a missing package at once; the schedule applies to updates.",
         "mode_msi": "Prefer MSI packages (e.g. Google.Chrome instead of Google.Chrome.EXE): some EXE installers wait for a desktop when they run as SYSTEM. The script stops winget and the installer after 30 minutes without a result (in the log: exit code 1460); the task itself is stopped after two hours.",
         "how_6": "This server only reads the index and writes the GPO; the computers download the software themselves.",
         "auto_heading": "1.1 Set up automatically",
@@ -374,7 +374,12 @@
         "dns_5_title": "Compare with the public DNS",
         "dns_5": "Sends the names of a zone to a public resolver over HTTPS and shows what differs or exists only internally. Nothing is changed by the comparison.",
         "dns_6_title": "Take the public value",
-        "dns_6": "Replaces an internal record with what the public DNS says, or deletes the internal record. The public side is changed at the DNS provider or with the module dnshelper."
+        "dns_6": "Replaces an internal record with what the public DNS says, or deletes the internal record. The public side is changed at the DNS provider or with the module dnshelper.",
+        "lifecycle_6": "A package taken out of a deployment keeps a task item with the action \"delete\" for the waiting period, so computers that were away delete its task too. A computer that missed the whole period, or whose GPO was deleted by hand, may keep tasks of earlier versions; the next run of any deployment deletes them when their GPO is gone from SYSVOL and from the directory.",
+        "dcs_title": "Several domain controllers",
+        "dcs_1": "Samba does not replicate SYSVOL. The module writes its GPOs to the DC in the settings only; a computer that reads the GPO folder from another DC finds it missing or old and gets no or old tasks. With several DCs, copy SYSVOL to the others (e.g. rsync from the DC in the settings) or keep one DC.",
+        "dcs_2": "Computers reach SYSVOL through the domain name (\\\\domain\\SysVol). Each DC registers its address for that name; the address of a DC that is gone or not reachable (e.g. over a VPN) stays until it is removed. Remove the DC from the domain cleanly (samba-tool domain demote --remove-other-dead-server) and check the address records of the domain name.",
+        "dcs_3": "The status page lists every DC with its addresses and warns about an unreachable DC, missing GPO folders, and addresses of the domain name that belong to no reachable DC. The check runs daily; \"Check now\" runs it at once."
     },
     "policies": {
         "title": "Policies",
@@ -758,7 +763,8 @@
         "scripts_start": "The cleanup scripts run instead of the scripts of {name}; scripts without cleanup script stop running. The GPO stays linked for the waiting period; then it is deleted.",
         "scripts_cancel": "The scripts of {name} are written to the GPO again.",
         "scripts_delete": "The waiting period is over. The GPO of {name} is unlinked and deleted.",
-        "change_rewritten": "Script embedded in the task (update)"
+        "change_rewritten": "Script embedded in the task (update)",
+        "log_orphans": "Computers that were offline for the whole waiting period keep the tasks of a deleted deployment. The next run of any other deployment deletes tasks whose GPO is gone."
     },
     "logon": {
         "title": "Logon",
