@@ -179,8 +179,11 @@ For an address the reverse record can be kept along.
   (measured: the service account could change the record of the domain
   controller). The module therefore refuses to change the zone itself
   (SOA, NS), `_msdcs`, `_sites`, the AD services below `_tcp` and
-  `_udp`, `DomainDnsZones`, `ForestDnsZones`, `gc` and the domain
-  controllers. The rules are in `imageroot/pypkg/dnsrules.py`.
+  `_udp`, `DomainDnsZones`, `ForestDnsZones`, `gc`, the domain
+  controllers and the reverse records of their addresses (also when a
+  PTR record would be written along with an address record). The rules
+  are in `imageroot/pypkg/dnsrules.py`; tested against the module's
+  actions, also with other case, a trailing dot and the full name.
 - Records a computer registers itself are shown, not changed: the
   computer would overwrite the change.
 - Every change is kept in a list with the record before and after.
@@ -213,6 +216,39 @@ For an address the reverse record can be kept along.
 
 Not part of the module yet: import and export of zones, changing the
 public side through dnshelper.
+
+## GPO inventory
+
+The page "GPO inventory" lists the GPOs of the domain that do not come
+from this module (own GPOs are only counted; GPOs of another windeploy
+instance and the two default policies are marked and can never be
+retired). It only reads: `gpowrite` op `inventory` returns the
+attributes, links (domain, OUs, sites), the file list of each SYSVOL
+folder and the content of the files below; `imageroot/pypkg/gpoinventory.py`
+analyses them. Per GPO: links (enforced, disabled), version of the
+computer and user part (and whether a part is switched off), last
+change, a WMI filter, on which DC the SYSVOL folder is present, and each
+setting with what a computer keeps when the GPO is deleted:
+
+| Content | When the GPO is deleted |
+| --- | --- |
+| `Registry.pol` below the policy keys | removed by Windows |
+| `Registry.pol` elsewhere | stays as set |
+| `GptTmpl.inf` user rights | back to what they were before |
+| `GptTmpl.inf` other sections (security options, registry values, account policies, services, groups, file ACLs) | stay as set |
+| `audit.csv` (advanced audit policy) | Windows clears **all** advanced auditing |
+| Logon and startup scripts | no longer run; what they did stays |
+| Preferences item with "remove this item when it is no longer applied" | removed by Windows |
+| Preferences item with the action "delete" | nothing to keep |
+| Preferences tasks, drive maps, shortcuts, environment variables | stay; retiring the GPO deletes them |
+| Preferences local groups | added members stay; retiring removes them |
+| Preferences registry | stays; retiring deletes a value after a confirmation |
+| Other preferences, files, folders, unknown files and extensions | stay, or not analysed |
+
+"Read now" reads everything again (`list-gpo-inventory` with `refresh`);
+the result is kept in `gpo-inventory.json` and not in the backup. The
+content of foreign GPOs is parsed, never run; a GPO folder the service
+account cannot read is marked as such.
 
 ## Lifecycle of the GPOs
 

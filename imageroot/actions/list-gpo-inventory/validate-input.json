@@ -1,0 +1,15 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "list-gpo-inventory input",
+    "$id": "http://schema.nethserver.org/windeploy/list-gpo-inventory-input.json",
+    "description": "The GPOs of the domain that are not the module's, analysed (read only)",
+    "examples": [{}, {"refresh": true}],
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "refresh": {
+            "description": "Read the GPOs again from the domain controller (takes a while); without it the result of the last reading is returned",
+            "type": "boolean"
+        }
+    }
+}

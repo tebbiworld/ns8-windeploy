@@ -139,14 +139,48 @@ def is_ad_zone(zone):
     return zone.startswith("_msdcs.") or zone in ("rootdnsservers", "..rootdnsservers", ".", "")
 
 
+def reverse_address(zone, name):
+    """The address a node of a reverse zone stands for, or None (a node
+    above single addresses, or not a reverse zone)."""
+    full = (zone if name == "@" else f"{name}.{zone}").lower().rstrip(".")
+    try:
+        if full.endswith(".in-addr.arpa"):
+            labels = full[:-len(".in-addr.arpa")].split(".")
+            if len(labels) == 4:
+                return str(ipaddress.IPv4Address(".".join(reversed(labels))))
+        elif full.endswith(".ip6.arpa"):
+            nibbles = full[:-len(".ip6.arpa")].split(".")
+            if len(nibbles) == 32 and all(len(n) == 1 for n in nibbles):
+                text = "".join(reversed(nibbles))
+                return str(ipaddress.IPv6Address(":".join(text[i:i + 4] for i in range(0, 32, 4))))
+    except ValueError:
+        return None
+    return None
+
+
+def _addresses(values):
+    out = set()
+    for v in values:
+        try:
+            out.add(str(ipaddress.ip_address(str(v).strip())))
+        except ValueError:
+            pass
+    return out
+
+
 def protected(zone, name, dc_names=()):
     """Reason why the records of a node are only shown, or None.
-    dc_names: host names of the domain controllers (short or full)."""
+    dc_names: host names of the domain controllers (short or full) and
+    their addresses; the reverse records of the addresses are protected
+    as well."""
     if is_ad_zone(zone):
         return "ad_zone"
     name = name.lower()
     if name == "@":
         return "zone_root"
+    address = reverse_address(zone, name)
+    if address and address in _addresses(dc_names):
+        return "domain_controller"
     labels = name.split(".")
     if labels[-1] in AD_NODES:
         return "ad_node"

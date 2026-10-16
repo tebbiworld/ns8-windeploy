@@ -66,6 +66,16 @@ class Protection(unittest.TestCase):
                      "_sip._tcp", "_sip._tcp.phones", "_ldap._tcp.phones", "_minecraft._tcp.games"):
             self.assertIsNone(dnsrules.protected(ZONE, name, DCS), name)
         self.assertEqual(dnsrules.protected("_msdcs.ad.example.com", "anything"), "ad_zone")
+        # the reverse records of the DC addresses
+        dcs = list(DCS) + ["192.168.1.10", "fd00::10"]
+        self.assertEqual(dnsrules.protected("1.168.192.in-addr.arpa", "10", dcs), "domain_controller")
+        self.assertEqual(dnsrules.protected("168.192.in-addr.arpa", "10.1", dcs), "domain_controller")
+        self.assertIsNone(dnsrules.protected("1.168.192.in-addr.arpa", "11", dcs))
+        self.assertIsNone(dnsrules.protected("168.192.in-addr.arpa", "1", dcs))
+        ip6 = ".".join(reversed("fd00000000000000000000000000001" + "0"))
+        self.assertEqual(dnsrules.protected("0.0.d.f.ip6.arpa", ip6[:-len(".0.0.d.f")], dcs), "domain_controller")
+        self.assertEqual(dnsrules.reverse_address("1.168.192.in-addr.arpa", "10"), "192.168.1.10")
+        self.assertIsNone(dnsrules.reverse_address("example.com", "10"))
 
     def test_change(self):
         self.assertEqual(dnsrules.check_change(ZONE, "Printer", "a", "10.0.0.5", []), ("printer", "A", "10.0.0.5"))

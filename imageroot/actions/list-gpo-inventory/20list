@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+
+#
+# Copyright (C) 2026 tebbi
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+
+# The GPOs of the domain that are not the module's, with what each one
+# sets and what the computers keep when it is deleted. Read only: with
+# "refresh" the GPOs are read again from the domain controller, else the
+# result of the last reading is returned.
+
+import json
+import subprocess
+import sys
+
+import agent
+import wdcommon
+
+request = json.load(sys.stdin)
+if request.get("refresh"):
+    try:
+        result = wdcommon.check_gpo_inventory()
+    except (wdcommon.ToolError, ValueError, subprocess.TimeoutExpired) as ex:
+        print(agent.SD_ERR + f"reading the GPOs failed: {ex}", file=sys.stderr)
+        agent.set_status("validation-failed")
+        json.dump([{"field": "refresh", "parameter": "refresh", "value": "", "error": "inventory_failed"}],
+                  fp=sys.stdout)
+        sys.exit(3)
+else:
+    result = wdcommon.read_gpo_inventory() or {"checked": None, "gpos": [], "own_count": 0, "dcs": []}
+json.dump(result, fp=sys.stdout)
