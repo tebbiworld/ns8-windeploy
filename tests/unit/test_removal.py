@@ -104,6 +104,37 @@ class Rewrite(Base):
         self.assertNotIn("rewrite_pending", d)
 
 
+class RemovedPackages(Base):
+    def test_removed_package_keeps_a_delete_item(self):
+        d = deployment()
+        d["delivery"] = "embedded"
+        d["packages"][0]["task_uid"] = "{00000000-0000-0000-0000-0000000000F1}"
+        old = {p["id"]: p for p in d["packages"]}
+        d["packages"] = [{"id": "Mozilla.Thunderbird", "mode": "upgrade"}]
+        wdcommon.track_removed_packages(d, old)
+        self.assertEqual([r["id"] for r in d["removed_packages"]], ["Mozilla.Firefox"])
+        xml = base64.b64decode(wdcommon.build_files(d, SETTINGS)[XML]).decode()
+        self.assertIn('name="windeploy Mozilla.Firefox"', xml)
+        self.assertIn('uid="{00000000-0000-0000-0000-0000000000F1}"', xml)
+        self.assertEqual(xml.count('action="D"'), 1)
+        # nothing to do for the timer while the period runs
+        self.assertEqual(removal.rewrite_outdated({"deployments": [d]}, settings=SETTINGS), ([], []))
+        # period over: the timer drops the item and writes the GPO
+        d["removed_packages"][0]["until"] = "2026-01-01T00:00:00+00:00"
+        self.assertEqual(removal.rewrite_outdated({"deployments": [d]}, settings=SETTINGS)[0], ["Browser"])
+        self.assertEqual(d["removed_packages"], [])
+        self.assertNotIn('action="D"', self.xml())
+
+    def test_package_taken_in_again(self):
+        d = deployment()
+        old = {p["id"]: dict(p, task_uid="{00000000-0000-0000-0000-0000000000F1}") for p in d["packages"]}
+        d["packages"] = []
+        wdcommon.track_removed_packages(d, old)
+        d["packages"] = [{"id": "mozilla.firefox", "mode": "upgrade"}]
+        wdcommon.track_removed_packages(d, {})
+        self.assertEqual(d["removed_packages"], [])
+
+
 class Deployments(Base):
     def test_start_deletes_tasks_and_cancel_restores(self):
         d = deployment()
