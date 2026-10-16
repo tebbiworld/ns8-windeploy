@@ -82,12 +82,14 @@ $StartDate = '{start_date}'
 # only when a scheduled time has passed since the last run. The last run
 # is kept in the registry (HKLM: written by administrators only).
 $StateKey = 'HKLM:\SOFTWARE\windeploy\' + $PackageId
+# New-Item -Force on an existing registry key empties it: create it once
+function Open-State {{ if (-not (Test-Path $StateKey)) {{ New-Item -Path $StateKey -Force | Out-Null }} }}
 function Test-Due {{
     if ($RunNow) {{ return $true }}
     $last = (Get-ItemProperty -Path $StateKey -Name LastRun -ErrorAction SilentlyContinue).LastRun
     if (-not $last) {{
         # first time on this computer: wait for the next scheduled time
-        New-Item -Path $StateKey -Force | Out-Null
+        Open-State
         Set-ItemProperty -Path $StateKey -Name LastRun -Value (Get-Date).ToString('s')
         return $false
     }}
@@ -159,7 +161,7 @@ try {{
     # another start of this task may have done the work while this one waited
     if (-not (Test-Due)) {{ Write-Output 'already done by another run'; exit 0 }}
     $started = (Get-Date).ToString('s')
-    New-Item -Path $StateKey -Force | Out-Null
+    Open-State
     Set-ItemProperty -Path $StateKey -Name RunPid -Value $PID
     Set-ItemProperty -Path $StateKey -Name RunStart -Value (Get-Process -Id $PID).StartTime.ToString('s')
     # C:\Program Files\WindowsApps is readable for SYSTEM only; the winget of
@@ -212,7 +214,7 @@ try {{
         $code = 0
     }}
     # a failed run counts as well: the next try is the next scheduled time
-    New-Item -Path $StateKey -Force | Out-Null
+    Open-State
     Set-ItemProperty -Path $StateKey -Name LastRun -Value $started
     Set-ItemProperty -Path $StateKey -Name LastExitCode -Value ([string]$code)
     exit $code

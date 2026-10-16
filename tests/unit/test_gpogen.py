@@ -188,6 +188,9 @@ class Script(unittest.TestCase):
         self.assertIn(f"$RunLimitMinutes = {gpogen.RUN_LIMIT_MINUTES}", s)
         self.assertIn("Set-ItemProperty -Path $StateKey -Name RunPid -Value $PID", s)
         self.assertIn("Remove-ItemProperty -Path $StateKey -Name RunPid, RunStart", s)
+        # New-Item -Force would empty the key (LastRun lost, measured)
+        self.assertEqual(s.count("New-Item -Path $StateKey -Force"), 1)
+        self.assertIn("if (-not (Test-Path $StateKey)) { New-Item -Path $StateKey -Force | Out-Null }", s)
         # hung starts of the SYSVOL copy of up to 0.4.0
         self.assertIn("'\\Machine\\Scripts\\windeploy\\' + 'Nextcloud.NextcloudDesktop.ps1'", s)
         # the lock is taken before the schedule test and before winget
