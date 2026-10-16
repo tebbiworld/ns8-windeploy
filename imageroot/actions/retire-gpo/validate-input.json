@@ -1,0 +1,23 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "retire-gpo input",
+    "$id": "http://schema.nethserver.org/windeploy/retire-gpo-input.json",
+    "description": "Retire a foreign GPO in steps. start (domain admin, not stored): full copy, rights of the module group on this GPO, Preferences rewritten to take back what the computers keep, waiting period. cancel (domain admin): the GPO as it was, also its owner and rights. delete: after the waiting period, remove links, object and SYSVOL folder on the DC of the settings.",
+    "examples": [
+        {"guid": "{22222222-2222-2222-2222-222222222222}", "step": "start", "reason": "Replaced by a policy profile", "days": 14, "admin_user": "Administrator", "admin_password": "Secret-1", "confirm_registry": [], "confirm_audit": false},
+        {"guid": "{22222222-2222-2222-2222-222222222222}", "step": "delete", "reason": "Waiting period over"}
+    ],
+    "type": "object",
+    "required": ["guid", "step", "reason"],
+    "additionalProperties": false,
+    "properties": {
+        "guid": {"type": "string", "pattern": "^\\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\\}$"},
+        "step": {"type": "string", "enum": ["start", "cancel", "delete"]},
+        "reason": {"type": "string", "minLength": 3, "maxLength": 500, "pattern": "^[^\\x00]+$"},
+        "days": {"description": "Waiting period (start only); default from the settings", "type": "integer", "minimum": 1, "maximum": 365},
+        "admin_user": {"description": "Domain admin (start and cancel), used once", "type": "string", "minLength": 1, "maxLength": 104, "pattern": "^[^\\x00-\\x1f]+$"},
+        "admin_password": {"type": "string", "minLength": 1, "maxLength": 256},
+        "confirm_registry": {"description": "Registry Preferences the computers delete during the waiting period (refs of the inventory)", "type": "array", "maxItems": 500, "items": {"type": "string", "minLength": 3, "maxLength": 600, "pattern": "^[^\\x00-\\x1f]+$"}},
+        "confirm_audit": {"description": "The admin knows that deleting a GPO with an advanced audit policy clears all advanced auditing of the computers", "type": "boolean"}
+    }
+}

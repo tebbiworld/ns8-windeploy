@@ -135,8 +135,9 @@ def _text(value, limit=TEXT_MAX):
     return value if len(value) <= limit else value[:limit - 1] + "…"
 
 
-def _item(part, source, effect, name, detail=""):
-    return {"part": part, "source": source, "effect": effect, "name": _text(name), "detail": _text(detail)}
+def _item(part, source, effect, name, detail="", ref=""):
+    return {"part": part, "source": source, "effect": effect, "name": _text(name), "detail": _text(detail),
+            "ref": ref}
 
 
 def _part(path):
@@ -338,6 +339,42 @@ def _gpp_elements(root):
             yield el
 
 
+def gpp_action(el):
+    """The action of a Preferences item: C(reate), R(eplace), U(pdate),
+    D(elete)."""
+    props = el.find("Properties")
+    action = (props.get("action") if props is not None else "") or "U"
+    return action.upper()[:1]
+
+
+def gpp_effect(folder, el):
+    """What a computer keeps of a Preferences item when the GPO is
+    deleted, and what retiring does with it (see the module docstring).
+    folder: the folder below Preferences, lower case."""
+    if gpp_action(el) == "D":
+        return "none"
+    if el.get("removePolicy") == "1":
+        return "removed"
+    if folder == "scheduledtasks" and el.tag.startswith("ImmediateTask"):
+        # runs once when applied and is gone afterwards
+        return "none"
+    effect = GPP_RETIRE.get(folder, "stays")
+    if effect == "retire_members" and (el.tag != "Group" or not _gpp_detail(folder, el)):
+        # a local user, or a group without added members: retiring
+        # leaves it alone
+        effect = "stays"
+    return effect
+
+
+def gpp_items(root):
+    """(ref, element) of the enabled items of a Preferences file; ref is
+    the item's uid, or its position when it has none."""
+    for n, el in enumerate(_gpp_elements(root)):
+        if el.get("disabled") == "1":
+            continue
+        yield (el.get("uid") or f"#{n}"), el
+
+
 def preferences_items(path, data):
     part = _part(path)
     folder = path.split("/")[-2].lower()
@@ -346,26 +383,11 @@ def preferences_items(path, data):
     except ET.ParseError as ex:
         return [_item(part, "preferences", "unknown", path, f"not readable: {ex}")]
     items = []
-    for el in _gpp_elements(root):
-        if el.get("disabled") == "1":
-            continue
-        props = el.find("Properties")
-        action = (props.get("action") if props is not None else "") or "U"
-        action = action.upper()[:1]
-        if action == "D":
-            effect = "none"
-        elif el.get("removePolicy") == "1":
-            effect = "removed"
-        else:
-            effect = GPP_RETIRE.get(folder, "stays")
-            if effect == "retire_members" and (el.tag != "Group" or not _gpp_detail(folder, el)):
-                # a local user, or a group without added members: retiring
-                # leaves it alone
-                effect = "stays"
+    for ref, el in gpp_items(root):
         detail = _gpp_detail(folder, el)
         # the action as the editor abbreviates it: Create, Replace, Update, Delete
-        items.append(_item(part, "preferences", effect, f"{root.tag}: {_gpp_name(el)}",
-                           f"[{action}] {detail}".strip()))
+        items.append(_item(part, "preferences", gpp_effect(folder, el), f"{root.tag}: {_gpp_name(el)}",
+                           f"[{gpp_action(el)}] {detail}".strip(), ref=f"{path}|{ref}"))
     return items
 
 

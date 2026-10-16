@@ -29,4 +29,12 @@ if request.get("refresh"):
         sys.exit(3)
 else:
     result = wdcommon.read_gpo_inventory() or {"checked": None, "gpos": [], "own_count": 0, "dcs": []}
+# the GPOs being retired, the ones deleted since and the steps
+retired = wdcommon.read_retired()
+deleted = {h["guid"] for h in retired.get("history", [])}
+result["gpos"] = [g for g in result["gpos"] if g["guid"] not in deleted]
+result["retiring"] = retired["gpos"]
+result["retired"] = retired.get("history", [])
+result["log"] = wdcommon.read_retire_log()
+result["grace_days"] = wdcommon.grace_days_default()
 json.dump(result, fp=sys.stdout)

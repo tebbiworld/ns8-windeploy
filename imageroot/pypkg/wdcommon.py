@@ -194,7 +194,7 @@ NT_STATUS_LOGON_FAILURE = 0xC000006D
 
 
 # requests that carry the credentials of a domain admin in their body
-ADMIN_OPS = ("provision", "dns_delegate", "dns_create_zone", "dns_delete_zone")
+ADMIN_OPS = ("provision", "dns_delegate", "dns_create_zone", "dns_delete_zone", "retire_start", "retire_cancel")
 
 
 # Sub-codes of a refused AD login ("data 533" in LDAP error 49). Only for
@@ -589,6 +589,66 @@ def read_domain_controllers():
 
 
 INVENTORY_FILE = "gpo-inventory.json"
+# foreign GPOs being retired and the ones deleted, with their changes
+RETIRED = "retired.json"
+RETIRE_LOG = "retire-log.jsonl"
+# copies of retired GPOs (gpowrite writes them below gpo-backups/retired)
+RETIRED_DIR = "retired"
+RETIRED_KEPT = 20
+
+
+def retired_locked():
+    """Read-modify-write of state/retired.json under an exclusive lock."""
+    return _locked(RETIRED, read_retired)
+
+
+def read_retired():
+    try:
+        with open(os.path.join(state_dir(), RETIRED)) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"gpos": [], "history": []}
+
+
+def log_retire_change(guid, name, change, reason, detail=None):
+    """One line per step of a retirement: started, cancelled, deleted."""
+    entry = {
+        "time": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+        "guid": guid, "name": name, "change": change, "reason": reason,
+    }
+    if detail:
+        entry["detail"] = detail
+    with open(os.path.join(state_dir(), RETIRE_LOG), "a") as f:
+        f.write(json.dumps(entry, sort_keys=True) + "\n")
+
+
+def read_retire_log(limit=50):
+    try:
+        with open(os.path.join(state_dir(), RETIRE_LOG)) as f:
+            lines = f.readlines()[-limit:]
+    except FileNotFoundError:
+        return []
+    return [json.loads(line) for line in reversed(lines) if line.strip()]
+
+
+def prune_retired_backups(keep=RETIRED_KEPT, protect=()):
+    """Keep the newest copies of retired GPOs (all GPOs together), and
+    always the ones of GPOs still being retired (protect: (guid, stamp))."""
+    base = os.path.join(state_dir(), BACKUP_DIR, RETIRED_DIR)
+    copies = []
+    for guid in os.listdir(base) if os.path.isdir(base) else []:
+        for stamp in os.listdir(os.path.join(base, guid)):
+            copies.append((stamp, guid))
+    copies.sort()
+    protect = {(g.upper(), st) for g, st in protect}
+    for stamp, guid in copies[:-keep] if keep else copies:
+        if (guid.upper(), stamp) in protect:
+            continue
+        shutil.rmtree(os.path.join(base, guid, stamp), ignore_errors=True)
+        try:
+            os.rmdir(os.path.join(base, guid))
+        except OSError:
+            pass
 
 
 def check_gpo_inventory(settings=None):

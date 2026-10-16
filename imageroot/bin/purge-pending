@@ -6,7 +6,8 @@
 #
 
 # Daily (timer windeploy-purge): delete the GPOs of deployments, policy
-# profiles, logon rules and script sets whose waiting period is over. An item that fails (DC down)
+# profiles, logon rules, script sets and retired foreign GPOs whose
+# waiting period is over. An item that fails (DC down)
 # stays pending and is tried again the next day. Also writes the GPOs of
 # deployments the update to 0.4.1 could not rewrite, and drops the delete
 # items of removed packages whose waiting period is over.
@@ -63,6 +64,15 @@ with wdcommon.scripts_locked() as data:
         except Exception as ex:
             failed += 1
             print(agent.SD_ERR + f"script set {item['name']!r} not deleted: {ex}", file=sys.stderr)
+
+with wdcommon.retired_locked() as data:
+    for record in [g for g in data["gpos"] if wdcommon.pending_due(g) and not g.get("cancel_incomplete")]:
+        try:
+            removal.purge_retire(data, record["guid"], record["pending_delete"]["reason"], by="timer")
+            print(agent.SD_NOTICE + f"retired GPO {record['name']!r} deleted, waiting period over", file=sys.stderr)
+        except Exception as ex:
+            failed += 1
+            print(agent.SD_ERR + f"retired GPO {record['name']!r} not deleted: {ex}", file=sys.stderr)
 
 # the status page shows DCs without the SYSVOL folders of the module
 try:
