@@ -4,8 +4,13 @@
 
 ### Added
 
+- **Retire foreign GPOs** (page "GPO inventory", "Retire"): a domain admin signs in once (not stored). The module keeps a full copy of the GPO (SYSVOL folder, GPO object, ACLs, links; the last 20 copies stay in the module and its backup), gives `windeploy-admins` the rights on this one GPO and rewrites its preferences for the waiting period: tasks, drive maps, shortcuts and environment variables get the action "delete", added members of local groups are removed, registry preferences are deleted only when confirmed one by one. A GPO with an advanced audit policy needs an explicit confirmation. "Cancel" (again with a domain admin, the only one who may give the ownership back) puts files, ACLs, owner and permissions back from the copy; a cancel that fails half way keeps the GPO from being deleted until it succeeds; after the waiting period the daily timer or "Delete now" removes the links, the object and the SYSVOL folder. Only the DC of the settings is changed; GPOs linked to a site are refused. The guide (section 10) explains copies on other DCs and how to restore a deleted GPO by hand.
 - **Page "GPO inventory"** (read only): the GPOs of the domain that are not the module's, with links, versions of the computer and user part, last change, presence of the SYSVOL folder on each DC, and every setting with what the computers keep when the GPO is deleted (removed by Windows, rights restored, stays, all advanced auditing cleared, scripts, preferences that retiring takes back, not analysed). The default policies and GPOs of other windeploy instances are marked and never offered for retiring.
 - **Policy option "No Thumbs.db on network drives"** (group "Network"): Explorer no longer writes hidden `Thumbs.db` thumbnail files into shared folders, where they disturb sync clients. It is the first setting on the user side: the profile writes `User/Registry.pol` and raises the user part of the GPO version only when that file changes. It applies to the user accounts below the linked targets. `Thumbs.db` files already on the shares stay. Windows 11 25H2 wrote no `Thumbs.db` to a Samba share in the test even without the policy; the option guards against older clients.
+
+### Fixed
+
+- The version of a GPO is raised in the right part also for folders spelled `MACHINE/` and `USER/` (GPOs of other tools).
 
 ### Security
 
