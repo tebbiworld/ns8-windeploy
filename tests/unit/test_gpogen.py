@@ -167,7 +167,8 @@ class Script(unittest.TestCase):
         self.assertIn("windeploy-Nextcloud.NextcloudDesktop.log", s)
 
     def test_rejects_injection(self):
-        for bad in ["a'; Remove-Item C:\\ -Recurse; '", "a b", "$(x)", "..\\x"]:
+        # "$" of re.match also matches before a final line break
+        for bad in ["a'; Remove-Item C:\\ -Recurse; '", "a b", "$(x)", "..\\x", "7zip.7zip\n"]:
             with self.assertRaises(gpogen.GenError):
                 gpogen.build_script(bad)
 

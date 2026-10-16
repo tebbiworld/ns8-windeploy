@@ -39,7 +39,7 @@ class RuleError(ValueError):
 def check_zone(zone):
     zone = str(zone).strip().rstrip(".").lower()
     labels = zone.split(".")
-    if not zone or len(zone) > 253 or not all(LABEL_RE.match(x) for x in labels):
+    if not zone or len(zone) > 253 or not all(LABEL_RE.fullmatch(x) for x in labels):
         raise RuleError("invalid_zone", zone)
     return zone
 
@@ -53,7 +53,7 @@ def check_name(name):
     labels = name.split(".")
     if labels[0] == "*":
         labels = labels[1:]
-    if len(name) > 253 or not all(LABEL_RE.match(x) for x in labels):
+    if len(name) > 253 or not all(LABEL_RE.fullmatch(x) for x in labels):
         raise RuleError("invalid_name", name)
     return name
 
@@ -62,7 +62,7 @@ def check_host(value):
     """A host name as the target of CNAME, MX, SRV or PTR (no address)."""
     host = str(value).strip().rstrip(".").lower()
     labels = host.split(".")
-    if not host or len(host) > 253 or not all(HOST_LABEL_RE.match(x) for x in labels) or labels[-1].isdigit():
+    if not host or len(host) > 253 or not all(HOST_LABEL_RE.fullmatch(x) for x in labels) or labels[-1].isdigit():
         raise RuleError("invalid_host", str(value))
     return host
 
