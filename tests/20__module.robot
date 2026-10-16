@@ -17,6 +17,13 @@ The pages load without a domain controller
     Should Be Equal As Integers    ${res['grace_days']}    21
     ${res} =    Run task    module/${module_id}/list-scripts    {}
     Should Be Empty    ${res['sets']}
+    ${res} =    Run task    module/${module_id}/list-gpo-inventory    {}
+    Should Be Equal    ${res['checked']}    ${None}
+    Should Be Empty    ${res['gpos']}
+
+Reading the GPO inventory without a domain controller fails cleanly
+    Run task expecting a validation error    module/${module_id}/list-gpo-inventory
+    ...    {"refresh":true}    inventory_failed
 
 The administrators can never be denied the logon
     Run task expecting a validation error    module/${module_id}/save-logon-rule
