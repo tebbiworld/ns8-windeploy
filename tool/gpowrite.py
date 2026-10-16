@@ -41,6 +41,10 @@ Requests (field "op"):
   delete  {guid}          remove links are the caller's job; removes the
                           GPO object and its SYSVOL folder
   targets                 domain root and organizational units (link targets)
+  inventory               every GPO of the domain, read only: attributes,
+                          links, files of its SYSVOL folder with the content
+                          of the files the module can analyse, and on which
+                          DC the folder is present
   principals {query}      users and groups by name prefix, with SIDs
   rights_on_path {target_dn}
                           GPO links from target_dn up to the domain root and
@@ -89,6 +93,18 @@ ALLOWED_FILE_RE = re.compile(
     r"|User/Registry\.pol"
     r"|Machine/Scripts/(psscripts\.ini|Startup/windeploy-startup\.ps1)"
     r"|User/Scripts/(psscripts\.ini|Logon/windeploy-logon\.ps1))$")
+
+# Files of a GPO folder whose content the inventory returns (lower case,
+# "/" separated); everything else is listed by name and size only
+INVENTORY_CONTENT_RE = re.compile(
+    r"^((machine|user)/registry\.pol"
+    r"|machine/microsoft/windows nt/secedit/gpttmpl\.inf"
+    r"|machine/microsoft/windows nt/audit/audit\.csv"
+    r"|(machine|user)/scripts/(ps)?scripts\.ini"
+    r"|(machine|user)/preferences/[^/]+/[^/]+\.xml)$")
+INVENTORY_FILE_MAX = 2 * 1024 * 1024
+INVENTORY_TOTAL_MAX = 48 * 1024 * 1024
+INVENTORY_ENTRIES_MAX = 3000
 
 SCHEMA_GPC = "f30e3bc2-9ff0-11d1-b603-0000f80367c1"      # groupPolicyContainer
 ATTR_GPLINK = "f30e3bbe-9ff0-11d1-b603-0000f80367c1"
@@ -856,6 +872,98 @@ class Session:
         log(f"created {dn}")
         return {"dn": dn, "created": True}
 
+    def inventory(self):
+        """Every GPO of the domain, read only (page "GPO inventory"):
+        {gpos: [{guid, display_name, version, flags, machine_extensions,
+        user_extensions, created, changed, wmi_filter, links: [{dn, enforced,
+        disabled}], readable, truncated, files: [{path, size}], contents:
+        {path: base64}}], dcs: [{name, reachable, missing_gpos}],
+        domain_ips}. The analysis is the module's job (pypkg/gpoinventory.py)."""
+        base = f"CN=Policies,CN=System,{self.domain_dn}"
+        res = self.samdb.search(base, scope=ldb.SCOPE_ONELEVEL, expression="(objectClass=groupPolicyContainer)",
+                                attrs=["cn", "displayName", "versionNumber", "flags", "gPCMachineExtensionNames",
+                                       "gPCUserExtensionNames", "whenCreated", "whenChanged", "gPCWQLFilter"])
+        links = {}
+        bases = [self.domain_dn]
+        try:
+            bases.append(f"CN=Sites,{self.samdb.get_config_basedn()}")
+        except Exception:
+            pass
+        for b in bases:
+            try:
+                found = self.samdb.search(b, scope=ldb.SCOPE_SUBTREE, expression="(gPLink=*)", attrs=["gPLink"])
+            except ldb.LdbError:
+                continue
+            for m in found:
+                for entry in re.findall(r"\[LDAP://([^;\]]*);(\d+)\]", str(m["gPLink"][0])):
+                    g = GUID_IN_DN_RE.search(entry[0])
+                    if g:
+                        opts = int(entry[1])
+                        links.setdefault(g.group(0).upper(), []).append(
+                            {"dn": str(m.dn), "disabled": bool(opts & 1), "enforced": bool(opts & 2)})
+        total = 0
+        gpos = []
+        for m in sorted(res, key=lambda m: _attr(m, "displayName", "").lower()):
+            guid = _attr(m, "cn", "").upper()
+            if not GUID_RE.fullmatch(guid):
+                continue
+            item = {
+                "guid": guid,
+                "display_name": _attr(m, "displayName", ""),
+                "version": int(_attr(m, "versionNumber", "0") or 0),
+                "flags": int(_attr(m, "flags", "0") or 0),
+                "machine_extensions": _attr(m, "gPCMachineExtensionNames", ""),
+                "user_extensions": _attr(m, "gPCUserExtensionNames", ""),
+                "created": _attr(m, "whenCreated", ""),
+                "changed": _attr(m, "whenChanged", ""),
+                "wmi_filter": _attr(m, "gPCWQLFilter", ""),
+                "links": links.get(guid, []),
+                "readable": False, "truncated": False, "files": [], "contents": {},
+            }
+            root = self.share_path(guid)
+            try:
+                if self.smb.chkpath(root):
+                    files = []
+                    item["truncated"] = not self._walk(root, "", files, INVENTORY_ENTRIES_MAX)
+                    item["files"] = files
+                    item["readable"] = True
+                    for f in files:
+                        if not INVENTORY_CONTENT_RE.fullmatch(f["path"].lower()):
+                            continue
+                        if f["size"] > INVENTORY_FILE_MAX or total + f["size"] > INVENTORY_TOTAL_MAX:
+                            item["truncated"] = True
+                            continue
+                        data = self.read_file(self.share_path(guid, f["path"]))
+                        if data is not None:
+                            total += len(data)
+                            item["contents"][f["path"]] = base64.b64encode(data).decode()
+            except Exception as ex:
+                log(f"inventory: SYSVOL folder of {guid} not readable: {type(ex).__name__}: {ex}")
+                item["readable"] = False
+            gpos.append(item)
+        dcs = self.domain_controllers([g["guid"] for g in gpos])
+        return {"gpos": gpos, "dcs": dcs["dcs"], "domain_ips": dcs["domain_ips"]}
+
+
+    def _walk(self, path, rel, out, limit, depth=0):
+        """Files below path as {path (relative, "/"), size}; False when the
+        listing stopped at limit entries or 16 levels."""
+        if depth > 16:
+            return False
+        for entry in self.smb.list(path):
+            name = entry["name"]
+            if name in (".", ".."):
+                continue
+            if len(out) >= limit:
+                return False
+            child_rel = f"{rel}/{name}" if rel else name
+            if entry["attrib"] & 0x10:  # FILE_ATTRIBUTE_DIRECTORY
+                if not self._walk(path + "\\" + name, child_rel, out, limit, depth + 1):
+                    return False
+            else:
+                out.append({"path": child_rel, "size": int(entry.get("size", 0))})
+        return True
+
     def delete(self, guid, unlink_all=False):
         _check_guid(guid)
         links = self._links_of(guid)
@@ -1015,6 +1123,8 @@ def main():
             result = s.rights_on_path(request["target_dn"])
         elif op == "targets":
             result = s.targets()
+        elif op == "inventory":
+            result = s.inventory()
         elif op == "delete":
             result = s.delete(request["guid"], unlink_all=request.get("unlink_all", False))
         else:
