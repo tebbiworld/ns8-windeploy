@@ -1,0 +1,9 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "check-domain-controllers input",
+    "$id": "http://schema.nethserver.org/windeploy/check-domain-controllers-input.json",
+    "description": "Check every domain controller: addresses, SMB, SYSVOL folders of the module's GPOs",
+    "examples": [{}],
+    "type": "object",
+    "additionalProperties": false
+}

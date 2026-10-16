@@ -53,16 +53,18 @@ def _write_deployment(deployment, settings):
 
 def outdated(deployment):
     """GPO written with another script or task format (an earlier
-    version, e.g. one starting the script from SYSVOL), or such a rewrite
-    that failed before."""
+    version, e.g. one starting the script from SYSVOL), with removed
+    packages whose waiting period is over, or such a rewrite that failed
+    before."""
     return bool(deployment.get("gpo_guid")) and (
         deployment.get("generator") != gpogen.generator_id() or deployment.get("delivery") != wdcommon.DELIVERY
-        or deployment.get("rewrite_pending"))
+        or deployment.get("rewrite_pending") or bool(wdcommon.removed_due(deployment)))
 
 
 def rewrite_outdated(data, settings=None):
     """Write the GPOs of outdated deployments again (module update and
-    the daily timer). A deployment that fails (DC down) keeps the mark
+    the daily timer); removed packages whose waiting period is over are
+    dropped. A deployment that fails (DC down) keeps the mark
     rewrite_pending and is tried again. Returns (rewritten, failed) names."""
     done, failed = [], []
     todo = [d for d in data["deployments"] if outdated(d)]
@@ -73,6 +75,9 @@ def rewrite_outdated(data, settings=None):
         new = copy.deepcopy(deployment)
         new.pop("rewrite_pending", None)
         embedding = new.get("delivery") != wdcommon.DELIVERY
+        script_changed = embedding or new.get("generator") != gpogen.generator_id()
+        due = wdcommon.removed_due(new)
+        new["removed_packages"] = [r for r in new.get("removed_packages", []) if r not in due]
         try:
             _write_deployment(new, settings)
         except Exception as ex:
@@ -81,8 +86,9 @@ def rewrite_outdated(data, settings=None):
             continue
         deployment.clear()
         deployment.update(new)
-        wdcommon.log_deployment_change(deployment["name"], "rewritten",
-                                       "script embedded in the task" if embedding else "script of the new version")
+        if script_changed:
+            wdcommon.log_deployment_change(deployment["name"], "rewritten",
+                                           "script embedded in the task" if embedding else "script of the new version")
         done.append(deployment["name"])
     return done, failed
 
