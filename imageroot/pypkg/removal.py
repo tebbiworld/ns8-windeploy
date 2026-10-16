@@ -23,6 +23,7 @@ gpowrite propagate: the caller does not store a half done step.
 import copy
 import datetime
 
+import gpogen
 import policygen
 import wdcommon
 
@@ -51,14 +52,16 @@ def _write_deployment(deployment, settings):
 
 
 def outdated(deployment):
-    """GPO written by a version whose tasks start the script from SYSVOL
-    (up to 0.4.0), or such a rewrite that failed before."""
+    """GPO written with another script or task format (an earlier
+    version, e.g. one starting the script from SYSVOL), or such a rewrite
+    that failed before."""
     return bool(deployment.get("gpo_guid")) and (
-        deployment.get("delivery") != wdcommon.DELIVERY or deployment.get("rewrite_pending"))
+        deployment.get("generator") != gpogen.generator_id() or deployment.get("delivery") != wdcommon.DELIVERY
+        or deployment.get("rewrite_pending"))
 
 
 def rewrite_outdated(data, settings=None):
-    """Write the GPOs of outdated deployments again (update to 0.4.1 and
+    """Write the GPOs of outdated deployments again (module update and
     the daily timer). A deployment that fails (DC down) keeps the mark
     rewrite_pending and is tried again. Returns (rewritten, failed) names."""
     done, failed = [], []
@@ -69,6 +72,7 @@ def rewrite_outdated(data, settings=None):
     for deployment in todo:
         new = copy.deepcopy(deployment)
         new.pop("rewrite_pending", None)
+        embedding = new.get("delivery") != wdcommon.DELIVERY
         try:
             _write_deployment(new, settings)
         except Exception as ex:
@@ -77,7 +81,8 @@ def rewrite_outdated(data, settings=None):
             continue
         deployment.clear()
         deployment.update(new)
-        wdcommon.log_deployment_change(deployment["name"], "rewritten", "script embedded in the task (0.4.1)")
+        wdcommon.log_deployment_change(deployment["name"], "rewritten",
+                                       "script embedded in the task" if embedding else "script of the new version")
         done.append(deployment["name"])
     return done, failed
 

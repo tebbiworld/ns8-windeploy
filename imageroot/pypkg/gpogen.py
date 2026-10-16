@@ -226,6 +226,18 @@ try {{
 """
 
 
+def generator_id():
+    """Fingerprint of the script and task format. A deployment written
+    with another one is written again when the module is updated, so a
+    changed script reaches the computers without saving each deployment."""
+    import hashlib
+    h = hashlib.sha256()
+    for part in (SCRIPT_TEMPLATE, SCRIPT_HEADER, SCRIPT_HEADER_RUN_NOW, build_task.__doc__ or "",
+                 str(RUN_LIMIT_MINUTES), DEFAULT_TIME_LIMIT, str(DEFAULT_INSTALL_TIMEOUT)):
+        h.update(part.encode())
+    return h.hexdigest()[:16]
+
+
 def safe_file_part(package_id):
     """File name part for a package identifier (no characters Windows or
     PowerShell treat specially)."""

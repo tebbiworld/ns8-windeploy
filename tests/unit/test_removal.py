@@ -79,6 +79,14 @@ class Rewrite(Base):
         self.assertIsNone(apply[0]["files"]["Machine/Scripts/windeploy/Mozilla.Firefox.ps1"])
         self.assertEqual(removal.rewrite_outdated(data, settings=SETTINGS), ([], []))
 
+    def test_new_script_version_is_written(self):
+        d = deployment()
+        removal.rewrite_outdated({"deployments": [d]}, settings=SETTINGS)
+        self.assertEqual(d["generator"], removal.gpogen.generator_id())
+        d["generator"] = "older"
+        self.assertEqual(removal.rewrite_outdated({"deployments": [d]}, settings=SETTINGS), (["Browser"], []))
+        self.assertEqual(d["generator"], removal.gpogen.generator_id())
+
     def test_failed_rewrite_is_kept_for_the_timer(self):
         def down(request, settings=None, **_):
             raise wdcommon.ToolError("dc unreachable")

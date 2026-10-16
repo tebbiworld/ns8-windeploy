@@ -587,6 +587,7 @@ def build_files(deployment, settings):
     # of the UNC path never returned). The scripts of older versions are
     # deleted from SYSVOL.
     deployment["delivery"] = DELIVERY
+    deployment["generator"] = gpogen.generator_id()
     run_now = []
     for pkg in deployment["packages"]:
         options = dict(mode=pkg.get("mode", "upgrade"), scope="machine" if pkg.get("scope") == "machine" else "",
