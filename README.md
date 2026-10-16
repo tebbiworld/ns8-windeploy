@@ -53,7 +53,10 @@ Four kinds of files are written: `Machine/Registry.pol` (most
 settings), `User/Registry.pol` (no `Thumbs.db` on network drives,
 policy `DisableThumbsDBOnNetworkFolders` of `Thumbnails.admx`; it
 applies to the user accounts below the linked targets, not to the
-computers; `Thumbs.db` files already on the shares stay), `GptTmpl.inf`
+computers; `Thumbs.db` files already on the shares stay. Measured
+with Windows 11 25H2: Explorer wrote no `Thumbs.db` to a Samba share,
+by UNC path or mapped drive, with the policy or without it; the setting
+guards against older clients and other defaults), `GptTmpl.inf`
 (user rights) and scheduled tasks that set
 the audit subcategories with `auditpol` and the display request
 overrides with `powercfg`. What a computer does when the
