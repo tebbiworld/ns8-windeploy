@@ -849,5 +849,20 @@
         "error_removal_pending": "The removal is running; cancel it first",
         "error_link_target_not_found": "Link target {value} does not exist",
         "error_not_configured": "The module is not connected to a domain"
+    },
+    "dcs": {
+        "title": "Domain controllers",
+        "not_checked": "Not checked yet. The check runs daily and with the button below.",
+        "no_address": "no address in the directory DNS",
+        "unreachable": "not reachable (SMB, port 445)",
+        "sysvol_unreadable": "SYSVOL could not be read",
+        "missing_gpos": "the SYSVOL folder of one GPO of this module is missing | the SYSVOL folders of {n} GPOs of this module are missing",
+        "domain_ips": "The domain name also resolves to {ips}, which belongs to no reachable DC. Computers that pick this address cannot read the GPOs; remove the address or bring the DC back.",
+        "several": "{n} domain controllers. Samba does not replicate SYSVOL: the module writes its GPOs to the DC set in the settings only; the other DCs need a copy (e.g. rsync), or computers using them see incomplete GPOs.",
+        "checked": "Checked {time}",
+        "problem_title": "Problem with a domain controller",
+        "problem_help": "Computers may not get the GPOs of this module. See the guide, section \"Several domain controllers\".",
+        "check_now": "Check now",
+        "check_failed": "The check failed; see the system logs."
     }
 }

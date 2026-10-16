@@ -849,5 +849,20 @@
         "error_removal_pending": "La rimozione è in corso; annullarla prima",
         "error_link_target_not_found": "La destinazione {value} non esiste",
         "error_not_configured": "Il modulo non è collegato a un dominio"
+    },
+    "dcs": {
+        "title": "Controller di dominio",
+        "not_checked": "Non ancora verificato. La verifica avviene ogni giorno e con il pulsante qui sotto.",
+        "no_address": "nessun indirizzo nel DNS della directory",
+        "unreachable": "non raggiungibile (SMB, porta 445)",
+        "sysvol_unreadable": "SYSVOL non leggibile",
+        "missing_gpos": "manca la cartella SYSVOL di un GPO di questo modulo | mancano le cartelle SYSVOL di {n} GPO di questo modulo",
+        "domain_ips": "Il nome di dominio risolve anche in {ips}, che non appartiene a nessun DC raggiungibile. I computer che scelgono questo indirizzo non possono leggere i GPO; rimuovere l'indirizzo o ripristinare il DC.",
+        "several": "{n} controller di dominio. Samba non replica SYSVOL: il modulo scrive i suoi GPO solo sul DC delle impostazioni; gli altri DC hanno bisogno di una copia (p. es. rsync), altrimenti i computer che li usano vedono GPO incompleti.",
+        "checked": "Verificato {time}",
+        "problem_title": "Problema con un controller di dominio",
+        "problem_help": "I computer potrebbero non ricevere i GPO di questo modulo. Vedere la guida, sezione «Più controller di dominio».",
+        "check_now": "Verifica ora",
+        "check_failed": "La verifica non è riuscita; vedere i log di sistema."
     }
 }

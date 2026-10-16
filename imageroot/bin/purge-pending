@@ -64,4 +64,11 @@ with wdcommon.scripts_locked() as data:
             failed += 1
             print(agent.SD_ERR + f"script set {item['name']!r} not deleted: {ex}", file=sys.stderr)
 
+# the status page shows DCs without the SYSVOL folders of the module
+try:
+    if wdcommon.connection_settings()["domain"]:
+        wdcommon.check_domain_controllers()
+except Exception as ex:
+    print(agent.SD_WARNING + f"check of the domain controllers failed: {ex}", file=sys.stderr)
+
 sys.exit(1 if failed else 0)

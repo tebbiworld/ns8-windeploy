@@ -565,6 +565,29 @@ def update_scopes(deployment):
     return [p["id"] for p in deployment["packages"] if p.get("scope") == "user"]
 
 
+DCS_FILE = "dcs.json"
+
+
+def check_domain_controllers(settings=None):
+    """Run the check of the domain controllers and keep the result in
+    dcs.json (shown on the status page)."""
+    result = run_tool({"op": "domain_controllers", "guids": sorted(gpo_guids())}, settings=settings, timeout=120)
+    result["checked"] = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    fd, tmp = tempfile.mkstemp(dir=state_dir(), prefix="." + DCS_FILE + "-")
+    with os.fdopen(fd, "w") as f:
+        json.dump(result, f, indent=1)
+    os.replace(tmp, os.path.join(state_dir(), DCS_FILE))
+    return result
+
+
+def read_domain_controllers():
+    try:
+        with open(os.path.join(state_dir(), DCS_FILE)) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
 def track_removed_packages(deployment, old_packages):
     """A package taken out of a deployment keeps a task item with the
     action "delete" for the waiting period: computers that were away in

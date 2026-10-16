@@ -849,5 +849,20 @@
         "error_removal_pending": "La suppression est en cours ; l'annuler d'abord",
         "error_link_target_not_found": "La cible {value} n'existe pas",
         "error_not_configured": "Le module n'est relié à aucun domaine"
+    },
+    "dcs": {
+        "title": "Contrôleurs de domaine",
+        "not_checked": "Pas encore vérifié. La vérification a lieu chaque jour et avec le bouton ci-dessous.",
+        "no_address": "aucune adresse dans le DNS de l'annuaire",
+        "unreachable": "injoignable (SMB, port 445)",
+        "sysvol_unreadable": "SYSVOL illisible",
+        "missing_gpos": "le dossier SYSVOL d'un GPO de ce module manque | les dossiers SYSVOL de {n} GPO de ce module manquent",
+        "domain_ips": "Le nom de domaine résout aussi vers {ips}, qui n'appartient à aucun DC joignable. Les ordinateurs qui choisissent cette adresse ne peuvent pas lire les GPO ; supprimez l'adresse ou rétablissez le DC.",
+        "several": "{n} contrôleurs de domaine. Samba ne réplique pas SYSVOL : le module écrit ses GPO uniquement sur le DC des paramètres ; les autres DC ont besoin d'une copie (p. ex. rsync), sinon les ordinateurs qui les utilisent voient des GPO incomplets.",
+        "checked": "Vérifié {time}",
+        "problem_title": "Problème avec un contrôleur de domaine",
+        "problem_help": "Les ordinateurs ne reçoivent peut-être pas les GPO de ce module. Voir le guide, section « Plusieurs contrôleurs de domaine ».",
+        "check_now": "Vérifier maintenant",
+        "check_failed": "La vérification a échoué ; voir les journaux système."
     }
 }

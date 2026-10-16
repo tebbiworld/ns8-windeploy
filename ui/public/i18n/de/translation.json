@@ -849,5 +849,20 @@
         "error_removal_pending": "Das Entfernen läuft; zuerst abbrechen",
         "error_link_target_not_found": "Verknüpfungsziel {value} gibt es nicht",
         "error_not_configured": "Das Modul ist mit keiner Domäne verbunden"
+    },
+    "dcs": {
+        "title": "Domänencontroller",
+        "not_checked": "Noch nicht geprüft. Die Prüfung läuft täglich und über den Knopf unten.",
+        "no_address": "keine Adresse im Verzeichnis-DNS",
+        "unreachable": "nicht erreichbar (SMB, Port 445)",
+        "sysvol_unreadable": "SYSVOL nicht lesbar",
+        "missing_gpos": "der SYSVOL-Ordner einer GPO dieses Moduls fehlt | die SYSVOL-Ordner von {n} GPOs dieses Moduls fehlen",
+        "domain_ips": "Der Domänenname löst auch auf {ips} auf; diese Adresse gehört zu keinem erreichbaren DC. Rechner, die sie wählen, können die GPOs nicht lesen. Adresse entfernen oder den DC wieder erreichbar machen.",
+        "several": "{n} Domänencontroller. Samba repliziert SYSVOL nicht: Das Modul schreibt seine GPOs nur auf den DC aus den Einstellungen; die anderen DCs brauchen eine Kopie (z. B. rsync), sonst sehen Rechner, die sie nutzen, unvollständige GPOs.",
+        "checked": "Geprüft {time}",
+        "problem_title": "Problem mit einem Domänencontroller",
+        "problem_help": "Rechner erhalten die GPOs dieses Moduls eventuell nicht. Siehe Anleitung, Abschnitt „Mehrere Domänencontroller“.",
+        "check_now": "Jetzt prüfen",
+        "check_failed": "Die Prüfung ist fehlgeschlagen; siehe Systemprotokolle."
     }
 }

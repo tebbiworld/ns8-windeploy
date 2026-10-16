@@ -6,6 +6,7 @@
     "required": ["domain", "username", "password_set", "domains", "index", "deployments"],
     "properties": {
         "domain": {"type": "string"},
+        "domain_controllers": {"type": ["object", "null"], "description": "Last check of the domain controllers (check-domain-controllers)"},
         "dc_host": {"type": "string"},
         "dc_ip": {"type": "string"},
         "realm": {"type": "string"},
