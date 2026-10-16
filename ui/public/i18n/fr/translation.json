@@ -639,6 +639,7 @@
         "pointer_removed": "enregistrement inverse supprimé",
         "pointer_kept": "enregistrement inverse inchangé",
         "pointer_no_reverse_zone": "aucune zone inverse pour cette adresse",
+        "pointer_protected": "enregistrement inverse inchangé : l'adresse appartient à un contrôleur de domaine",
         "saving": "Enregistrement DNS {name} en cours de sauvegarde",
         "removing": "Suppression de l'enregistrement DNS {name}",
         "remove_title": "Supprimer l'enregistrement",

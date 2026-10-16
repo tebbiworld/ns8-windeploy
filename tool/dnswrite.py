@@ -99,6 +99,9 @@ class Dns:
         return sorted(out, key=lambda z: (z["reverse"], z["ad_zone"], z["name"]))
 
     def dc_names(self):
+        """Names of the domain controllers and their addresses in the
+        domain zone (dnsrules.protected protects both, the addresses in
+        the reverse zones)."""
         res = self.s.samdb.search(self.s.domain_dn, scope=ldb.SCOPE_SUBTREE,
                                   expression="(&(objectClass=computer)(userAccountControl:1.2.840.113556.1.4.803:=8192))",
                                   attrs=["dNSHostName", "sAMAccountName"])
@@ -106,7 +109,9 @@ class Dns:
         for r in res:
             if "dNSHostName" in r:
                 names.append(str(r["dNSHostName"][0]))
-            names.append(str(r["sAMAccountName"][0]).rstrip("$"))
+            short = str(r["sAMAccountName"][0]).rstrip("$")
+            names.append(short)
+            names += self.s._a_records(short.lower())
         return names
 
     @staticmethod
@@ -229,6 +234,9 @@ class Dns:
         if where is None:
             return "no_reverse_zone"
         zone, node = where
+        if dnsrules.protected(zone, node, self.dc_names()):
+            # the reverse record of a domain controller's address
+            return "protected"
         existing = self._node(zone, node)
         found = self._find(existing, "PTR", host)
         if remove:

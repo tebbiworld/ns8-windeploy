@@ -639,6 +639,7 @@
         "pointer_removed": "Rückwärtseintrag gelöscht",
         "pointer_kept": "Rückwärtseintrag unverändert",
         "pointer_no_reverse_zone": "keine Rückwärtszone für diese Adresse",
+        "pointer_protected": "Rückwärtseintrag unverändert: die Adresse gehört einem Domänencontroller",
         "saving": "DNS-Eintrag {name} wird gespeichert",
         "removing": "DNS-Eintrag {name} wird gelöscht",
         "remove_title": "Eintrag löschen",

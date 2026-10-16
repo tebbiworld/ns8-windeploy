@@ -639,6 +639,7 @@
         "pointer_removed": "reverse record deleted",
         "pointer_kept": "reverse record left as it was",
         "pointer_no_reverse_zone": "no reverse zone for this address",
+        "pointer_protected": "reverse record left as it was: the address belongs to a domain controller",
         "saving": "Saving DNS record {name}",
         "removing": "Deleting DNS record {name}",
         "remove_title": "Delete record",

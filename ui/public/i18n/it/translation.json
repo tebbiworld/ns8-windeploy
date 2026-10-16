@@ -639,6 +639,7 @@
         "pointer_removed": "record inverso eliminato",
         "pointer_kept": "record inverso invariato",
         "pointer_no_reverse_zone": "nessuna zona inversa per questo indirizzo",
+        "pointer_protected": "record inverso invariato: l'indirizzo appartiene a un controller di dominio",
         "saving": "Salvataggio del record DNS {name}",
         "removing": "Eliminazione del record DNS {name}",
         "remove_title": "Elimina record",
