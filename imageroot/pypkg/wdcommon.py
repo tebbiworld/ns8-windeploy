@@ -588,6 +588,31 @@ def read_domain_controllers():
         return None
 
 
+INVENTORY_FILE = "gpo-inventory.json"
+
+
+def check_gpo_inventory(settings=None):
+    """Read every GPO of the domain, analyse the ones that are not the
+    module's (pypkg/gpoinventory.py) and keep the result in
+    gpo-inventory.json for the page "GPO inventory". Read only."""
+    import gpoinventory
+    raw = run_tool({"op": "inventory"}, settings=settings, timeout=600)
+    result = gpoinventory.analyse(raw, gpo_guids())
+    fd, tmp = tempfile.mkstemp(dir=state_dir(), prefix="." + INVENTORY_FILE + "-")
+    with os.fdopen(fd, "w") as f:
+        json.dump(result, f, indent=1)
+    os.replace(tmp, os.path.join(state_dir(), INVENTORY_FILE))
+    return result
+
+
+def read_gpo_inventory():
+    try:
+        with open(os.path.join(state_dir(), INVENTORY_FILE)) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return None
+
+
 def track_removed_packages(deployment, old_packages):
     """A package taken out of a deployment keeps a task item with the
     action "delete" for the waiting period: computers that were away in
