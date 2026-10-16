@@ -80,7 +80,8 @@
         "list-scripts": "Lister les scripts",
         "list-gpo-inventory": "Lire l'inventaire des GPO",
         "save-scripts": "Enregistrer le groupe de scripts",
-        "remove-scripts": "Supprimer le groupe de scripts"
+        "remove-scripts": "Supprimer le groupe de scripts",
+        "retire-gpo": "Mettre un GPO hors service"
     },
     "settings": {
         "title": "Paramètres",
@@ -381,7 +382,15 @@
         "dcs_title": "Plusieurs contrôleurs de domaine",
         "dcs_1": "Samba ne réplique pas SYSVOL. Le module écrit ses GPO uniquement sur le DC des paramètres ; un ordinateur qui lit le dossier du GPO sur un autre DC le trouve absent ou ancien et reçoit aucune tâche ou d'anciennes. Avec plusieurs DC, copiez SYSVOL vers les autres (p. ex. rsync depuis le DC des paramètres) ou gardez un seul DC.",
         "dcs_2": "Les ordinateurs atteignent SYSVOL par le nom de domaine (\\\\domaine\\SysVol). Chaque DC inscrit son adresse pour ce nom ; l'adresse d'un DC disparu ou injoignable (p. ex. via un VPN) reste jusqu'à sa suppression. Retirez proprement le DC du domaine (samba-tool domain demote --remove-other-dead-server) et vérifiez les enregistrements d'adresse du nom de domaine.",
-        "dcs_3": "La page d'état liste chaque DC avec ses adresses et avertit en cas de DC injoignable, de dossiers de GPO manquants et d'adresses du nom de domaine qui n'appartiennent à aucun DC joignable. La vérification a lieu chaque jour ; « Vérifier maintenant » la lance tout de suite."
+        "dcs_3": "La page d'état liste chaque DC avec ses adresses et avertit en cas de DC injoignable, de dossiers de GPO manquants et d'adresses du nom de domaine qui n'appartiennent à aucun DC joignable. La vérification a lieu chaque jour ; « Vérifier maintenant » la lance tout de suite.",
+        "page_inventory": "Les GPO du domaine qui ne viennent pas du module : ce qu'ils définissent, ce qui reste sur les ordinateurs quand ils sont supprimés, et la mise hors service des GPO étrangers (section 10).",
+        "retire_title": "10. Mettre hors service des GPO étrangers",
+        "retire_1": "Sur la page Inventaire des GPO, « Mettre hors service » met un GPO étranger hors service. Un administrateur du domaine se connecte une fois ; les identifiants ne sont pas enregistrés. Le module sauvegarde d'abord tout le GPO (dossier SYSVOL, objet GPO, droits, liaisons), puis donne au groupe windeploy-admins les droits sur ce seul GPO.",
+        "retire_2": "Pendant le délai d'attente, le GPO reste lié. Les tâches planifiées, lecteurs, raccourcis et variables d'environnement des préférences reçoivent l'action « Supprimer » ; dans les groupes locaux, seuls les membres ajoutés sont retirés ; les préférences du registre seulement si elles ont été confirmées une à une. Tout le reste s'applique jusqu'à la suppression du GPO. « Annuler » rétablit le GPO depuis la sauvegarde. « Annuler » demande à nouveau un administrateur du domaine : seul un membre de Domain Admins peut rendre la propriété à ce groupe.",
+        "retire_3": "Après le délai d'attente, le minuteur quotidien (ou « Supprimer maintenant ») supprime toutes les liaisons, l'objet GPO et le dossier SYSVOL sur le contrôleur des paramètres. Le module ne peut pas modifier les liaisons des sites : délier d'abord un tel GPO du site dans la Gestion des stratégies de groupe. Les stratégies par défaut du domaine et des contrôleurs de domaine ne sont jamais proposées.",
+        "retire_4": "Autres contrôleurs : Samba ne réplique pas SYSVOL et le module ne modifie que le contrôleur des paramètres. Si l'inventaire montre encore le dossier d'un GPO supprimé sur un autre contrôleur, l'y supprimer à la main : sur le nœud de ce contrôleur en root « runagent -m <module samba> podman exec samba-dc rm -rf /var/lib/samba/sysvol/<domaine>/Policies/<GUID> ».",
+        "restore_title": "Rétablir à la main un GPO supprimé",
+        "restore_help": "Les sauvegardes des 20 derniers GPO mis hors service restent dans le module et dans sa sauvegarde (gpo-backups/retired/<GUID>/<copie> ; la copie figure dans la liste « Mis hors service »). Rétablir sur le nœud du contrôleur en root ; remplacer samba1 par le module Samba du domaine et exécuter les commandes à partir de ldbadd dans le conteneur. Ensuite recréer chaque liaison de meta.json."
     },
     "policies": {
         "title": "Stratégies",
@@ -799,6 +808,46 @@
         "effect_none": "Sans effet durable",
         "effect_none_help": "Entrées avec l'action « Supprimer » : elles ne laissent rien à reprendre."
     },
+    "retire": {
+        "button": "Mettre hors service",
+        "button_start": "Lancer la mise hors service",
+        "title": "Mettre le GPO {name} hors service",
+        "intro": "Le module met le GPO hors service en quatre étapes. Il ne modifie que le contrôleur des paramètres.",
+        "step_1": "Sauvegarde complète du GPO : dossier SYSVOL, objet GPO, droits et liaisons.",
+        "step_2": "Le groupe windeploy-admins reçoit les droits sur ce seul GPO.",
+        "step_3": "Les paramètres ci-dessous sont réécrits pour le délai d'attente ; les ordinateurs les reprennent à la prochaine actualisation des stratégies.",
+        "step_4": "Après le délai d'attente, les liaisons, l'objet GPO et le dossier SYSVOL sont supprimés. Jusque-là, la mise hors service peut être annulée.",
+        "will_delete": "Supprimé sur les ordinateurs",
+        "will_remove_members": "Ces membres sont retirés des groupes locaux",
+        "registry_title": "Préférences du registre",
+        "registry_help": "Les valeurs cochées sont supprimées sur les ordinateurs pendant le délai d'attente. La valeur d'avant ne peut pas être rétablie. Les valeurs non cochées restent sur les ordinateurs.",
+        "stays": "Un paramètre reste sur les ordinateurs ou n'est pas analysé (voir les détails). | {n} paramètres restent sur les ordinateurs ou ne sont pas analysés (voir les détails).",
+        "audit_warning": "Ce GPO contient une stratégie d'audit avancée. Quand il est supprimé, Windows efface tout l'audit avancé des ordinateurs. Prévoir d'abord un remplacement, p. ex. « Audit étendu » dans un profil de stratégie.",
+        "audit_confirm": "J'ai compris que les ordinateurs n'auront plus d'audit avancé tant qu'un remplacement ne s'applique pas.",
+        "audit_required": "Veuillez confirmer",
+        "links": "Ces liaisons sont supprimées avec le GPO : {links}",
+        "history": "Mis hors service",
+        "history_help": "GPO étrangers supprimés. Les sauvegardes des 20 derniers restent dans le module ; le guide (section 10) explique comment rétablir un GPO à la main.",
+        "deleted": "Supprimé",
+        "copy": "Sauvegarde",
+        "by_timer": "par le minuteur après le délai d'attente",
+        "failed": "Échec, voir le journal du module",
+        "error_admin_required": "Indiquer un administrateur du domaine et le mot de passe",
+        "error_admin_bind_failed": "Échec de la connexion en tant qu'administrateur du domaine : nom ou mot de passe incorrect",
+        "error_admin_not_allowed": "Le compte n'a pas les droits nécessaires ; indiquer un membre de Domain Admins",
+        "error_gpo_not_found": "Le GPO ne figure pas dans l'inventaire ; relire",
+        "error_gpo_not_selectable": "Ce GPO ne peut pas être mis hors service",
+        "error_gpo_unreadable": "Le dossier SYSVOL du GPO est illisible",
+        "error_audit_confirm_required": "Confirmer l'avertissement sur l'audit",
+        "error_site_links": "Le GPO est lié à un site ; le délier d'abord dans la Gestion des stratégies de groupe",
+        "error_unknown_registry_item": "Le GPO a changé ; relire",
+        "error_preferences_unreadable": "Un fichier de préférences du GPO est illisible",
+        "error_removal_pending": "Le GPO est déjà en cours de mise hors service",
+        "error_removal_not_pending": "Le GPO n'est pas en cours de mise hors service",
+        "error_removal_not_due": "Le délai d'attente n'est pas encore écoulé",
+        "cancel_incomplete": "Annulation incomplète : le GPO n'est pas supprimé. Relancer l'annulation.",
+        "error_cancel_incomplete": "Une annulation est restée incomplète ; relancer d'abord l'annulation"
+    },
     "removal": {
         "title_start": "Lancer la suppression",
         "title_cancel": "Annuler la suppression",
@@ -835,7 +884,10 @@
         "scripts_cancel": "Les scripts de {name} sont réécrits dans le GPO.",
         "scripts_delete": "Le délai d'attente est écoulé. Le GPO de {name} est délié et supprimé.",
         "change_rewritten": "Script intégré à la tâche (mise à jour)",
-        "log_orphans": "Les ordinateurs éteints pendant tout le délai d'attente gardent les tâches d'un déploiement supprimé. La prochaine exécution d'un autre déploiement supprime les tâches dont le GPO a disparu."
+        "log_orphans": "Les ordinateurs éteints pendant tout le délai d'attente gardent les tâches d'un déploiement supprimé. La prochaine exécution d'un autre déploiement supprime les tâches dont le GPO a disparu.",
+        "gpo_start": "{name} est mis hors service.",
+        "gpo_cancel": "Le GPO {name} est rétabli tel qu'il était avant la mise hors service : fichiers, droits SYSVOL, propriétaire et autorisations de l'objet GPO. Il faut pour cela à nouveau un administrateur du domaine. Les ordinateurs retrouvent les anciens paramètres à la prochaine actualisation des stratégies.",
+        "gpo_delete": "Le délai d'attente est écoulé. Toutes les liaisons de {name} sont supprimées, l'objet GPO et son dossier SYSVOL sur le contrôleur des paramètres effacés. La sauvegarde reste dans le module."
     },
     "logon": {
         "title": "Ouverture de session",

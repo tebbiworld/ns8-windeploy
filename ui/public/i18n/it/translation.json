@@ -125,7 +125,8 @@
         "list-scripts": "Elenca script",
         "list-gpo-inventory": "Leggi l'inventario dei GPO",
         "save-scripts": "Salva gruppo di script",
-        "remove-scripts": "Rimuovi gruppo di script"
+        "remove-scripts": "Rimuovi gruppo di script",
+        "retire-gpo": "Dismetti GPO"
     },
     "task": {
         "cannot_create_task": "Impossibile eseguire il task {action}"
@@ -381,7 +382,15 @@
         "dcs_title": "Più controller di dominio",
         "dcs_1": "Samba non replica SYSVOL. Il modulo scrive i suoi GPO solo sul DC delle impostazioni; un computer che legge la cartella del GPO da un altro DC la trova mancante o vecchia e non riceve attività o ne riceve di vecchie. Con più DC, copiare SYSVOL sugli altri (p. es. rsync dal DC delle impostazioni) o mantenere un solo DC.",
         "dcs_2": "I computer raggiungono SYSVOL tramite il nome di dominio (\\\\dominio\\SysVol). Ogni DC registra il proprio indirizzo per quel nome; l'indirizzo di un DC rimosso o non raggiungibile (p. es. tramite VPN) resta finché non viene rimosso. Rimuovere correttamente il DC dal dominio (samba-tool domain demote --remove-other-dead-server) e controllare i record di indirizzo del nome di dominio.",
-        "dcs_3": "La pagina di stato elenca ogni DC con i suoi indirizzi e avvisa in caso di DC non raggiungibile, cartelle GPO mancanti e indirizzi del nome di dominio che non appartengono a nessun DC raggiungibile. La verifica avviene ogni giorno; «Verifica ora» la avvia subito."
+        "dcs_3": "La pagina di stato elenca ogni DC con i suoi indirizzi e avvisa in caso di DC non raggiungibile, cartelle GPO mancanti e indirizzi del nome di dominio che non appartengono a nessun DC raggiungibile. La verifica avviene ogni giorno; «Verifica ora» la avvia subito.",
+        "page_inventory": "I GPO del dominio che non provengono dal modulo: cosa impostano, cosa resta sui computer quando vengono eliminati, e la dismissione dei GPO esterni (sezione 10).",
+        "retire_title": "10. Dismettere GPO esterni",
+        "retire_1": "Nella pagina Inventario GPO, «Dismetti» dismette un GPO esterno. Un amministratore di dominio accede una volta; le credenziali non vengono salvate. Il modulo salva prima l'intero GPO (cartella SYSVOL, oggetto GPO, diritti, collegamenti) e poi dà al gruppo windeploy-admins i diritti su questo solo GPO.",
+        "retire_2": "Durante il periodo di attesa il GPO resta collegato. Attività pianificate, unità, collegamenti e variabili d'ambiente delle preferenze ricevono l'azione «Elimina»; nei gruppi locali vengono tolti solo i membri aggiunti; le preferenze del registro solo se confermate una per una. Tutto il resto vale fino all'eliminazione del GPO. «Annulla» ripristina il GPO dal backup. «Annulla» richiede di nuovo un amministratore di dominio: solo un membro di Domain Admins può restituire la proprietà a quel gruppo.",
+        "retire_3": "Dopo il periodo di attesa il timer giornaliero (o «Elimina ora») rimuove tutti i collegamenti, l'oggetto GPO e la cartella SYSVOL sul controller delle impostazioni. Il modulo non può modificare i collegamenti dei siti: scollegare prima un tale GPO dal sito in Gestione Criteri di gruppo. I criteri predefiniti del dominio e dei controller di dominio non vengono mai proposti.",
+        "retire_4": "Altri controller: Samba non replica SYSVOL e il modulo modifica solo il controller delle impostazioni. Se l'inventario mostra ancora la cartella di un GPO eliminato su un altro controller, eliminarla lì a mano: sul nodo di quel controller come root «runagent -m <modulo samba> podman exec samba-dc rm -rf /var/lib/samba/sysvol/<dominio>/Policies/<GUID>».",
+        "restore_title": "Ripristinare a mano un GPO eliminato",
+        "restore_help": "I backup degli ultimi 20 GPO dismessi restano nel modulo e nel suo backup (gpo-backups/retired/<GUID>/<copia>; la copia è indicata nell'elenco «Dismessi»). Ripristinare sul nodo del controller come root; sostituire samba1 con il modulo Samba del dominio ed eseguire i comandi da ldbadd in poi nel container. Poi ricreare ogni collegamento da meta.json."
     },
     "policies": {
         "title": "Criteri",
@@ -799,6 +808,46 @@
         "effect_none": "Senza effetto duraturo",
         "effect_none_help": "Voci con l'azione «Elimina»: non lasciano nulla da ripristinare."
     },
+    "retire": {
+        "button": "Dismetti",
+        "button_start": "Avvia la dismissione",
+        "title": "Dismetti il GPO {name}",
+        "intro": "Il modulo dismette il GPO in quattro passi. Modifica solo il controller delle impostazioni.",
+        "step_1": "Backup completo del GPO: cartella SYSVOL, oggetto GPO, diritti e collegamenti.",
+        "step_2": "Il gruppo windeploy-admins riceve i diritti su questo solo GPO.",
+        "step_3": "Le impostazioni elencate sotto vengono riscritte per il periodo di attesa; i computer le ripristinano al prossimo aggiornamento dei criteri.",
+        "step_4": "Dopo il periodo di attesa vengono eliminati collegamenti, oggetto GPO e cartella SYSVOL. Fino ad allora la dismissione può essere annullata.",
+        "will_delete": "Eliminato sui computer",
+        "will_remove_members": "Questi membri vengono tolti dai gruppi locali",
+        "registry_title": "Preferenze del registro",
+        "registry_help": "I valori spuntati vengono eliminati sui computer durante il periodo di attesa. Il valore precedente non si può ripristinare. I valori non spuntati restano sui computer.",
+        "stays": "Un'impostazione resta sui computer o non viene analizzata (vedere i dettagli). | {n} impostazioni restano sui computer o non vengono analizzate (vedere i dettagli).",
+        "audit_warning": "Questo GPO contiene criteri di controllo avanzati. Quando viene eliminato, Windows cancella tutto il controllo avanzato dei computer. Prima impostare un sostituto, p. es. «Controllo esteso» in un profilo di criteri.",
+        "audit_confirm": "Ho capito che i computer non avranno più il controllo avanzato finché non si applica un sostituto.",
+        "audit_required": "Confermare",
+        "links": "Questi collegamenti vengono rimossi con il GPO: {links}",
+        "history": "Dismessi",
+        "history_help": "GPO esterni eliminati. I backup degli ultimi 20 restano nel modulo; la guida (sezione 10) spiega come ripristinare a mano un GPO.",
+        "deleted": "Eliminato",
+        "copy": "Backup",
+        "by_timer": "dal timer dopo il periodo di attesa",
+        "failed": "Non riuscito, vedere il registro del modulo",
+        "error_admin_required": "Indicare un amministratore di dominio e la password",
+        "error_admin_bind_failed": "Accesso come amministratore di dominio non riuscito: nome o password errati",
+        "error_admin_not_allowed": "L'account non ha i diritti necessari; indicare un membro di Domain Admins",
+        "error_gpo_not_found": "Il GPO non è nell'inventario; rileggere",
+        "error_gpo_not_selectable": "Questo GPO non può essere dismesso",
+        "error_gpo_unreadable": "La cartella SYSVOL del GPO non è leggibile",
+        "error_audit_confirm_required": "Confermare l'avviso sul controllo",
+        "error_site_links": "Il GPO è collegato a un sito; scollegarlo prima in Gestione Criteri di gruppo",
+        "error_unknown_registry_item": "Il GPO è cambiato; rileggere",
+        "error_preferences_unreadable": "Un file di preferenze del GPO non è leggibile",
+        "error_removal_pending": "Il GPO è già in dismissione",
+        "error_removal_not_pending": "Il GPO non è in dismissione",
+        "error_removal_not_due": "Il periodo di attesa non è ancora scaduto",
+        "cancel_incomplete": "Annullamento incompleto: il GPO non viene eliminato. Eseguire di nuovo l'annullamento.",
+        "error_cancel_incomplete": "Un annullamento è rimasto incompleto; eseguire prima di nuovo l'annullamento"
+    },
     "removal": {
         "title_start": "Avvia rimozione",
         "title_cancel": "Annulla rimozione",
@@ -835,7 +884,10 @@
         "scripts_cancel": "Gli script di {name} vengono riscritti nel GPO.",
         "scripts_delete": "Il periodo di attesa è terminato. Il GPO di {name} viene scollegato ed eliminato.",
         "change_rewritten": "Script incorporato nell'attività (aggiornamento)",
-        "log_orphans": "I computer spenti per tutto il periodo di attesa mantengono le attività di una distribuzione eliminata. La prossima esecuzione di un'altra distribuzione elimina le attività il cui GPO è scomparso."
+        "log_orphans": "I computer spenti per tutto il periodo di attesa mantengono le attività di una distribuzione eliminata. La prossima esecuzione di un'altra distribuzione elimina le attività il cui GPO è scomparso.",
+        "gpo_start": "{name} viene dismesso.",
+        "gpo_cancel": "Il GPO {name} viene ripristinato com'era prima della dismissione: file, diritti SYSVOL, proprietario e autorizzazioni dell'oggetto GPO. Serve di nuovo un amministratore di dominio. I computer riottengono le vecchie impostazioni al prossimo aggiornamento dei criteri.",
+        "gpo_delete": "Il periodo di attesa è scaduto. Tutti i collegamenti di {name} vengono rimossi, l'oggetto GPO e la sua cartella SYSVOL sul controller delle impostazioni eliminati. Il backup resta nel modulo."
     },
     "logon": {
         "title": "Accesso",

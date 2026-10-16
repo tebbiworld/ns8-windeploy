@@ -44,6 +44,21 @@
           :helper-text="$t('policies.reason_help')"
           :invalid-message="reasonError"
         />
+        <template v-if="admin">
+          <p class="muted small">{{ $t("dns.grant_admin_help") }}</p>
+          <NsTextInput
+            :label="$t('dns.admin_user')"
+            v-model.trim="adminUser"
+            :helper-text="$t('dns.admin_user_helper')"
+            :invalid-message="adminUserError"
+          />
+          <NsTextInput
+            :label="$t('dns.admin_password')"
+            v-model="adminPassword"
+            type="password"
+            :invalid-message="adminPasswordError"
+          />
+        </template>
         <NsInlineNotification
           v-if="error"
           kind="error"
@@ -74,6 +89,8 @@ export default {
     until: { type: String, default: "" },
     // policy settings that write the Windows default while waiting
     stays: { type: Array, default: () => [] },
+    // the step needs domain admin credentials (cancel of a retired GPO)
+    admin: Boolean,
     loading: Boolean,
     error: { type: String, default: "" },
   },
@@ -83,6 +100,10 @@ export default {
       days: this.graceDays,
       reasonError: "",
       daysError: "",
+      adminUser: "",
+      adminPassword: "",
+      adminUserError: "",
+      adminPasswordError: "",
     };
   },
   watch: {
@@ -91,6 +112,14 @@ export default {
         this.reason = "";
         this.days = this.graceDays;
         this.reasonError = this.daysError = "";
+        this.adminUser = this.adminPassword = "";
+        this.adminUserError = this.adminPasswordError = "";
+      }
+    },
+    error(e) {
+      // a refused login: ask for the password again
+      if (e) {
+        this.adminPassword = "";
       }
     },
   },
@@ -101,7 +130,16 @@ export default {
     },
     submit() {
       this.reasonError = this.daysError = "";
+      this.adminUserError = this.adminPasswordError = "";
       let ok = true;
+      if (this.admin && !this.adminUser) {
+        this.adminUserError = this.$t("common.required");
+        ok = false;
+      }
+      if (this.admin && !this.adminPassword) {
+        this.adminPasswordError = this.$t("common.required");
+        ok = false;
+      }
       if (this.reason.length < 3) {
         this.reasonError = this.$t("policies.reason_required");
         ok = false;
@@ -117,6 +155,10 @@ export default {
       if (!ok) return;
       const data = { step: this.step, reason: this.reason };
       if (this.step === "start") data.days = days;
+      if (this.admin) {
+        data.admin_user = this.adminUser;
+        data.admin_password = this.adminPassword;
+      }
       this.$emit("submit", data);
     },
   },
