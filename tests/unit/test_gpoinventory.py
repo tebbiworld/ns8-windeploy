@@ -250,6 +250,26 @@ class Precedence(unittest.TestCase):
         self.assertEqual(gpoinventory.precedence([link(self.OU, disabled=True)], [link(self.DOMAIN)]),
                          ("unresolved", "no_common_scope"))
 
+    def test_both_enforced_higher_wins(self):
+        # a domain-enforced link beats an OU-enforced one (enforced precedence
+        # is inverted: the higher container wins)
+        self.assertEqual(
+            gpoinventory.precedence([link(self.DOMAIN, enforced=True)], [link(self.OU, enforced=True)]),
+            ("windeploy", "enforced"))
+
+    def test_both_enforced_same_container_order_decides(self):
+        self.assertEqual(
+            gpoinventory.precedence([link(self.DOMAIN, enforced=True, order=2)],
+                                    [link(self.DOMAIN, enforced=True, order=0)]),
+            ("windeploy", "enforced"))
+
+    def test_win_in_one_scope_tie_in_another_is_varies(self):
+        # own wins at the OU but ties the foreign GPO at the domain root
+        # (both there, equal order) -> the winner differs per computer
+        own = [link(self.OU), link(self.DOMAIN, order=0)]
+        foreign = [link(self.DOMAIN, order=0)]
+        self.assertEqual(gpoinventory.precedence(own, foreign), ("unresolved", "varies"))
+
 
 class Conflicts(unittest.TestCase):
     def test_conflict_duplicate_and_trap(self):
@@ -291,6 +311,39 @@ class Conflicts(unittest.TestCase):
         foreign = gpo(FOREIGN, files={"Machine/Registry.pol": pol((FVE, "RDVDenyCrossOrg", 4, 1))})
         res = gpoinventory.analyse({"gpos": [foreign], "dcs": []}, [])
         self.assertEqual(res["gpos"][0]["conflicts"], [])
+
+    def test_fixed_drive_trap(self):
+        trap = gpo(FOREIGN, files={"Machine/Registry.pol": pol((FVE, "FDVDenyWriteAccess", 4, 1),
+                                                               (FVE, "FDVDenyCrossOrg", 4, 1))})
+        res = gpoinventory.analyse({"gpos": [trap], "dcs": []}, [])
+        self.assertEqual([w["drive"] for w in res["gpos"][0]["warnings"]], ["fixed"])
+
+    def test_trap_disarmed_by_secondary_id(self):
+        trap = gpo(FOREIGN, files={"Machine/Registry.pol": pol((FVE, "RDVDenyWriteAccess", 4, 1),
+                                                               (FVE, "RDVDenyCrossOrg", 4, 1),
+                                                               (FVE, "SecondaryIdentificationField", 1, "ACME-2"))})
+        res = gpoinventory.analyse({"gpos": [trap], "dcs": []}, [])
+        self.assertEqual(res["gpos"][0]["warnings"], [])
+
+    def test_empty_organisation_id_does_not_disarm(self):
+        trap = gpo(FOREIGN, files={"Machine/Registry.pol": pol((FVE, "RDVDenyWriteAccess", 4, 1),
+                                                               (FVE, "RDVDenyCrossOrg", 4, 1),
+                                                               (FVE, "IdentificationField", 1, "  "))})
+        res = gpoinventory.analyse({"gpos": [trap], "dcs": []}, [])
+        self.assertEqual([w["drive"] for w in res["gpos"][0]["warnings"]], ["removable"])
+
+    def test_user_side_conflict(self):
+        own = gpo(OWN, display_name="windeploy policy: user",
+                  links=[link("OU=Clients,DC=example,DC=test")],
+                  files={"User/Registry.pol": pol(("Software\\Policies\\Acme", "Mode", 4, 1))})
+        foreign = gpo(FOREIGN, links=[link("DC=example,DC=test")],
+                      files={"User/Registry.pol": pol(("Software\\Policies\\Acme", "Mode", 4, 2))})
+        res = gpoinventory.analyse({"gpos": [own, foreign], "dcs": []}, [OWN.lower()])
+        g = next(x for x in res["gpos"] if x["guid"] == FOREIGN)
+        self.assertEqual(len(g["conflicts"]), 1)
+        c = g["conflicts"][0]
+        self.assertEqual((c["part"], c["kind"]), ("user", "conflict"))
+        self.assertEqual(c["windeploy"][0]["winner"], "windeploy")
 
 
 if __name__ == "__main__":

@@ -911,9 +911,10 @@ class Session:
                 continue
             for m in found:
                 # gPLink is ordered; the entry closest to the end of the list
-                # has the highest precedence on this container (measured with
-                # Samba get_gpo_list). "order" is that position, so a larger
-                # order wins among the links of one container.
+                # has the highest precedence on this container ([MS-GPOL]
+                # 3.2.5.1.5, confirmed in Samba libgpo add_gplink_to_gpo_list).
+                # "order" is that position, so a larger order wins among the
+                # links of one container.
                 entries = re.findall(r"\[LDAP://([^;\]]*);(\d+)\]", str(m["gPLink"][0]))
                 for order, entry in enumerate(entries):
                     g = GUID_IN_DN_RE.search(entry[0])

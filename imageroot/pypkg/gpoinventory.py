@@ -294,7 +294,10 @@ def organisation_id_configured(all_values):
 def bitlocker_write_traps(values, org_id_configured):
     """The drive classes for which the given machine values form the
     write-protection trap, [] when none. `values` are one GPO's registry
-    values (part, key, name, rtype, value)."""
+    values (part, key, name, rtype, value). Known limit: both the deny-write
+    and the cross-org value must sit in this same GPO; the rare case of the
+    two split across two GPOs is not flagged (the organisation id, which
+    disarms the trap, is checked across the whole domain)."""
     if org_id_configured:
         return []
     fve = {name.lower(): value for part, key, name, _rtype, value in values
@@ -321,6 +324,15 @@ def _is_ancestor(outer, inner):
     return len(a) < len(d) and d[-len(a):] == a
 
 
+def _same_container_winner(own, foreign):
+    """On one container the later gPLink entry (higher order) wins; "tie"
+    when the order is unknown or equal (measured on Samba get_gpo_list)."""
+    oo, fo = own.get("order"), foreign.get("order")
+    if oo is not None and fo is not None and oo != fo:
+        return "own" if oo > fo else "foreign"
+    return "tie"
+
+
 def _pair_winner(own, foreign):
     """Winner between one own link and one foreign link: "own"/"foreign"
     when the links decide, "tie" when both apply but the links do not
@@ -336,16 +348,15 @@ def _pair_winner(own, foreign):
     if fe and not oe:
         return "foreign"
     if oe and fe:
-        # both enforced: the higher link (closer to the domain root) wins
-        if len(_dn_parts(own["dn"])) != len(_dn_parts(foreign["dn"])):
-            return "own" if len(_dn_parts(own["dn"])) < len(_dn_parts(foreign["dn"])) else "foreign"
-        return "tie"  # both enforced on the same container
+        # both enforced: the higher link (closer to the domain root) wins,
+        # on the same container the link order still decides
+        od, fd = len(_dn_parts(own["dn"])), len(_dn_parts(foreign["dn"]))
+        if od != fd:
+            return "own" if od < fd else "foreign"
+        return _same_container_winner(own, foreign)
     # neither enforced: the more specific link (closer to the computer) wins
     if same:
-        oo, fo = own.get("order"), foreign.get("order")
-        if oo is not None and fo is not None and oo != fo:
-            return "own" if oo > fo else "foreign"  # last gPLink entry wins
-        return "tie"  # same container, order unknown or equal
+        return _same_container_winner(own, foreign)
     return "foreign" if own_above else "own"
 
 
@@ -354,26 +365,30 @@ def precedence(own_links, foreign_links):
     reaches a computer where both apply, judged from the links only. The
     client's Resultant Set of Policy is the final word. "unresolved" with
     "varies" means the links overlap but do not decide (same container with
-    unknown order, both enforced there, or a winner that differs per OU);
-    with "no_common_scope" they apply to no common computer."""
-    own = [l for l in own_links if not l.get("disabled")]
-    foreign = [l for l in foreign_links if not l.get("disabled")]
+    unknown order, both enforced there, or a winner that differs between the
+    computers both GPOs reach); with "no_common_scope" they apply to no
+    common computer. A link to an AD site is treated as a separate scope,
+    so a conflict via a site link shows as unresolved, not as a winner."""
+    own = [lk for lk in own_links if not lk.get("disabled")]
+    foreign = [lk for lk in foreign_links if not lk.get("disabled")]
     winners = set()
-    overlap = False
-    enforced = False
+    overlap = tie = enforced = False
     for ol in own:
         for fl in foreign:
             w = _pair_winner(ol, fl)
             if w is None:
                 continue
             overlap = True
-            if w in ("own", "foreign"):
+            if w == "tie":
+                tie = True
+            else:
                 winners.add(w)
                 if ol.get("enforced") or fl.get("enforced"):
                     enforced = True
-    if winners == {"own"}:
+    # a single winner only when no other common computer is left undecided
+    if winners == {"own"} and not tie:
         return "windeploy", ("enforced" if enforced else "precedence")
-    if winners == {"foreign"}:
+    if winners == {"foreign"} and not tie:
         return "foreign", ("enforced" if enforced else "precedence")
     return "unresolved", ("varies" if overlap else "no_common_scope")
 
@@ -634,15 +649,15 @@ def summary(items):
     return out
 
 
-def build_own_index(raw, own):
+def build_own_index(raw, own, values_by_guid):
     """{(part, key.lower(), name.lower()): [{name, guid, rtype, value,
     links}]} of the registry values the module's own GPOs set, to compare
-    foreign GPOs against."""
+    foreign GPOs against. `values_by_guid` holds each GPO's parsed values."""
     index = {}
     for gpo in raw.get("gpos", []):
         if classify(gpo, own) != "own":
             continue
-        for part, key, name, rtype, value in gpo_registry_values(gpo):
+        for part, key, name, rtype, value in values_by_guid.get(gpo["guid"], []):
             index.setdefault((part, key.lower(), name.lower()), []).append(
                 {"name": gpo.get("display_name", ""), "guid": gpo["guid"],
                  "rtype": rtype, "value": value, "links": gpo.get("links", [])})
@@ -657,10 +672,11 @@ def analyse(raw, own_guids, now=None):
     (warnings); own GPOs only counted."""
     own = {g.upper() for g in own_guids}
     dcs = raw.get("dcs", [])
-    own_index = build_own_index(raw, own)
-    all_values = [v for gpo in raw.get("gpos", []) if gpo.get("readable")
-                  for v in gpo_registry_values(gpo)]
-    org_id = organisation_id_configured(all_values)
+    # parse each GPO's Registry.pol once and reuse it below
+    values_by_guid = {gpo["guid"]: gpo_registry_values(gpo)
+                      for gpo in raw.get("gpos", []) if gpo.get("readable")}
+    own_index = build_own_index(raw, own, values_by_guid)
+    org_id = organisation_id_configured(v for values in values_by_guid.values() for v in values)
     out, own_count = [], 0
     for gpo in raw.get("gpos", []):
         kind = classify(gpo, own)
@@ -668,7 +684,7 @@ def analyse(raw, own_guids, now=None):
             own_count += 1
             continue
         items = analyse_gpo(gpo) if gpo.get("readable") else []
-        values = gpo_registry_values(gpo) if gpo.get("readable") else []
+        values = values_by_guid.get(gpo["guid"], [])
         conflicts = find_conflicts(values, gpo.get("links", []), own_index) if kind == "foreign" else []
         warnings = [{"type": "bitlocker_write_trap", "drive": d}
                     for d in bitlocker_write_traps(values, org_id)]
