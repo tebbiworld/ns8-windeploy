@@ -122,7 +122,16 @@ CATALOG = {
         # removed names out again (cleanup) and has a reset state
         "group": "logon",
         "requires": ["session_lock"],
-        "params": {"processes": {"type": "list", "default": ["AnyDesk.exe", "RustDesk.exe", "TeamViewer.exe"],
+        # TeamViewer_Desktop.exe is the session/screen-capture process that
+        # holds the display request on the controlled computer during a
+        # remote session; TeamViewer.exe (the main client) alone leaves that
+        # request in place, so the session would not lock. Measured on
+        # Windows 11 25H2: the installed TeamViewer executables are
+        # TeamViewer.exe, TeamViewer_Desktop.exe, TeamViewer_Service.exe and
+        # tv_w32/tv_x64.exe. An override for a name that never requests the
+        # display has no effect, so listing both is safe.
+        "params": {"processes": {"type": "list",
+                                 "default": ["AnyDesk.exe", "RustDesk.exe", "TeamViewer.exe", "TeamViewer_Desktop.exe"],
                                  "kind": "process", "maxitems": LIST_MAX},
                    "services": {"type": "list", "default": [], "kind": "service", "maxitems": LIST_MAX}},
         "power_overrides": True,

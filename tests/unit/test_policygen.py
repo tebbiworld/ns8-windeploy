@@ -213,8 +213,16 @@ class DisplayRequests(unittest.TestCase):
     def test_defaults(self):
         s = policygen.check_settings(self.overrides())
         self.assertEqual(s["display_request_overrides"]["params"]["processes"],
-                         ["AnyDesk.exe", "RustDesk.exe", "TeamViewer.exe"])
+                         ["AnyDesk.exe", "RustDesk.exe", "TeamViewer.exe", "TeamViewer_Desktop.exe"])
         self.assertEqual(s["display_request_overrides"]["params"]["services"], [])
+
+    def test_teamviewer_default_covers_the_session_process(self):
+        # the controlled computer holds the display request during a
+        # TeamViewer session in TeamViewer_Desktop.exe, not TeamViewer.exe,
+        # so both have to be in the default list for the lock to apply
+        processes = policygen.CATALOG["display_request_overrides"]["params"]["processes"]["default"]
+        self.assertIn("TeamViewer.exe", processes)
+        self.assertIn("TeamViewer_Desktop.exe", processes)
 
     def test_names_are_allowlisted(self):
         bad = ["a b.exe", "x.exe'; Remove-Item C:\\ -Recurse #.exe", "..\\evil.exe", "evil", "evil.exe\n",

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 — unreleased
+
+### Fixed
+
+- **Screen lock during TeamViewer sessions**: the preset list of the setting "Lock also when these programs keep the screen on" now includes `TeamViewer_Desktop.exe` next to `TeamViewer.exe`. On a controlled computer the display request that keeps the screen awake during a remote session is held by the session process (`TeamViewer_Desktop.exe`), not by the main client, so a profile with only the old preset did not lock the computer while a TeamViewer session was idle. Existing profiles are not changed; the new name only affects the preset offered for a new profile. (Verified on a reference computer with Windows 11 25H2: `powercfg /requestsoverride PROCESS <name>` without a request type clears the override, so removing a name takes effect; the "allow display required policy" power value is written under `Software\Policies\Microsoft\Power\PowerSettings` and reaches the computer with the GPO.)
+
 ## 0.5.0 — 2026-10-16
 
 ### Added
