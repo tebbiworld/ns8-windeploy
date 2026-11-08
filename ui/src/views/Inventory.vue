@@ -112,6 +112,17 @@
                       <div v-if="g.wmi_filter" class="muted small">
                         {{ $t("inventory.wmi_filter") }}
                       </div>
+                      <div
+                        v-for="(w, n) in g.warnings"
+                        :key="'w' + n"
+                        class="bad-text small trap"
+                      >
+                        {{
+                          $t("inventory.bitlocker_trap", {
+                            drive: $t("inventory.drive_" + w.drive),
+                          })
+                        }}
+                      </div>
                       <template v-if="retiring(g)">
                         <div class="warn small">
                           {{
@@ -194,10 +205,19 @@
                         >{{ g.summary[e] }}
                         {{ $t("inventory.short_" + e) }}</span
                       >
+                      <span v-if="g.conflicts && g.conflicts.length" class="chip chip-conflict">{{
+                        $tc("inventory.short_conflict", g.conflicts.length, {
+                          n: g.conflicts.length,
+                        })
+                      }}</span>
                     </td>
                     <td class="actions">
                       <NsButton
-                        v-if="g.readable && g.items.length"
+                        v-if="
+                          g.readable &&
+                          (g.items.length ||
+                            (g.conflicts && g.conflicts.length))
+                        "
                         kind="ghost"
                         size="small"
                         :icon="open[g.guid] ? ChevronUp20 : ChevronDown20"
@@ -243,6 +263,65 @@
                       <p v-if="g.truncated" class="warn small">
                         {{ $t("inventory.truncated") }}
                       </p>
+                      <NsInlineNotification
+                        v-for="(w, n) in g.warnings"
+                        :key="'wn' + n"
+                        kind="warning"
+                        :title="$t('inventory.trap_title')"
+                        :description="
+                          $t('inventory.trap_desc', {
+                            drive: $t('inventory.drive_' + w.drive),
+                          })
+                        "
+                        :showCloseButton="false"
+                      />
+                      <div
+                        v-if="g.conflicts && g.conflicts.length"
+                        class="effect-group conflicts"
+                      >
+                        <h6 class="effect-danger">
+                          {{ $t("inventory.conflicts_title") }}
+                        </h6>
+                        <p class="muted small">
+                          {{ $t("inventory.conflicts_help") }}
+                        </p>
+                        <ul>
+                          <li
+                            v-for="(c, n) in g.conflicts"
+                            :key="'cf' + n"
+                            class="item"
+                          >
+                            <span class="part muted small">{{
+                              $t("inventory." + c.part)
+                            }}</span>
+                            <span class="item-name">{{ c.where }}</span>
+                            <span
+                              :class="[
+                                'small',
+                                c.kind === 'conflict' ? 'bad-text' : 'muted',
+                              ]"
+                              >{{ $t("inventory.conflict_" + c.kind) }}</span
+                            >
+                            <ul class="windeploy-side">
+                              <li class="muted small">
+                                {{
+                                  $t("inventory.foreign_value", {
+                                    value: c.foreign,
+                                  })
+                                }}
+                              </li>
+                              <li
+                                v-for="(w, m) in c.windeploy"
+                                :key="m"
+                                class="muted small"
+                              >
+                                {{ w.name }} = {{ w.value }} —
+                                {{ winnerText(w) }}
+                              </li>
+                            </ul>
+                          </li>
+                        </ul>
+                      </div>
                       <div
                         v-for="e in effectsOf(g)"
                         :key="e"
@@ -745,6 +824,26 @@ export default {
     effectClass(e) {
       return CLASS[e] || "warn";
     },
+    winnerText(w) {
+      // who wins where both GPOs apply, from the links alone
+      if (w.winner === "windeploy")
+        return this.$t(
+          w.reason === "enforced"
+            ? "inventory.wins_windeploy_enforced"
+            : "inventory.wins_windeploy"
+        );
+      if (w.winner === "foreign")
+        return this.$t(
+          w.reason === "enforced"
+            ? "inventory.wins_foreign_enforced"
+            : "inventory.wins_foreign"
+        );
+      return this.$t(
+        w.reason === "no_common_scope"
+          ? "inventory.wins_separate"
+          : "inventory.wins_unresolved"
+      );
+    },
     shortDn(dn) {
       // OU=Laptops,OU=Firma,DC=ad,DC=example,DC=com -> Firma/Laptops;
       // the domain itself -> ad.example.com
@@ -864,6 +963,17 @@ table.gpos {
 .chip-ok {
   background: #defbe6;
   color: #044317;
+}
+.chip-conflict {
+  background: #ffe0b2;
+  color: #6b4700;
+}
+.windeploy-side {
+  list-style: none;
+  margin: $spacing-02 0 0 $spacing-05;
+}
+.trap {
+  margin-top: $spacing-02;
 }
 .effect-group {
   margin-bottom: $spacing-05;
