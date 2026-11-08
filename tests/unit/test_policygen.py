@@ -110,8 +110,19 @@ class RegistryPol(unittest.TestCase):
         # It must not change usb_bitlocker_write, so existing profiles keep
         # their behaviour after the update (e.g. production windeploy1).
         write = policygen.build_registry_pol(policygen.check_settings({"usb_bitlocker_write": ON}))
-        write_values = {name for _key, name, _rtype, _value in policygen.parse_registry_pol(write)}
-        self.assertEqual(write_values, {"RDVDenyWriteAccess", "RDVDenyCrossOrg"})
+        write_values = {(name, value) for _key, name, _rtype, value in policygen.parse_registry_pol(write)}
+        self.assertEqual(write_values, {("RDVDenyWriteAccess", 1), ("RDVDenyCrossOrg", 0)})
+
+    def test_usb_bitlocker_write_never_sets_the_write_protection_trap(self):
+        # A USB stick stays read-only after encryption when a GPO sets
+        # RDVDenyCrossOrg=1 together with RDVDenyWriteAccess=1 without an
+        # identification field. windeploy's own setting must never produce
+        # that combination: it writes RDVDenyCrossOrg=0. (Foreign GPOs that
+        # do set the trap are flagged by the GPO inventory, not here.)
+        write = policygen.build_registry_pol(policygen.check_settings({"usb_bitlocker_write": ON}))
+        values = {name: value for _key, name, _rtype, value in policygen.parse_registry_pol(write)}
+        self.assertEqual(values.get("RDVDenyWriteAccess"), 1)
+        self.assertEqual(values.get("RDVDenyCrossOrg"), 0)
 
 
 class SecurityTemplate(unittest.TestCase):
