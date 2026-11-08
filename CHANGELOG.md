@@ -9,6 +9,10 @@
 - **GPO inventory — BitLocker write-protection trap warning**: a GPO that denies write access to removable or fixed drives not protected by BitLocker and requires them to belong to the organisation, while no organisation identifier is set anywhere in the domain, is flagged prominently — such a drive stays read-only even after it is encrypted. windeploy's own "Write only to BitLocker sticks" setting never creates that combination (it sets the cross-organisation value to 0).
 - The GPO inventory records the link order of each GPO within its container (same directory read, no extra access), used only for the precedence hint above.
 
+### Fixed
+
+- **Screen lock during TeamViewer sessions**: the preset list of the setting "Lock also when these programs keep the screen on" now includes `TeamViewer_Desktop.exe` next to `TeamViewer.exe`. On a controlled computer the display request that keeps the screen awake during a remote session is held by the session process (`TeamViewer_Desktop.exe`), not by the main client, so a profile with only the old preset did not lock the computer while a TeamViewer session was idle. Existing profiles are not changed; the new name only affects the preset offered for a new profile. (Verified on a reference computer with Windows 11 25H2: `powercfg /requestsoverride PROCESS <name>` without a request type clears the override, so removing a name takes effect; the "allow display required policy" power value is written under `Software\Policies\Microsoft\Power\PowerSettings` and reaches the computer with the GPO.)
+
 ## 0.5.0 — 2026-10-16
 
 ### Added
