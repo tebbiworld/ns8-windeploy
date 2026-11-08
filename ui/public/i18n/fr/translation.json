@@ -524,6 +524,11 @@
             "desc": "Définit la méthode de chiffrement et fait enregistrer par BitLocker la clé de récupération dans Active Directory avant de chiffrer un lecteur. Ne chiffre pas de lui-même.",
             "caution": "S'applique aux lecteurs chiffrés à partir de maintenant ; un lecteur déjà chiffré garde sa méthode."
         },
+        "usb_bitlocker_recovery": {
+            "title": "BitLocker : clés de récupération pour les lecteurs USB",
+            "desc": "Fait enregistrer par BitLocker la clé de récupération d'un lecteur amovible (clé USB) dans Active Directory, la partie que le paramètre BitLocker ci-dessus laisse de côté pour les lecteurs USB. Ne chiffre pas de lui-même.",
+            "caution": "La clé doit d'abord parvenir à Active Directory : un lecteur USB ne peut pas être chiffré tant que l'ordinateur n'a pas de connexion à un contrôleur de domaine (télétravail sans VPN)."
+        },
         "time_source_domain": {
             "title": "Heure du domaine",
             "desc": "Les ordinateurs prennent l'heure uniquement auprès des contrôleurs de domaine, toutes les heures."
