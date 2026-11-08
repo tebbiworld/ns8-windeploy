@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0 — unreleased
+
+### Added
+
+- **GPO inventory — values also set by windeploy**: on the "GPO inventory" page a foreign GPO now lists the registry values it sets that a windeploy policy sets as well, each marked a *duplicate* (same value) or a *conflict* (different value). For each one a hint read from the GPO links says which GPO wins where both apply (an enforced link beats a plain one; otherwise the link closer to the computer wins; on the same container the link order decides). The client's Resultant Set of Policy is the final word, so the hint is marked as such and left unresolved when the links do not decide.
+- **GPO inventory — BitLocker write-protection trap warning**: a GPO that denies write access to removable or fixed drives not protected by BitLocker and requires them to belong to the organisation, while no organisation identifier is set anywhere in the domain, is flagged prominently — such a drive stays read-only even after it is encrypted. windeploy's own "Write only to BitLocker sticks" setting never creates that combination (it sets the cross-organisation value to 0).
+- The GPO inventory records the link order of each GPO within its container (same directory read, no extra access), used only for the precedence hint above.
+
 ## 0.5.0 — 2026-10-16
 
 ### Added
