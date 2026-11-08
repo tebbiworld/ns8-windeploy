@@ -219,10 +219,11 @@ class DisplayRequests(unittest.TestCase):
     def test_teamviewer_default_covers_the_session_process(self):
         # the controlled computer holds the display request during a
         # TeamViewer session in TeamViewer_Desktop.exe, not TeamViewer.exe,
-        # so both have to be in the default list for the lock to apply
-        processes = policygen.CATALOG["display_request_overrides"]["params"]["processes"]["default"]
-        self.assertIn("TeamViewer.exe", processes)
-        self.assertIn("TeamViewer_Desktop.exe", processes)
+        # so the default profile has to override both for the lock to apply;
+        # check the name reaches the powercfg command, not just the catalog
+        text = self.script(self.overrides())
+        self.assertIn("& powercfg.exe /requestsoverride PROCESS 'TeamViewer.exe' DISPLAY | Out-Null", text)
+        self.assertIn("& powercfg.exe /requestsoverride PROCESS 'TeamViewer_Desktop.exe' DISPLAY | Out-Null", text)
 
     def test_names_are_allowlisted(self):
         bad = ["a b.exe", "x.exe'; Remove-Item C:\\ -Recurse #.exe", "..\\evil.exe", "evil", "evil.exe\n",
