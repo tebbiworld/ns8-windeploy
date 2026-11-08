@@ -524,6 +524,11 @@
             "desc": "Legt das Verschlüsselungsverfahren fest und lässt BitLocker den Wiederherstellungsschlüssel im Active Directory speichern, bevor ein Laufwerk verschlüsselt wird. Verschlüsselt nicht von selbst.",
             "caution": "Gilt für Laufwerke, die ab jetzt verschlüsselt werden; ein verschlüsseltes Laufwerk behält sein Verfahren."
         },
+        "usb_bitlocker_recovery": {
+            "title": "BitLocker: Wiederherstellungsschlüssel für USB-Laufwerke",
+            "desc": "Lässt BitLocker den Wiederherstellungsschlüssel eines Wechseldatenträgers (USB-Stick) im Active Directory speichern – den Teil, den die BitLocker-Einstellung darüber für USB-Laufwerke auslässt. Verschlüsselt nicht von selbst.",
+            "caution": "Der Schlüssel muss zuerst ins Active Directory gelangen: Ein USB-Laufwerk lässt sich nicht verschlüsseln, solange der Rechner keine Verbindung zu einem Domänencontroller hat (Home-Office ohne VPN)."
+        },
         "time_source_domain": {
             "title": "Zeit aus der Domäne",
             "desc": "Die Rechner beziehen die Zeit nur von den Domänencontrollern, stündlich."

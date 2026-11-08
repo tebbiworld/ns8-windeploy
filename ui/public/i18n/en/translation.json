@@ -524,6 +524,11 @@
             "desc": "Sets the encryption method and makes BitLocker store the recovery key in Active Directory before a drive is encrypted. It does not encrypt by itself.",
             "caution": "Applies to drives encrypted from now on; an encrypted drive keeps its method."
         },
+        "usb_bitlocker_recovery": {
+            "title": "BitLocker: recovery keys for USB drives",
+            "desc": "Makes BitLocker store the recovery key of a removable drive (USB stick) in Active Directory, the part the BitLocker setting above leaves out for USB drives. It does not encrypt by itself.",
+            "caution": "The key has to reach Active Directory first: a USB drive cannot be encrypted while the computer has no connection to a domain controller (home office without VPN)."
+        },
         "time_source_domain": {
             "title": "Time from the domain",
             "desc": "Computers take the time from the domain controllers only, hourly."

@@ -524,6 +524,11 @@
             "desc": "Imposta il metodo di crittografia e fa salvare a BitLocker la chiave di ripristino in Active Directory prima di crittografare un'unità. Non crittografa da solo.",
             "caution": "Vale per le unità crittografate da ora in poi; un'unità già crittografata mantiene il suo metodo."
         },
+        "usb_bitlocker_recovery": {
+            "title": "BitLocker: chiavi di ripristino per le unità USB",
+            "desc": "Fa salvare a BitLocker la chiave di ripristino di un'unità rimovibile (chiavetta USB) in Active Directory, la parte che l'impostazione BitLocker qui sopra tralascia per le unità USB. Non crittografa da solo.",
+            "caution": "La chiave deve prima arrivare in Active Directory: un'unità USB non può essere crittografata finché il computer non ha una connessione a un controller di dominio (telelavoro senza VPN)."
+        },
         "time_source_domain": {
             "title": "Ora dal dominio",
             "desc": "I computer prendono l'ora solo dai controller di dominio, ogni ora."
