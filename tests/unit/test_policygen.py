@@ -84,8 +84,9 @@ class RegistryPol(unittest.TestCase):
         # The recovery of removable (USB) drives, the RDV* half that
         # bitlocker_policy leaves out. Expected numbers from
         # VolumeEncryption.admx (same enumeration as the OS*/FDV* values),
-        # semantics per Microsoft Learn "Configure BitLocker". Reconfirmed
-        # on a client against the installed .admx / samba-tool gpo show.
+        # semantics per Microsoft Learn "Configure BitLocker". This test only
+        # pins the catalog values; the numbers are still to be reconfirmed
+        # before release against the installed .admx / samba-tool gpo show.
         data = policygen.build_registry_pol(policygen.check_settings({"usb_bitlocker_recovery": ON}))
         entries = dict(((key, name), value) for key, name, _rtype, value
                        in policygen.parse_registry_pol(data))

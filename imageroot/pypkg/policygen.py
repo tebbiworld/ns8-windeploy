@@ -227,8 +227,9 @@ CATALOG = {
         #   RDVRequireActiveDirectoryBackup=1  do not turn on BitLocker until the
         #                                  backup to AD DS has succeeded -> a drive
         #                                  cannot be encrypted without a reachable DC
-        # The exact numbers are reconfirmed on a client against the installed
-        # VolumeEncryption.admx and samba-tool gpo show (see tests).
+        # The exact numbers still need to be reconfirmed before release on a
+        # client against the installed VolumeEncryption.admx and
+        # samba-tool gpo show; the unit test only pins these catalog values.
         "group": "media",
         "reg": [(FVE, "RDVRecovery", REG_DWORD, 1),
                 (FVE, "RDVManageDRA", REG_DWORD, 1),
