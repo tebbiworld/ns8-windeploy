@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0 — unreleased
+
+### Added
+
+- **Policy option "BitLocker: recovery keys for USB drives"** (group "Removable media and BitLocker"): makes BitLocker store the recovery key of a removable (USB) drive in Active Directory — the removable-drive counterpart of the existing "BitLocker: recovery keys into the directory" setting, which covered only operating-system and fixed drives, so until now the directory held no recovery key for a USB stick. It requires the 48-digit recovery password, backs up the password and the key package to AD DS, and does not let a drive be encrypted until that backup has succeeded; a USB drive therefore cannot be encrypted while the computer has no connection to a domain controller (a caution in the UI says so). It is a new, separate setting and does not change the existing "Write only to BitLocker sticks" option, so profiles keep their behaviour after the update. Registry values are written under `Software\Policies\Microsoft\FVE` (the `RDV*` values), taken from `VolumeEncryption.admx` and Microsoft's "Configure BitLocker" documentation.
+
 ## 0.5.0 — 2026-10-16
 
 ### Added
