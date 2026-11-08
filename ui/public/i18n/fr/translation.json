@@ -524,6 +524,11 @@
             "desc": "Définit la méthode de chiffrement et fait enregistrer par BitLocker la clé de récupération dans Active Directory avant de chiffrer un lecteur. Ne chiffre pas de lui-même.",
             "caution": "S'applique aux lecteurs chiffrés à partir de maintenant ; un lecteur déjà chiffré garde sa méthode."
         },
+        "usb_bitlocker_recovery": {
+            "title": "BitLocker : clés de récupération pour les lecteurs USB",
+            "desc": "Fait enregistrer par BitLocker la clé de récupération d'un lecteur amovible (clé USB) dans Active Directory, la partie que le paramètre BitLocker ci-dessus laisse de côté pour les lecteurs USB. Ne chiffre pas de lui-même.",
+            "caution": "La clé doit d'abord parvenir à Active Directory : un lecteur USB ne peut pas être chiffré tant que l'ordinateur n'a pas de connexion à un contrôleur de domaine (télétravail sans VPN)."
+        },
         "time_source_domain": {
             "title": "Heure du domaine",
             "desc": "Les ordinateurs prennent l'heure uniquement auprès des contrôleurs de domaine, toutes les heures."
@@ -806,7 +811,24 @@
         "effect_removed": "Supprimé par Windows",
         "effect_removed_help": "Valeurs de stratégie et préférences avec « Supprimer cet élément lorsqu'il n'est plus appliqué » : Windows les reprend dès que le GPO ne s'applique plus.",
         "effect_none": "Sans effet durable",
-        "effect_none_help": "Entrées avec l'action « Supprimer » : elles ne laissent rien à reprendre."
+        "effect_none_help": "Entrées avec l'action « Supprimer » : elles ne laissent rien à reprendre.",
+        "bitlocker_trap": "Piège de protection en écriture BitLocker pour les lecteurs {drive} : les lecteurs chiffrés restent en lecture seule",
+        "drive_removable": "amovibles",
+        "drive_fixed": "fixes",
+        "trap_title": "Piège de protection en écriture BitLocker",
+        "trap_desc": "Cette GPO refuse l'accès en écriture aux lecteurs {drive} non protégés par BitLocker et exige qu'ils appartiennent à votre organisation, mais aucun identifiant d'organisation n'est défini. Un lecteur {drive} reste alors en lecture seule même après son chiffrement. Retirez la valeur inter-organisation de cette GPO, ou définissez un identifiant d'organisation (« Fournir les identifiants uniques de votre organisation »).",
+        "short_conflict": "{n} conflit | {n} conflits",
+        "conflicts_title": "Également défini par windeploy",
+        "conflicts_help": "Valeurs que cette GPO et une stratégie windeploy définissent toutes les deux. Le jeu de stratégie résultant sur le client décide de la valeur appliquée ; l'indication ci-dessous est lue uniquement dans les liaisons de GPO.",
+        "conflict_conflict": "valeur différente",
+        "conflict_duplicate": "même valeur",
+        "foreign_value": "cette GPO : {value}",
+        "wins_windeploy": "windeploy l'emporte là où les deux s'appliquent",
+        "wins_windeploy_enforced": "windeploy l'emporte (forcé)",
+        "wins_foreign": "cette GPO l'emporte là où les deux s'appliquent",
+        "wins_foreign_enforced": "cette GPO l'emporte (forcée)",
+        "wins_unresolved": "l'ordre des liens décide sur le client",
+        "wins_separate": "les deux sont liées à des emplacements différents"
     },
     "retire": {
         "button": "Mettre hors service",

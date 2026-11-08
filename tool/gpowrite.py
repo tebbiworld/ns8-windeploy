@@ -891,7 +891,7 @@ class Session:
         """Every GPO of the domain, read only (page "GPO inventory"):
         {gpos: [{guid, display_name, version, flags, machine_extensions,
         user_extensions, created, changed, wmi_filter, links: [{dn, enforced,
-        disabled}], readable, truncated, files: [{path, size}], contents:
+        disabled, order}], readable, truncated, files: [{path, size}], contents:
         {path: base64}}], dcs: [{name, reachable, missing_gpos}],
         domain_ips}. The analysis is the module's job (pypkg/gpoinventory.py)."""
         base = f"CN=Policies,CN=System,{self.domain_dn}"
@@ -910,12 +910,19 @@ class Session:
             except ldb.LdbError:
                 continue
             for m in found:
-                for entry in re.findall(r"\[LDAP://([^;\]]*);(\d+)\]", str(m["gPLink"][0])):
+                # gPLink is ordered; the entry closest to the end of the list
+                # has the highest precedence on this container ([MS-GPOL]
+                # 3.2.5.1.5, confirmed in Samba libgpo add_gplink_to_gpo_list).
+                # "order" is that position, so a larger order wins among the
+                # links of one container.
+                entries = re.findall(r"\[LDAP://([^;\]]*);(\d+)\]", str(m["gPLink"][0]))
+                for order, entry in enumerate(entries):
                     g = GUID_IN_DN_RE.search(entry[0])
                     if g:
                         opts = int(entry[1])
                         links.setdefault(g.group(0).upper(), []).append(
-                            {"dn": str(m.dn), "disabled": bool(opts & 1), "enforced": bool(opts & 2)})
+                            {"dn": str(m.dn), "disabled": bool(opts & 1), "enforced": bool(opts & 2),
+                             "order": order})
         total = 0
         gpos = []
         for m in sorted(res, key=lambda m: _attr(m, "displayName", "").lower()):

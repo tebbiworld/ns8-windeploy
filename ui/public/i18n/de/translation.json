@@ -524,6 +524,11 @@
             "desc": "Legt das Verschlüsselungsverfahren fest und lässt BitLocker den Wiederherstellungsschlüssel im Active Directory speichern, bevor ein Laufwerk verschlüsselt wird. Verschlüsselt nicht von selbst.",
             "caution": "Gilt für Laufwerke, die ab jetzt verschlüsselt werden; ein verschlüsseltes Laufwerk behält sein Verfahren."
         },
+        "usb_bitlocker_recovery": {
+            "title": "BitLocker: Wiederherstellungsschlüssel für USB-Laufwerke",
+            "desc": "Lässt BitLocker den Wiederherstellungsschlüssel eines Wechseldatenträgers (USB-Stick) im Active Directory speichern – den Teil, den die BitLocker-Einstellung darüber für USB-Laufwerke auslässt. Verschlüsselt nicht von selbst.",
+            "caution": "Der Schlüssel muss zuerst ins Active Directory gelangen: Ein USB-Laufwerk lässt sich nicht verschlüsseln, solange der Rechner keine Verbindung zu einem Domänencontroller hat (Home-Office ohne VPN)."
+        },
         "time_source_domain": {
             "title": "Zeit aus der Domäne",
             "desc": "Die Rechner beziehen die Zeit nur von den Domänencontrollern, stündlich."
@@ -806,7 +811,24 @@
         "effect_removed": "Entfernt Windows selbst",
         "effect_removed_help": "Richtlinienwerte und Preferences mit „Element entfernen, wenn es nicht mehr angewendet wird“: Windows nimmt sie zurück, sobald die GPO nicht mehr gilt.",
         "effect_none": "Ohne bleibende Wirkung",
-        "effect_none_help": "Einträge mit der Aktion „Löschen“: Sie hinterlassen nichts, das zurückzunehmen wäre."
+        "effect_none_help": "Einträge mit der Aktion „Löschen“: Sie hinterlassen nichts, das zurückzunehmen wäre.",
+        "bitlocker_trap": "BitLocker-Schreibschutzfalle für {drive}: verschlüsselte Laufwerke bleiben schreibgeschützt",
+        "drive_removable": "Wechseldatenträger",
+        "drive_fixed": "feste Datenträger",
+        "trap_title": "BitLocker-Schreibschutzfalle",
+        "trap_desc": "Diese GPO verweigert den Schreibzugriff auf {drive} ohne BitLocker-Schutz und verlangt, dass sie zur eigenen Organisation gehören, aber nirgends ist eine Organisations-ID gesetzt. Ein solches Laufwerk bleibt dann auch nach dem Verschlüsseln schreibgeschützt. Entfernen Sie den organisationsübergreifenden Wert aus dieser GPO oder setzen Sie eine Organisations-ID (\"Eindeutige Bezeichner für Ihre Organisation angeben\").",
+        "short_conflict": "{n} Konflikt | {n} Konflikte",
+        "conflicts_title": "Auch von windeploy gesetzt",
+        "conflicts_help": "Werte, die diese GPO und eine windeploy-Richtlinie beide setzen. Welcher Wert gilt, entscheidet der resultierende Richtliniensatz auf dem Client; der Hinweis unten ist nur aus den GPO-Verknüpfungen gelesen.",
+        "conflict_conflict": "anderer Wert",
+        "conflict_duplicate": "gleicher Wert",
+        "foreign_value": "diese GPO: {value}",
+        "wins_windeploy": "windeploy gewinnt, wo beide gelten",
+        "wins_windeploy_enforced": "windeploy gewinnt (erzwungen)",
+        "wins_foreign": "diese GPO gewinnt, wo beide gelten",
+        "wins_foreign_enforced": "diese GPO gewinnt (erzwungen)",
+        "wins_unresolved": "die Verknüpfungsreihenfolge entscheidet auf dem Client",
+        "wins_separate": "beide sind an unterschiedlichen Stellen verknüpft"
     },
     "retire": {
         "button": "Stilllegen",

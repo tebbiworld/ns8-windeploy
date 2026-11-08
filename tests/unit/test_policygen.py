@@ -80,6 +80,51 @@ class RegistryPol(unittest.TestCase):
         self.assertEqual(policygen.parse_registry_pol(data),
                          [("System\\CurrentControlSet\\Control\\Lsa", "**del.LmCompatibilityLevel", 1, " ")])
 
+    def test_usb_bitlocker_recovery_rdv_values(self):
+        # The recovery of removable (USB) drives, the RDV* half that
+        # bitlocker_policy leaves out. Expected numbers from
+        # VolumeEncryption.admx (same enumeration as the OS*/FDV* values),
+        # semantics per Microsoft Learn "Configure BitLocker". This test only
+        # pins the catalog values; the numbers are still to be reconfirmed
+        # before release against the installed .admx / samba-tool gpo show.
+        data = policygen.build_registry_pol(policygen.check_settings({"usb_bitlocker_recovery": ON}))
+        entries = dict(((key, name), value) for key, name, _rtype, value
+                       in policygen.parse_registry_pol(data))
+        expected = {
+            "RDVRecovery": 1,                     # policy configured
+            "RDVManageDRA": 1,                    # allow certificate data recovery agent
+            "RDVRecoveryPassword": 1,             # require the 48-digit recovery password
+            "RDVRecoveryKey": 0,                  # do not allow a 256-bit recovery key
+            "RDVHideRecoveryPage": 0,             # keep recovery options in the wizard
+            "RDVActiveDirectoryBackup": 1,        # save recovery information to AD DS
+            "RDVActiveDirectoryInfoToStore": 1,   # recovery password AND key package
+            "RDVRequireActiveDirectoryBackup": 1, # no BitLocker until the AD DS backup worked
+        }
+        for name, value in expected.items():
+            self.assertEqual(entries.get((policygen.FVE, name)), value, name)
+        # all under the FVE policy key, so Windows drops them with the GPO;
+        # the setting needs no reset state
+        self.assertFalse(policygen.is_tattoo("usb_bitlocker_recovery"))
+        self.assertEqual(policygen.CATALOG["usb_bitlocker_recovery"]["group"], "media")
+
+    def test_usb_bitlocker_recovery_is_separate_from_write(self):
+        # It must not change usb_bitlocker_write, so existing profiles keep
+        # their behaviour after the update (e.g. production windeploy1).
+        write = policygen.build_registry_pol(policygen.check_settings({"usb_bitlocker_write": ON}))
+        write_values = {(name, value) for _key, name, _rtype, value in policygen.parse_registry_pol(write)}
+        self.assertEqual(write_values, {("RDVDenyWriteAccess", 1), ("RDVDenyCrossOrg", 0)})
+
+    def test_usb_bitlocker_write_never_sets_the_write_protection_trap(self):
+        # A USB stick stays read-only after encryption when a GPO sets
+        # RDVDenyCrossOrg=1 together with RDVDenyWriteAccess=1 without an
+        # identification field. windeploy's own setting must never produce
+        # that combination: it writes RDVDenyCrossOrg=0. (Foreign GPOs that
+        # do set the trap are flagged by the GPO inventory, not here.)
+        write = policygen.build_registry_pol(policygen.check_settings({"usb_bitlocker_write": ON}))
+        values = {name: value for _key, name, _rtype, value in policygen.parse_registry_pol(write)}
+        self.assertEqual(values.get("RDVDenyWriteAccess"), 1)
+        self.assertEqual(values.get("RDVDenyCrossOrg"), 0)
+
 
 class SecurityTemplate(unittest.TestCase):
     def test_rights(self):

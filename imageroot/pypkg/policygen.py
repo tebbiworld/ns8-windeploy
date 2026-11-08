@@ -211,6 +211,45 @@ CATALOG = {
                 (FVE, "FDVRequireActiveDirectoryBackup", REG_DWORD, 1)],
         "risk": 2,
     },
+    "usb_bitlocker_recovery": {
+        # "Choose how BitLocker-protected removable drives can be
+        # recovered" (Computer Configuration > Administrative Templates >
+        # Windows Components > BitLocker Drive Encryption > Removable Data
+        # Drives). It makes BitLocker store the recovery key of a USB drive
+        # in Active Directory. bitlocker_policy covers OS and fixed drives
+        # (OS*/FDV*) but not removable drives (RDV*); this setting adds the
+        # RDV* half, so a USB stick's recovery key lands in AD.
+        #
+        # Value names and their numbers come from VolumeEncryption.admx (the
+        # RDV elements share the enumeration of the OS*/FDV* elements already
+        # used above). Semantics per Microsoft Learn "BitLocker Group Policy
+        # settings" / "Configure BitLocker"
+        # (learn.microsoft.com/windows/security/operating-system-security/
+        #  data-protection/bitlocker/configure, ms.date 2025-07-29):
+        #   RDVRecovery=1                  the policy is configured (enabled)
+        #   RDVManageDRA=1                 allow a certificate data recovery agent
+        #   RDVRecoveryPassword=1          require the 48-digit recovery password
+        #   RDVRecoveryKey=0               do not allow a 256-bit recovery key
+        #   RDVHideRecoveryPage=0          keep the recovery options in the wizard
+        #   RDVActiveDirectoryBackup=1     save recovery information to AD DS
+        #   RDVActiveDirectoryInfoToStore=1  back up recovery password AND key package
+        #   RDVRequireActiveDirectoryBackup=1  do not turn on BitLocker until the
+        #                                  backup to AD DS has succeeded -> a drive
+        #                                  cannot be encrypted without a reachable DC
+        # The exact numbers still need to be reconfirmed before release on a
+        # client against the installed VolumeEncryption.admx and
+        # samba-tool gpo show; the unit test only pins these catalog values.
+        "group": "media",
+        "reg": [(FVE, "RDVRecovery", REG_DWORD, 1),
+                (FVE, "RDVManageDRA", REG_DWORD, 1),
+                (FVE, "RDVRecoveryPassword", REG_DWORD, 1),
+                (FVE, "RDVRecoveryKey", REG_DWORD, 0),
+                (FVE, "RDVHideRecoveryPage", REG_DWORD, 0),
+                (FVE, "RDVActiveDirectoryBackup", REG_DWORD, 1),
+                (FVE, "RDVActiveDirectoryInfoToStore", REG_DWORD, 1),
+                (FVE, "RDVRequireActiveDirectoryBackup", REG_DWORD, 1)],
+        "risk": 2,
+    },
     "time_source_domain": {
         "group": "time",
         "reg": [("Software\\Policies\\Microsoft\\W32Time\\Parameters", "Type", REG_SZ, "NT5DS"),
